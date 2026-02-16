@@ -1,0 +1,125 @@
+# CCRS — CI: lint and test on push and pull requests
+# Runs for default branch, develop, and PRs. Add apps/web (Next.js) and apps/api (backend) to run their lint/test.
+
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  lint-and-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install root dependencies
+        run: npm ci
+        continue-on-error: true
+
+      - name: Lint (root)
+        run: npm run lint --if-present
+        continue-on-error: true
+
+      - name: Test (root)
+        run: npm run test --if-present
+        continue-on-error: true
+
+  # Frontend (Next.js) — runs when apps/web exists
+  frontend:
+    name: Frontend (Next.js)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: apps/web/package-lock.json
+        continue-on-error: true
+
+      - name: Check for frontend app
+        id: has-frontend
+        working-directory: .
+        run: test -f apps/web/package.json && echo "exists=true" >> $GITHUB_OUTPUT || echo "exists=false" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies
+        if: steps.has-frontend.outputs.exists == 'true'
+        run: npm ci
+
+      - name: Lint
+        if: steps.has-frontend.outputs.exists == 'true'
+        run: npm run lint --if-present
+
+      - name: Test
+        if: steps.has-frontend.outputs.exists == 'true'
+        run: npm run test --if-present
+
+      - name: Build (no deploy)
+        if: steps.has-frontend.outputs.exists == 'true'
+        run: npm run build --if-present
+        env:
+          SKIP_ENV_VALIDATION: "1"
+
+  # Backend (API) — runs when apps/api exists
+  backend:
+    name: Backend (API)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: apps/api/package-lock.json
+        continue-on-error: true
+
+      - name: Check for backend app
+        id: has-backend
+        working-directory: .
+        run: test -f apps/api/package.json && echo "exists=true" >> $GITHUB_OUTPUT || echo "exists=false" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies
+        if: steps.has-backend.outputs.exists == 'true'
+        run: npm ci
+
+      - name: Lint
+        if: steps.has-backend.outputs.exists == 'true'
+        run: npm run lint --if-present
+
+      - name: Test
+        if: steps.has-backend.outputs.exists == 'true'
+        run: npm run test --if-present
+
+      - name: Build (no deploy)
+        if: steps.has-backend.outputs.exists == 'true'
+        run: npm run build --if-present

@@ -1,0 +1,20 @@
+{
+  "name": "ccrs-repo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Contract & Merchant Agreement Repository System (CCRS)",
+  "scripts": {
+    "lint": "echo 'No lint configured at root; add apps/web and apps/api for per-app lint.'",
+    "test": "echo 'No tests configured at root; add apps/web and apps/api for per-app tests.'"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gregdigittal/agreement_automation.git"
+  },
+  "keywords": ["ccrs", "contracts", "merchant-agreements"],
+  "author": "Digittal Group",
+  "license": "UNLICENSED"
+}
