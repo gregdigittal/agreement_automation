@@ -1,11 +1,11 @@
 # CCRS — Backlog and Build Plan
 
 **Contract & Merchant Agreement Repository System**  
-**Version:** 1.0 (Board Edition — Render/Vercel)  
-**Date:** 2026-02-16  
-**Source:** CCRS Requirements v3 Board Edition 2
+**Version:** 1.1 (Board Edition — Render/Vercel)  
+**Date:** 2026-02-17  
+**Source:** CCRS Requirements v3 Board Edition 4
 
-This document provides a **backlog** and **build plan** for CCRS, adapted for **backend on Render**, **frontend on Vercel**, **Supabase** for application data, and recommended **object storage** options. It is suitable for Jira/ADO import and sprint planning.
+This document provides a **backlog** and **build plan** for CCRS, adapted for **backend on Render**, **frontend on Vercel**, **Supabase** for application data, and recommended **object storage** options. It incorporates the **hybrid AI architecture** from Board Edition 4: **Claude Opus 4.6 Agent SDK** for complex agentic tasks and **Anthropic Messages API** for high-throughput calls. Suitable for Jira/ADO import and sprint planning.
 
 ---
 
@@ -77,25 +77,43 @@ External: Entra ID, Boldsign (webhooks → Render), SharePoint, TiTo (API → Re
 
 ---
 
-## 2. Adapted Technology Stack
+## 2. Hybrid AI Architecture (Board Edition 4)
+
+CCRS uses a **hybrid AI architecture** as specified in Board Edition 4:
+
+| Use case | Approach | Technology |
+|----------|----------|------------|
+| **Complex, multi-step tasks** | Autonomous AI agents that read documents, query internal data, compare against templates, and iterate until complete | **Claude Opus 4.6 Agent SDK** (or equivalent Claude Agent SDK). Agents have access to org structure, authority matrix, and WikiContracts via **MCP (Model Context Protocol) tool integrations**. |
+| **Simple, high-throughput tasks** | Direct LLM API calls for speed and cost efficiency | **Anthropic Messages API** (summaries, language detection, classification, quick extractions). |
+
+**Agent use cases:** Full contract review, risk scoring, template deviation detection, obligation extraction, bulk ingestion of complex contracts (multi-step extraction and self-correction), and LLM-assisted workflow generation (agent queries org/authority/templates via MCP and validates workflow JSON).
+
+**Cost and safety:** Per-agent budget limits, token/cost logging per contract, and fallback to direct API if agent processing exceeds cost or time thresholds (see Epic 3).
+
+*Note: Board Edition 4 also refactors the backend to Python (FastAPI); this build plan retains the current NestJS/Render setup. A future migration to FastAPI can be scheduled separately if the board adopts the full stack change.*
+
+---
+
+## 3. Adapted Technology Stack
 
 | Area | Choice | Notes |
 |------|--------|--------|
 | **Frontend** | Next.js 14+ (App Router), React, TypeScript | Vercel-native; Shadcn UI + Tailwind |
-| **Backend** | Node.js (NestJS) or .NET 8 (ASP.NET Core) | REST API on Render; webhooks for Boldsign |
+| **Backend** | Node.js (NestJS) or .NET 8 (ASP.NET Core) | REST API on Render; webhooks for Boldsign. (Spec: Python/FastAPI optional future migration.) |
 | **Auth** | Microsoft Entra ID (OIDC) | Roles via groups/claims; optional Supabase Auth as proxy |
 | **Database** | Supabase (PostgreSQL) | Metadata, workflow, authority, audit |
 | **Object storage** | Supabase Storage (default) or Cloudflare R2 / S3 | Documents and executed copies |
 | **Search** | Supabase full-text (pg) or Meilisearch/Typesense on Render | &lt; 2 s search NFR |
 | **Cache** | Render Redis or Upstash (serverless) | Counterparty lookups, TiTo validation |
-| **AI** | OpenAI API (or Azure OpenAI) | Summarization, extraction, risk scoring, workflow draft |
+| **AI (complex / agentic)** | **Claude Opus 4.6 Agent SDK** | Full contract review, risk scoring, template deviation, obligation extraction, workflow draft generation. Agents use **MCP tools** to query org structure, authority matrix, WikiContracts. |
+| **AI (high-throughput)** | **Anthropic Messages API** | Quick summaries, language detection, classification, low-latency extraction. Fallback when agent budget/time exceeded. |
 | **Document generation** | docx-templates / Carbone | Merchant Agreement and amendments |
-| **Workflow/async** | Render background workers + queue (e.g. BullMQ + Redis) or Render cron | Replace Azure Durable Functions |
-| **Observability** | Render metrics + structured logs; Sentry; optional Axiom/Datadog | APM, health checks, alerting |
+| **Workflow/async** | Render background workers + queue (e.g. BullMQ + Redis) or Render cron | Agent jobs and async pipelines |
+| **Observability** | Render metrics + structured logs; Sentry; optional Axiom/Datadog | APM, health checks, alerting; **agent token/cost logging** |
 
 ---
 
-## 3. Non-Functional Requirements (Summary)
+## 4. Non-Functional Requirements (Summary)
 
 | Category | Requirement |
 |----------|-------------|
@@ -112,7 +130,7 @@ External: Entra ID, Boldsign (webhooks → Render), SharePoint, TiTo (API → Re
 
 ---
 
-## 4. Backlog (Epics and User Stories)
+## 5. Backlog (Epics and User Stories)
 
 The backlog is organized by epic with user stories and acceptance criteria. Refine during discovery and import into Jira/ADO as needed.
 
@@ -136,7 +154,7 @@ The backlog is organized by epic with user stories and acceptance criteria. Refi
 | 2.1 | As a user, I can upload a contract and store it in the correct region/entity/project and counterparty hierarchy. | Upload supports PDF/DOCX. Classification fields are mandatory. Contract is stored with an immutable ID and audit entry. |
 | 2.2 | As a user, I can search and filter contracts by metadata and full-text. | Search supports keyword and filters (region/entity/project/type/status). Typical search returns in under 2 seconds. Results show key metadata and status. |
 
-**Implementation notes:** Store files in Supabase Storage (or R2/S3); metadata and versioning in Supabase PostgreSQL. Full-text via Postgres or dedicated search service on Render.
+**Implementation notes:** Store files in Supabase Storage (or R2/S3); metadata and versioning in Supabase PostgreSQL. Full-text via Postgres or dedicated search service on Render. **Bulk upload (Board Edition 4):** Complex contracts are processed by autonomous AI agents (Claude Agent SDK) capable of multi-step extraction, classification, and self-correction; pipeline remains async with retries and review queue.
 
 ---
 
@@ -144,12 +162,13 @@ The backlog is organized by epic with user stories and acceptance criteria. Refi
 
 | ID | User Story | Acceptance Criteria |
 |----|------------|---------------------|
-| 3.1 | As a user, I can view an AI-generated summary and extracted key fields for a contract. | Summary includes purpose, parties, duration. Extracted fields include dates/renewal/breach/jurisdiction. Each extracted field includes evidence and confidence. |
+| 3.1 | As a user, I can view an AI-generated summary and extracted key fields for a contract. | Summary includes purpose, parties, duration. Extracted fields include dates/renewal/breach/jurisdiction. Each extracted field includes evidence and confidence. **Complex contracts:** Processed by an autonomous AI agent (Claude Agent SDK) that reads the document, extracts fields, compares against templates, and iterates until extraction is complete. **Simple summary requests:** Use direct Anthropic Messages API calls for low-latency responses. |
 | 3.2 | As a Legal user, I can verify and correct extracted key dates and terms. | Critical fields can be marked "verified". Corrections are audited. Downstream reminders use the verified values. |
-| 3.3 | As a Legal user, I can view risk scores and template deviations for a contract. | Each contract displays an overall risk classification (high/medium/low). Deviations from standard WikiContracts templates are flagged with clause reference and deviation summary. Risk scores recalculated when AI extraction is re-run or verified data changes. |
+| 3.3 | As a Legal user, I can view risk scores and template deviations for a contract. | Each contract displays an overall risk classification (high/medium/low). Deviations from standard WikiContracts templates are flagged with clause reference and deviation summary. Risk scores recalculated when AI extraction is re-run or verified data changes. **The AI agent accesses the WikiContracts template library via MCP tools to perform clause-level comparison.** |
 | 3.4 | As a user, I can view extracted obligations in a structured obligations register. | Ongoing obligations (reporting, SLA, insurance, deliverables) are extracted and listed separately from key dates. Each obligation includes evidence, confidence, and a responsible party field for manual assignment. Obligations can be exported and filtered by type, status, and due date. |
+| 3.5 | As the system, AI agent processing costs are tracked and controlled per contract. | Per-agent budget limits are enforced to prevent runaway costs on complex documents. Token usage and cost per contract are logged and available in reporting dashboards. Fallback to direct Anthropic Messages API calls if agent processing exceeds cost or time thresholds. |
 
-**Implementation notes:** Async jobs on Render (queue + worker); call OpenAI (or Azure OpenAI); store results and evidence in Supabase; run after upload or on-demand.
+**Implementation notes:** **Hybrid AI (Board Edition 4):** Complex tasks (full review, risk scoring, template deviation, obligation extraction) use Claude Opus 4.6 Agent SDK with MCP tools (WikiContracts, org data). Simple tasks use Anthropic Messages API. Async jobs on Render (queue + worker); store results and evidence in Supabase; run after upload or on-demand. Implement MCP server/tools for org structure, authority matrix, and WikiContracts so agents can query them.
 
 ---
 
@@ -177,9 +196,9 @@ The backlog is organized by epic with user stories and acceptance criteria. Refi
 
 | ID | User Story | Acceptance Criteria |
 |----|------------|---------------------|
-| 6.1 | As an Admin, I can describe a workflow in natural language and receive a draft workflow template. | System produces structured draft workflow linked to region/entity/project. Draft includes at least one approval stage and one signing stage where applicable. Admin can edit and must explicitly publish. |
+| 6.1 | As an Admin, I can describe a workflow in natural language and receive a draft workflow template. | **An AI agent** receives the natural language description and **autonomously queries the org structure, authority matrix, and existing workflow templates via MCP tools**. System produces structured draft workflow linked to region/entity/project. Draft includes at least one approval stage and one signing stage where applicable. Admin can edit and must explicitly publish. **The agent validates the generated workflow JSON against the system schema and self-corrects before presenting the draft.** |
 
-**Implementation notes:** Backend calls LLM with schema; return JSON draft; visual builder loads draft; publish only after explicit Admin action.
+**Implementation notes:** Use **Claude Agent SDK** with MCP tool integrations that expose org structure, authority matrix, and workflow templates. Agent returns JSON draft; visual builder loads draft; publish only after explicit Admin action. Agent validates workflow against schema and iterates if validation fails.
 
 ---
 
@@ -303,7 +322,7 @@ The backlog is organized by epic with user stories and acceptance criteria. Refi
 
 ---
 
-## 5. Build Plan — Delivery Phases
+## 6. Build Plan — Delivery Phases
 
 The build plan is organized by **phase** and **epic**. Each phase can start once its predecessor is substantially complete. Dependencies are respected (e.g. Epic 2 before Epic 3; Epic 4/5 before Epic 9/10).
 
@@ -367,8 +386,10 @@ The build plan is organized by **phase** and **epic**. Each phase can start once
 | 16 | Escalation Engine |
 
 **Key outcomes:**  
+- **Hybrid AI:** Claude Opus 4.6 Agent SDK for complex contract review, risk scoring, template deviation, obligation extraction; Anthropic Messages API for simple/high-throughput tasks. **MCP tool integrations** for org structure, authority matrix, WikiContracts.  
 - AI summary, key fields, key dates, risk scoring, template deviation, obligations register; verification and audit.  
-- LLM-generated workflow draft; Admin edit and explicit publish.  
+- **Agent cost control:** Per-agent budget limits, token/cost logging per contract, fallback to direct API.  
+- **LLM workflow generator:** Agent-driven draft via MCP (org, authority, templates); workflow JSON validation and self-correction; Admin edit and explicit publish.  
 - Configurable reminders (email/Teams); dashboards (Commercial vs Merchant, drill-down, export).  
 - Multiple language versions and bilingual handling in AI.  
 - Escalation rules, SLA breach escalation, and executive escalation dashboard.
@@ -383,23 +404,25 @@ As per the board spec: vendor self-service portal, advanced clause negotiation, 
 
 ---
 
-## 6. Dependency Overview
+## 7. Dependency Overview
 
 - **Epics 1, 2, 7, 8** are foundational for all workflows and reporting.  
 - **Epics 4, 5** (workflow engine and visual builder) are required before **Epics 9, 10, 15**.  
 - **Epic 2** (repository and search) is required before **Epic 3** (AI runs on stored documents).  
-- **Epic 6** (LLM workflow generator) can be developed in Phase 1c and consumes the same workflow model as Epics 4 and 5.
+- **Epic 6** (LLM workflow generator) can be developed in Phase 1c and consumes the same workflow model as Epics 4 and 5; it requires **MCP tool integrations** for org structure, authority matrix, and workflow templates (Claude Agent SDK).
+- **Epic 3** (AI Contract Intelligence) requires **MCP tools** for WikiContracts (template comparison) and hybrid routing (agent vs. direct Messages API); agent cost controls and logging are part of Epic 3.
 
 ---
 
-## 7. Next Steps
+## 8. Next Steps
 
-1. **Discovery:** Refine user stories and acceptance criteria; confirm Entra ID and Boldsign integration details; agree on Supabase vs R2/S3 for object storage at launch.  
+1. **Discovery:** Refine user stories and acceptance criteria; confirm Entra ID and Boldsign integration details; agree on Supabase vs R2/S3 for object storage at launch; define MCP tool surface for org, authority, WikiContracts.  
 2. **Repos and CI/CD:** Create frontend (Vercel) and backend (Render) repos; configure Vercel and Render deployments and env vars.  
 3. **Supabase:** Provision project; design schema (contracts, workflow, counterparty, org, audit); configure storage buckets and RLS.  
 4. **Phase 1a kick-off:** Start with Epic 1 (Entra ID, secrets) and Epic 2 (upload, store, search) in parallel where possible.  
-5. **Import backlog:** Load this document (or an exported CSV) into Jira/ADO; map epics to initiatives and stories to tickets.
+5. **Phase 1c (AI):** Implement MCP server/tools for CCRS (org structure, authority matrix, WikiContracts); integrate Claude Opus 4.6 Agent SDK for complex tasks and Anthropic Messages API for simple tasks; add agent budget and cost logging.  
+6. **Import backlog:** Load this document (or an exported CSV) into Jira/ADO; map epics to initiatives and stories to tickets.
 
 ---
 
-*Document generated from CCRS Requirements v3 Board Edition 2 and adapted for Render, Vercel, Supabase, and recommended object storage.*
+*Document generated from CCRS Requirements v3 Board Edition 4 and adapted for Render, Vercel, Supabase, and recommended object storage. Includes hybrid AI architecture (Claude Opus 4.6 Agent SDK + Anthropic Messages API) and MCP tool integrations.*
