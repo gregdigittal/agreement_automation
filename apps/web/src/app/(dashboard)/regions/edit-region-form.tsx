@@ -17,11 +17,15 @@ export function EditRegionForm({ id }: { id: string }) {
 
   useEffect(() => {
     fetch(`/api/ccrs/regions/${id}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`${r.status}`);
+        return r.json();
+      })
       .then((data) => {
         setName(data.name ?? '');
         setCode(data.code ?? '');
       })
+      .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -41,6 +45,8 @@ export function EditRegionForm({ id }: { id: string }) {
       }
       router.push('/regions');
       router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Request failed');
     } finally {
       setSubmitting(false);
     }

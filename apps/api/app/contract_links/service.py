@@ -94,5 +94,5 @@ def list_linked(supabase: Client, parent_id: UUID) -> dict:
     for link in links:
         child = _get_contract(supabase, UUID(link["child_contract_id"]))
         if child:
-            result[link["link_type"]].append(child)
+            result.setdefault(link["link_type"], []).append(child)
     return result

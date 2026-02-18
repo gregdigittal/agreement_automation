@@ -48,7 +48,9 @@ async def merchant_tito_validate(
     x_api_key: str | None = Header(None, alias="X-API-Key"),
     supabase: Client = Depends(get_supabase),
 ):
-    if settings.tito_api_key and x_api_key != settings.tito_api_key:
+    if not settings.tito_api_key:
+        raise HTTPException(status_code=503, detail="TiTo API key not configured")
+    if x_api_key != settings.tito_api_key:
         raise HTTPException(status_code=401, detail="Invalid API key")
     return await tito_validate(
         supabase,

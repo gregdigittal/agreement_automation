@@ -2,38 +2,51 @@ import NextAuth from 'next-auth';
 import MicrosoftEntraID from 'next-auth/providers/microsoft-entra-id';
 import CredentialsProvider from 'next-auth/providers/credentials';
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
-  providers: [
-    ...(process.env.AZURE_AD_CLIENT_ID && process.env.AZURE_AD_CLIENT_SECRET
-      ? [
-          MicrosoftEntraID({
-            clientId: process.env.AZURE_AD_CLIENT_ID,
-            clientSecret: process.env.AZURE_AD_CLIENT_SECRET,
-          }),
-        ]
-      : []),
+const providers = [];
+if (process.env.AZURE_AD_CLIENT_ID && process.env.AZURE_AD_CLIENT_SECRET) {
+  providers.push(
+    MicrosoftEntraID({
+      clientId: process.env.AZURE_AD_CLIENT_ID,
+      clientSecret: process.env.AZURE_AD_CLIENT_SECRET,
+      issuer: process.env.AZURE_AD_ISSUER,
+    })
+  );
+}
+if (process.env.NODE_ENV === 'development') {
+  providers.push(
     CredentialsProvider({
-      name: 'Dev',
-      credentials: { email: { label: 'Email', type: 'email' }, password: { label: 'Password', type: 'password' } },
+      name: 'Credentials',
+      credentials: { email: { label: 'Email', type: 'email' } },
       async authorize(credentials) {
         if (!credentials?.email) return null;
-        return { id: 'dev-1', email: credentials.email as string, name: credentials.email as string };
+        const email = credentials.email as string;
+        return {
+          id: `dev-${email.split('@')[0]}`,
+          email,
+          name: email,
+        };
       },
-    }),
-  ],
+    })
+  );
+}
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  providers,
   callbacks: {
     async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
-        token.email = user.email ?? (user as { email?: string }).email;
+        if (user.email) token.email = user.email;
       }
       if (account?.access_token) token.accessToken = account.access_token;
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as { id?: string }).id = token.id as string;
-        (session as { accessToken?: string }).accessToken = token.accessToken as string;
+        const userId = token.id ?? token.sub;
+        session.user.id = typeof userId === 'string' ? userId : '';
+        const accessToken = token.accessToken;
+        if (typeof accessToken === 'string') session.accessToken = accessToken;
       }
       return session;
     },

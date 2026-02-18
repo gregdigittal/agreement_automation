@@ -34,16 +34,31 @@ export default function MerchantAgreementsPage() {
   const [counterpartyId, setCounterpartyId] = useState('');
   const [regionTerms, setRegionTerms] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/ccrs/wiki-contracts?status=published')
-      .then((r) => r.json())
-      .then(setTemplates)
-      .catch(() => undefined);
-    fetch('/api/ccrs/regions?limit=500').then((r) => r.json()).then(setRegions).catch(() => undefined);
-    fetch('/api/ccrs/entities?limit=500').then((r) => r.json()).then(setEntities).catch(() => undefined);
-    fetch('/api/ccrs/projects?limit=500').then((r) => r.json()).then(setProjects).catch(() => undefined);
-    fetch('/api/ccrs/counterparties?limit=500').then((r) => r.json()).then(setCounterparties).catch(() => undefined);
+    const fetchJson = async (url: string) => {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`${res.status}`);
+      return res.json();
+    };
+    setLoading(true);
+    Promise.all([
+      fetchJson('/api/ccrs/wiki-contracts?status=published'),
+      fetchJson('/api/ccrs/regions?limit=500'),
+      fetchJson('/api/ccrs/entities?limit=500'),
+      fetchJson('/api/ccrs/projects?limit=500'),
+      fetchJson('/api/ccrs/counterparties?limit=500'),
+    ])
+      .then(([templatesData, regionsData, entitiesData, projectsData, counterpartiesData]) => {
+        setTemplates(templatesData);
+        setRegions(regionsData);
+        setEntities(entitiesData);
+        setProjects(projectsData);
+        setCounterparties(counterpartiesData);
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
   }, []);
 
   async function submit(e: React.FormEvent) {
@@ -74,6 +89,7 @@ export default function MerchantAgreementsPage() {
   return (
     <div className="space-y-4 max-w-2xl">
       <h1 className="text-2xl font-bold">Generate Merchant Agreement</h1>
+      {loading && <p className="text-sm text-muted-foreground">Loading options…</p>}
       <form onSubmit={submit} className="space-y-4">
         <div className="space-y-2">
           <Label>Template</Label>

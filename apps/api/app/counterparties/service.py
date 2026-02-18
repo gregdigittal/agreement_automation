@@ -24,6 +24,7 @@ async def create(
             "registration_number": body.registration_number,
             "address": body.address,
             "jurisdiction": body.jurisdiction,
+            "preferred_language": body.preferred_language,
         })
         .execute()
     )
@@ -182,6 +183,15 @@ async def delete(
     id: UUID,
     actor: CurrentUser | None,
 ) -> bool:
+    contracts = (
+        supabase.table("contracts")
+        .select("id")
+        .eq("counterparty_id", str(id))
+        .limit(1)
+        .execute()
+    )
+    if contracts.data:
+        raise ValueError("Cannot delete counterparty: it has associated contracts")
     r = supabase.table("counterparties").delete().eq("id", str(id)).execute()
     deleted = bool(r.data)
     if deleted:

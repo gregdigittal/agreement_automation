@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 
+import logging
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,7 +41,9 @@ structlog.configure(
         if settings.log_level == "debug"
         else structlog.processors.JSONRenderer(),
     ],
-    wrapper_class=structlog.make_filtering_bound_logger(settings.log_level.upper()),
+    wrapper_class=structlog.make_filtering_bound_logger(
+        logging.getLevelName(settings.log_level.upper())
+    ),
 )
 
 

@@ -196,10 +196,10 @@ export function ContractDetail({ contract }: ContractDetailProps) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        date_type: keyDateType,
-        date_value: keyDateValue,
+        dateType: keyDateType,
+        dateValue: keyDateValue,
         description: keyDateDescription || undefined,
-        reminder_days: keyDateReminders
+        reminderDays: keyDateReminders
           ? keyDateReminders.split(',').map((v) => Number(v.trim())).filter((v) => !Number.isNaN(v))
           : undefined,
       }),
@@ -237,10 +237,10 @@ export function ContractDetail({ contract }: ContractDetailProps) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         keyDateId: reminderKeyDateId || undefined,
-        reminder_type: reminderType,
-        lead_days: Number(reminderLeadDays),
+        reminderType,
+        leadDays: Number(reminderLeadDays),
         channel: reminderChannel,
-        recipient_email: reminderRecipient || undefined,
+        recipientEmail: reminderRecipient || undefined,
       }),
     });
     if (!res.ok) {
@@ -258,7 +258,7 @@ export function ContractDetail({ contract }: ContractDetailProps) {
     const res = await fetch(`/api/ccrs/reminders/${reminder.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_active: !reminder.is_active }),
+      body: JSON.stringify({ isActive: !reminder.is_active }),
     });
     if (res.ok) {
       const updated = await fetch(`/api/ccrs/contracts/${contract.id}/reminders`).then((r) => (r.ok ? r.json() : []));
@@ -290,7 +290,11 @@ export function ContractDetail({ contract }: ContractDetailProps) {
   }
 
   async function verifyField(fieldId: string) {
-    await fetch(`/api/ccrs/ai-fields/${fieldId}/verify`, { method: 'POST' });
+    await fetch(`/api/ccrs/ai-fields/${fieldId}/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isVerified: true }),
+    });
     await loadAnalysis();
   }
 
@@ -298,7 +302,7 @@ export function ContractDetail({ contract }: ContractDetailProps) {
     await fetch(`/api/ccrs/ai-fields/${fieldId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ field_value: value }),
+      body: JSON.stringify({ fieldValue: value }),
     });
     setEditingFieldId(null);
     setEditingFieldValue('');

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,7 @@ export default function AuditPage() {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
 
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -34,10 +35,7 @@ export default function AuditPage() {
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const totalCount = entries.length;
-  const pagedEntries = useMemo(() => entries.slice(offset, offset + PAGE_SIZE), [entries, offset]);
-
-  function buildParams() {
+  function buildParams(currentOffset = offset, limit = PAGE_SIZE) {
     const params = new URLSearchParams();
     if (fromDate) params.set('from', new Date(`${fromDate}T00:00:00Z`).toISOString());
     if (toDate) params.set('to', new Date(`${toDate}T23:59:59Z`).toISOString());
@@ -49,7 +47,8 @@ export default function AuditPage() {
       params.set('actorId', actorId);
       params.set('actor_id', actorId);
     }
-    params.set('limit', '10000');
+    params.set('limit', String(limit));
+    params.set('offset', String(currentOffset));
     return params;
   }
 
@@ -62,16 +61,18 @@ export default function AuditPage() {
     });
   }
 
-  async function loadAudit() {
+  async function loadAudit(nextOffset = 0) {
     setLoading(true);
     setError(null);
     try {
-      const params = buildParams();
+      const params = buildParams(nextOffset);
       const res = await fetch(`/api/ccrs/audit/export?${params.toString()}`);
       if (!res.ok) throw new Error(`${res.status}`);
       const data = (await res.json()) as AuditEntry[];
+      const countHeader = res.headers.get('X-Total-Count');
       setEntries(data);
-      setOffset(0);
+      setTotalCount(countHeader ? Number(countHeader) : 0);
+      setOffset(nextOffset);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -80,7 +81,7 @@ export default function AuditPage() {
   }
 
   async function exportJson() {
-    const params = buildParams();
+    const params = buildParams(0, 10_000);
     const res = await fetch(`/api/ccrs/audit/export?${params.toString()}`);
     if (!res.ok) {
       setError(`${res.status}`);
@@ -100,7 +101,7 @@ export default function AuditPage() {
   }, []);
 
   const start = totalCount === 0 ? 0 : offset + 1;
-  const end = Math.min(offset + PAGE_SIZE, totalCount);
+  const end = Math.min(offset + entries.length, totalCount);
 
   return (
     <div className="space-y-6">
@@ -131,7 +132,7 @@ export default function AuditPage() {
             <Input id="actorId" value={actorId} onChange={(e) => setActorId(e.target.value)} placeholder="user id" />
           </div>
           <div className="md:col-span-4 flex items-center gap-2">
-            <Button onClick={loadAudit} disabled={loading}>{loading ? 'Loading…' : 'Apply filters'}</Button>
+            <Button onClick={() => loadAudit(0)} disabled={loading}>{loading ? 'Loading…' : 'Apply filters'}</Button>
             {error && <p className="text-sm text-destructive">Error: {error}</p>}
           </div>
         </CardContent>
@@ -150,14 +151,14 @@ export default function AuditPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {pagedEntries.length === 0 ? (
+          {entries.length === 0 ? (
             <TableRow>
               <TableCell colSpan={7} className="text-sm text-muted-foreground">
                 No audit entries found.
               </TableCell>
             </TableRow>
           ) : (
-            pagedEntries.map((entry) => (
+            entries.map((entry) => (
               <TableRow key={entry.id}>
                 <TableCell>{new Date(entry.at).toLocaleString()}</TableCell>
                 <TableCell>{entry.action}</TableCell>
@@ -186,14 +187,19 @@ export default function AuditPage() {
           Showing {start}-{end} of {totalCount}
         </p>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={offset === 0}
+            onClick={() => loadAudit(Math.max(0, offset - PAGE_SIZE))}
+          >
             Previous
           </Button>
           <Button
             variant="outline"
             size="sm"
             disabled={offset + PAGE_SIZE >= totalCount}
-            onClick={() => setOffset(offset + PAGE_SIZE)}
+            onClick={() => loadAudit(offset + PAGE_SIZE)}
           >
             Next
           </Button>

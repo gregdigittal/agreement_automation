@@ -17,7 +17,13 @@ export function CreateProjectForm() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/ccrs/entities').then((r) => r.json()).then(setEntities);
+    fetch('/api/ccrs/entities')
+      .then((r) => {
+        if (!r.ok) throw new Error(`${r.status}`);
+        return r.json();
+      })
+      .then(setEntities)
+      .catch((e) => setError(e.message));
   }, []);
 
   async function submit(e: React.FormEvent) {
@@ -34,6 +40,8 @@ export function CreateProjectForm() {
       if (!res.ok) { setError(await res.text()); return; }
       router.push('/projects');
       router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Request failed');
     } finally {
       setSubmitting(false);
     }

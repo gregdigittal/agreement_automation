@@ -6,7 +6,7 @@ def _mock_anthropic(monkeypatch, payloads):
         def __init__(self):
             self.calls = 0
 
-        def create(self, **_kwargs):
+        async def create(self, **_kwargs):
             payload = payloads[min(self.calls, len(payloads) - 1)]
             self.calls += 1
             return type(
@@ -23,7 +23,7 @@ def _mock_anthropic(monkeypatch, payloads):
         def __init__(self, **_kwargs):
             self.messages = MockMessages()
 
-    monkeypatch.setattr("anthropic.Anthropic", MockAnthropic)
+    monkeypatch.setattr("anthropic.AsyncAnthropic", MockAnthropic)
 
 
 def test_generate_workflow_valid(authed_client, monkeypatch):

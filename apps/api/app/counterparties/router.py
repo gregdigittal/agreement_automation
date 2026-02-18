@@ -130,6 +130,8 @@ async def counterparty_delete(
         return {"ok": True}
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         err = str(e).lower()
         if "foreign key" in err or "violates" in err:

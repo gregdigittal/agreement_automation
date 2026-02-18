@@ -28,6 +28,8 @@ export default function ReportsPage() {
   const [entityId, setEntityId] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [contractStatus, setContractStatus] = useState<any>(null);
   const [expiryHorizon, setExpiryHorizon] = useState<any>(null);
@@ -35,23 +37,52 @@ export default function ReportsPage() {
   const [aiCosts, setAiCosts] = useState<any>(null);
 
   useEffect(() => {
-    fetch('/api/ccrs/regions').then((r) => (r.ok ? r.json() : [])).then(setRegions).catch(() => undefined);
-    fetch('/api/ccrs/entities').then((r) => (r.ok ? r.json() : [])).then(setEntities).catch(() => undefined);
+    Promise.all([
+      fetch('/api/ccrs/regions').then((r) => {
+        if (!r.ok) throw new Error(`${r.status}`);
+        return r.json();
+      }),
+      fetch('/api/ccrs/entities').then((r) => {
+        if (!r.ok) throw new Error(`${r.status}`);
+        return r.json();
+      }),
+    ])
+      .then(([regionsData, entitiesData]) => {
+        setRegions(regionsData);
+        setEntities(entitiesData);
+      })
+      .catch((e) => setError(e.message));
   }, []);
 
   useEffect(() => {
     const params = new URLSearchParams();
     if (regionId) params.set('region_id', regionId);
     if (entityId) params.set('entity_id', entityId);
-    fetch(`/api/ccrs/reports/contract-status?${params.toString()}`).then((r) => (r.ok ? r.json() : null)).then(setContractStatus);
-    fetch(`/api/ccrs/reports/expiry-horizon?${regionId ? `region_id=${regionId}` : ''}`).then((r) => (r.ok ? r.json() : null)).then(setExpiryHorizon);
-    fetch('/api/ccrs/reports/signing-status').then((r) => (r.ok ? r.json() : null)).then(setSigningStatus);
-
+    const fetchJson = async (url: string) => {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`${res.status}`);
+      return res.json();
+    };
     let periodDays = 30;
     if (fromDate && toDate) {
       periodDays = Math.max(1, differenceInDays(new Date(toDate), new Date(fromDate)));
     }
-    fetch(`/api/ccrs/reports/ai-costs?period_days=${periodDays}`).then((r) => (r.ok ? r.json() : null)).then(setAiCosts);
+    setLoading(true);
+    setError(null);
+    Promise.all([
+      fetchJson(`/api/ccrs/reports/contract-status?${params.toString()}`),
+      fetchJson(`/api/ccrs/reports/expiry-horizon?${regionId ? `region_id=${regionId}` : ''}`),
+      fetchJson('/api/ccrs/reports/signing-status'),
+      fetchJson(`/api/ccrs/reports/ai-costs?period_days=${periodDays}`),
+    ])
+      .then(([statusData, horizonData, signingData, costsData]) => {
+        setContractStatus(statusData);
+        setExpiryHorizon(horizonData);
+        setSigningStatus(signingData);
+        setAiCosts(costsData);
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
   }, [regionId, entityId, fromDate, toDate]);
 
   const stateData = useMemo(() => {
@@ -96,6 +127,8 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-4">
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      {loading && <p className="text-sm text-muted-foreground">Loading reports…</p>}
       <Card>
         <CardHeader>
           <CardTitle>Reports</CardTitle>
@@ -149,7 +182,6 @@ export default function ReportsPage() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => downloadText('contract-status.csv', JSON.stringify(contractStatus, null, 2))}>Export CSV</Button>
-            <Button variant="outline" size="sm" onClick={() => downloadText('contract-status.pdf', JSON.stringify(contractStatus, null, 2), 'application/pdf')}>Export PDF</Button>
           </div>
         </CardContent>
       </Card>
@@ -172,7 +204,6 @@ export default function ReportsPage() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => downloadText('expiry-horizon.csv', JSON.stringify(expiryHorizon, null, 2))}>Export CSV</Button>
-            <Button variant="outline" size="sm" onClick={() => downloadText('expiry-horizon.pdf', JSON.stringify(expiryHorizon, null, 2), 'application/pdf')}>Export PDF</Button>
           </div>
         </CardContent>
       </Card>
@@ -194,7 +225,6 @@ export default function ReportsPage() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => downloadText('signing-status.csv', JSON.stringify(signingStatus, null, 2))}>Export CSV</Button>
-            <Button variant="outline" size="sm" onClick={() => downloadText('signing-status.pdf', JSON.stringify(signingStatus, null, 2), 'application/pdf')}>Export PDF</Button>
           </div>
         </CardContent>
       </Card>
@@ -217,7 +247,6 @@ export default function ReportsPage() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => downloadText('ai-costs.csv', JSON.stringify(aiCosts, null, 2))}>Export CSV</Button>
-            <Button variant="outline" size="sm" onClick={() => downloadText('ai-costs.pdf', JSON.stringify(aiCosts, null, 2), 'application/pdf')}>Export PDF</Button>
           </div>
         </CardContent>
       </Card>

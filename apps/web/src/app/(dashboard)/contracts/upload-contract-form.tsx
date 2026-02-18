@@ -28,17 +28,41 @@ export function UploadContractForm() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/ccrs/regions').then((r) => r.json()).then(setRegions);
-    fetch('/api/ccrs/counterparties').then((r) => r.json()).then(setCounterparties);
+    fetch('/api/ccrs/regions')
+      .then((r) => {
+        if (!r.ok) throw new Error(`${r.status}`);
+        return r.json();
+      })
+      .then(setRegions)
+      .catch((e) => setError(e.message));
+    fetch('/api/ccrs/counterparties')
+      .then((r) => {
+        if (!r.ok) throw new Error(`${r.status}`);
+        return r.json();
+      })
+      .then(setCounterparties)
+      .catch((e) => setError(e.message));
   }, []);
   useEffect(() => {
     if (!regionId) { setEntities([]); setEntityId(''); return; }
-    fetch(`/api/ccrs/entities?regionId=${regionId}`).then((r) => r.json()).then(setEntities);
+    fetch(`/api/ccrs/entities?regionId=${regionId}`)
+      .then((r) => {
+        if (!r.ok) throw new Error(`${r.status}`);
+        return r.json();
+      })
+      .then(setEntities)
+      .catch((e) => setError(e.message));
     setEntityId('');
   }, [regionId]);
   useEffect(() => {
     if (!entityId) { setProjects([]); setProjectId(''); return; }
-    fetch(`/api/ccrs/projects?entityId=${entityId}`).then((r) => r.json()).then(setProjects);
+    fetch(`/api/ccrs/projects?entityId=${entityId}`)
+      .then((r) => {
+        if (!r.ok) throw new Error(`${r.status}`);
+        return r.json();
+      })
+      .then(setProjects)
+      .catch((e) => setError(e.message));
     setProjectId('');
   }, [entityId]);
 
@@ -63,6 +87,8 @@ export function UploadContractForm() {
       if (!res.ok) { setError(await res.text()); return; }
       router.push('/contracts');
       router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Request failed');
     } finally {
       setSubmitting(false);
     }

@@ -64,11 +64,11 @@ export function CounterpartyDetailPage({ id }: { id: string }) {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          legal_name: legalName,
-          registration_number: registrationNumber || undefined,
+          legalName,
+          registrationNumber: registrationNumber || undefined,
           address: address || undefined,
           jurisdiction: jurisdiction || undefined,
-          preferred_language: preferredLanguage || undefined,
+          preferredLanguage: preferredLanguage || undefined,
         }),
       });
       if (!res.ok) {
@@ -99,7 +99,7 @@ export function CounterpartyDetailPage({ id }: { id: string }) {
         body: JSON.stringify({
           status: newStatus,
           reason: statusReason,
-          supporting_document_ref: supportingDocumentRef || undefined,
+          supportingDocumentRef: supportingDocumentRef || undefined,
         }),
       });
       if (!res.ok) {
@@ -128,7 +128,7 @@ export function CounterpartyDetailPage({ id }: { id: string }) {
         name: contactName,
         email: contactEmail || undefined,
         role: contactRole || undefined,
-        is_signer: contactSigner,
+        isSigner: contactSigner,
       }),
     });
     if (!res.ok) {

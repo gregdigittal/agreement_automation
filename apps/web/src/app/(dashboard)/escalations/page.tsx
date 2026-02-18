@@ -19,15 +19,20 @@ interface EscalationEvent {
 export default function EscalationsPage() {
   const [events, setEvents] = useState<EscalationEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   async function loadEscalations() {
     setError(null);
-    const res = await fetch('/api/ccrs/escalations/active');
-    if (!res.ok) {
-      setError(await res.text());
-      return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/ccrs/escalations/active');
+      if (!res.ok) throw new Error(`${res.status}`);
+      setEvents(await res.json());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Request failed');
+    } finally {
+      setLoading(false);
     }
-    setEvents(await res.json());
   }
 
   useEffect(() => {
@@ -68,6 +73,7 @@ export default function EscalationsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {error && <p className="text-sm text-destructive">{error}</p>}
+          {loading && <p className="text-sm text-muted-foreground">Loading escalations…</p>}
           <Table>
             <TableHeader>
               <TableRow>

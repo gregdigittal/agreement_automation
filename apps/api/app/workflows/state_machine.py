@@ -54,7 +54,11 @@ def get_next_stage(stages: list[WorkflowStage], current: str, action: str) -> st
     if action == "approve":
         return stage.allowed_transitions[0] if stage.allowed_transitions else None
     if action in ("reject", "rework"):
-        return stage.allowed_transitions[0] if stage.allowed_transitions else None
+        stage_names = [s.name for s in stages]
+        current_idx = stage_names.index(current) if current in stage_names else 0
+        if current_idx > 0:
+            return stage_names[current_idx - 1]
+        return current
     return None
 
 

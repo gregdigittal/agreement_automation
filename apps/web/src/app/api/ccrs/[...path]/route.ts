@@ -31,10 +31,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (authResult instanceof NextResponse) return authResult;
   const path = (await params).path.join('/');
   const qs = new URL(request.url).searchParams.toString();
-  const res = await fetch(`${API_BASE}/${path}${qs ? `?${qs}` : ''}`, {
-    headers: { Authorization: `Bearer ${authResult.token}` },
-  });
-  return forwardResponse(res);
+  try {
+    const res = await fetch(`${API_BASE}/${path}${qs ? `?${qs}` : ''}`, {
+      headers: { Authorization: `Bearer ${authResult.token}` },
+    });
+    return forwardResponse(res);
+  } catch {
+    return NextResponse.json({ error: 'API service unavailable' }, { status: 502 });
+  }
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
@@ -48,8 +52,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const ct = request.headers.get('content-type');
     if (ct) headers['Content-Type'] = ct;
   }
-  const res = await fetch(`${API_BASE}/${path}`, { method: 'POST', body: body as BodyInit, headers });
-  return forwardResponse(res);
+  try {
+    const res = await fetch(`${API_BASE}/${path}`, { method: 'POST', body: body as BodyInit, headers });
+    return forwardResponse(res);
+  } catch {
+    return NextResponse.json({ error: 'API service unavailable' }, { status: 502 });
+  }
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
@@ -57,24 +65,32 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (authResult instanceof NextResponse) return authResult;
   const path = (await params).path.join('/');
   const body = await request.text();
-  const res = await fetch(`${API_BASE}/${path}`, {
-    method: 'PATCH',
-    body: body || undefined,
-    headers: {
-      'Content-Type': request.headers.get('Content-Type') ?? 'application/json',
-      Authorization: `Bearer ${authResult.token}`,
-    },
-  });
-  return forwardResponse(res);
+  try {
+    const res = await fetch(`${API_BASE}/${path}`, {
+      method: 'PATCH',
+      body: body || undefined,
+      headers: {
+        'Content-Type': request.headers.get('Content-Type') ?? 'application/json',
+        Authorization: `Bearer ${authResult.token}`,
+      },
+    });
+    return forwardResponse(res);
+  } catch {
+    return NextResponse.json({ error: 'API service unavailable' }, { status: 502 });
+  }
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   const authResult = await authenticate(request);
   if (authResult instanceof NextResponse) return authResult;
   const path = (await params).path.join('/');
-  const res = await fetch(`${API_BASE}/${path}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${authResult.token}` },
-  });
-  return forwardResponse(res);
+  try {
+    const res = await fetch(`${API_BASE}/${path}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${authResult.token}` },
+    });
+    return forwardResponse(res);
+  } catch {
+    return NextResponse.json({ error: 'API service unavailable' }, { status: 502 });
+  }
 }

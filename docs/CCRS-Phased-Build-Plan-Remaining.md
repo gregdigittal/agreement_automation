@@ -392,6 +392,18 @@ contract_languages          — Language tags for multi-language support
 
 ---
 
+## Deferred Items (Track Before Phase 2)
+
+These items were intentionally deferred from Phase 1c prompts and must be addressed before production:
+
+| # | Item | Reason Deferred | When to Address |
+|---|------|----------------|-----------------|
+| D1 | **RLS policies for all 20+ tables** — Row-Level Security policies to enforce tenant/role isolation at the database level | Separate security hardening pass needed; too large for a single prompt | Dedicated security sprint before production launch |
+| D2 | **SharePoint URL/version fields in Pydantic schemas** — `sharepoint_url` and `sharepoint_version` fields exist in DB but are missing from contract create/update Pydantic models | Intentional omission — SharePoint integration not yet active | When SharePoint integration is activated (Phase 1b Sprint 1b.7–8 or later) |
+| D3 | **`preferred_language` field in counterparty create/update schemas** — DB column exists but not exposed in API input schemas | Multi-language support deferred to Phase 1c Sprint 1c.10 | Phase 1c Sprint 1c.10 (Multi-Language Support) |
+
+---
+
 ## Phase 2 — Future Backlog
 
 As prioritized by the board:

@@ -164,14 +164,22 @@ async def get_extracted_fields(supabase: Client, contract_id: str) -> list[dict]
     return result.data
 
 
-async def verify_field(supabase: Client, field_id: str, actor: CurrentUser) -> dict | None:
-    result = supabase.table("ai_extracted_fields").update(
-        {
-            "is_verified": True,
-            "verified_by": actor.id,
-            "verified_at": datetime.now(timezone.utc).isoformat(),
-        }
-    ).eq("id", field_id).execute()
+async def verify_field(
+    supabase: Client, field_id: str, is_verified: bool, actor: CurrentUser
+) -> dict | None:
+    update = {"is_verified": is_verified}
+    if is_verified:
+        update.update(
+            {
+                "verified_by": actor.id,
+                "verified_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+    else:
+        update.update({"verified_by": None, "verified_at": None})
+    result = (
+        supabase.table("ai_extracted_fields").update(update).eq("id", field_id).execute()
+    )
     await audit_log(
         supabase,
         action="ai_field_verified",

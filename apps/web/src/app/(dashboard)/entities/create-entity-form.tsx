@@ -17,7 +17,13 @@ export function CreateEntityForm() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/ccrs/regions').then((r) => r.json()).then(setRegions);
+    fetch('/api/ccrs/regions')
+      .then((r) => {
+        if (!r.ok) throw new Error(`${r.status}`);
+        return r.json();
+      })
+      .then(setRegions)
+      .catch((e) => setError(e.message));
   }, []);
 
   async function submit(e: React.FormEvent) {

@@ -23,7 +23,7 @@ export default function LoginPage() {
             <Button
               className="w-full"
               variant="default"
-              onClick={() => signIn('azure-ad', { callbackUrl: '/' })}
+              onClick={() => signIn('microsoft-entra-id', { callbackUrl: '/' })}
             >
               Sign in with Microsoft
             </Button>
