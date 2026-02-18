@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { auth } from '@/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -16,7 +17,7 @@ export default async function DashboardPage() {
             <CardDescription>Org structure: regions, entities, projects</CardDescription>
           </CardHeader>
           <CardContent>
-            <a href="/regions" className="text-primary hover:underline">Manage regions →</a>
+            <Link href="/regions" className="text-primary hover:underline">Manage regions →</Link>
           </CardContent>
         </Card>
         <Card>
@@ -25,7 +26,7 @@ export default async function DashboardPage() {
             <CardDescription>External parties and duplicate check</CardDescription>
           </CardHeader>
           <CardContent>
-            <a href="/counterparties" className="text-primary hover:underline">Manage counterparties →</a>
+            <Link href="/counterparties" className="text-primary hover:underline">Manage counterparties →</Link>
           </CardContent>
         </Card>
         <Card>
@@ -34,7 +35,7 @@ export default async function DashboardPage() {
             <CardDescription>Upload, search, and repository</CardDescription>
           </CardHeader>
           <CardContent>
-            <a href="/contracts" className="text-primary hover:underline">View contracts →</a>
+            <Link href="/contracts" className="text-primary hover:underline">View contracts →</Link>
           </CardContent>
         </Card>
       </div>

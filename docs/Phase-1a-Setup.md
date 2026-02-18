@@ -19,14 +19,17 @@ Phase 1a delivers: **Foundation and infrastructure**, **core repository**, **org
 
 ```bash
 cd apps/api
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 cp .env.example .env
 # Edit .env: set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, JWT_SECRET
-npm install
-npm run start:dev
+uvicorn app.main:app --reload --port 4000
 ```
 
 - API runs at **http://localhost:4000**
-- Use the same `JWT_SECRET` as the web app (e.g. same as `AUTH_SECRET`) so the API can validate next-auth session tokens.
+- API docs at **http://localhost:4000/docs** (Swagger UI)
+- Use the same `JWT_SECRET` as the web app (`AUTH_SECRET`) so the API can validate next-auth session tokens.
 
 ## 3. Web (`apps/web`)
 
@@ -63,4 +66,4 @@ npm run dev
 
 From repo root:
 
-- `npm run test` and `npm run lint` in `apps/api` and `apps/web` run in GitHub Actions on push/PR (see `.github/workflows/ci.yml`).
+- Backend: `pytest tests/` in `apps/api`. Frontend: `npm run test` and `npm run lint` in `apps/web`. Both run in GitHub Actions on push/PR (see `.github/workflows/ci.yml`).

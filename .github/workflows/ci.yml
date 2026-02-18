@@ -32,15 +32,12 @@ jobs:
 
       - name: Install root dependencies
         run: npm ci
-        continue-on-error: true
 
       - name: Lint (root)
         run: npm run lint --if-present
-        continue-on-error: true
 
       - name: Test (root)
         run: npm run test --if-present
-        continue-on-error: true
 
   # Frontend (Next.js) — runs when apps/web exists
   frontend:
@@ -59,7 +56,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
           cache-dependency-path: apps/web/package-lock.json
-        continue-on-error: true
 
       - name: Check for frontend app
         id: has-frontend
@@ -84,7 +80,7 @@ jobs:
         env:
           SKIP_ENV_VALIDATION: "1"
 
-  # Backend (API) — runs when apps/api exists
+  # Backend (API) — Python FastAPI; runs when apps/api/requirements.txt exists
   backend:
     name: Backend (API)
     runs-on: ubuntu-latest
@@ -95,31 +91,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: apps/api/package-lock.json
-        continue-on-error: true
-
       - name: Check for backend app
         id: has-backend
         working-directory: .
-        run: test -f apps/api/package.json && echo "exists=true" >> $GITHUB_OUTPUT || echo "exists=false" >> $GITHUB_OUTPUT
+        run: test -f apps/api/requirements.txt && echo "exists=true" >> $GITHUB_OUTPUT || echo "exists=false" >> $GITHUB_OUTPUT
+
+      - name: Setup Python
+        if: steps.has-backend.outputs.exists == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: apps/api/requirements.txt
 
       - name: Install dependencies
         if: steps.has-backend.outputs.exists == 'true'
-        run: npm ci
-
-      - name: Lint
-        if: steps.has-backend.outputs.exists == 'true'
-        run: npm run lint --if-present
+        run: pip install -r requirements.txt
 
       - name: Test
         if: steps.has-backend.outputs.exists == 'true'
-        run: npm run test --if-present
-
-      - name: Build (no deploy)
-        if: steps.has-backend.outputs.exists == 'true'
-        run: npm run build --if-present
+        run: pytest tests/ -v
+        env:
+          SUPABASE_URL: https://test.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: test-key
+          JWT_SECRET: test-secret

@@ -5,11 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-
-interface Entity {
-  id: string;
-  name: string;
-}
+import type { Entity } from '@/lib/types';
 
 export function CreateProjectForm() {
   const router = useRouter();

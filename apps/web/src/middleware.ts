@@ -6,6 +6,9 @@ export default auth((req) => {
   if (!isLoggedIn && !isLogin) {
     return Response.redirect(new URL('/login', req.nextUrl));
   }
+  if (isLoggedIn && isLogin) {
+    return Response.redirect(new URL('/', req.nextUrl));
+  }
   return undefined;
 });
 

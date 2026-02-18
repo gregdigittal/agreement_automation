@@ -20,7 +20,10 @@ The service was created via MCP with the env var **keys** below. Replace the pla
 | `SUPABASE_SERVICE_ROLE_KEY` | *(secret)* | From Supabase: Project Settings → API → `service_role` (secret) |
 | `JWT_SECRET` | *(you generate this)* | **Not from Supabase.** A shared secret (32+ chars) you create. Use the **same** value as `AUTH_SECRET` on Vercel so the API can validate next-auth session tokens. Generate with: `openssl rand -base64 32` |
 | `CORS_ORIGIN` | `https://YOUR_VERCEL_APP.vercel.app` | Your Vercel app URL(s), comma-separated if multiple |
-| `NODE_VERSION` | `20` | Already set |
+| `PYTHON_VERSION` | `3.12` | For Python/FastAPI build |
+
+**Build command (Render):** `pip install -r requirements.txt`  
+**Start command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 
 Optional (for production Entra ID):
 

@@ -1,0 +1,107 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+
+interface EscalationEvent {
+  id: string;
+  contract_id: string;
+  stage_name: string;
+  tier: number;
+  escalated_at: string;
+  contracts?: { id: string; title: string | null };
+  workflow_instances?: { id: string; current_stage: string | null };
+}
+
+export default function EscalationsPage() {
+  const [events, setEvents] = useState<EscalationEvent[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  async function loadEscalations() {
+    setError(null);
+    const res = await fetch('/api/ccrs/escalations/active');
+    if (!res.ok) {
+      setError(await res.text());
+      return;
+    }
+    setEvents(await res.json());
+  }
+
+  useEffect(() => {
+    void loadEscalations();
+    const timer = setInterval(() => {
+      void loadEscalations();
+    }, 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  async function resolveEscalation(id: string) {
+    const res = await fetch(`/api/ccrs/escalations/${id}/resolve`, { method: 'POST' });
+    if (res.ok) {
+      setEvents((prev) => prev.filter((e) => e.id !== id));
+    }
+  }
+
+  const rows = useMemo(() => {
+    const now = Date.now();
+    return events.map((e) => {
+      const escalatedAt = new Date(e.escalated_at).getTime();
+      const hoursBreached = Math.max(0, (now - escalatedAt) / 36e5);
+      return { ...e, hoursBreached: hoursBreached.toFixed(1) };
+    });
+  }, [events]);
+
+  function tierBadge(tier: number) {
+    if (tier >= 3) return <Badge className="bg-red-500 text-white">Tier {tier}</Badge>;
+    if (tier === 2) return <Badge className="bg-orange-500 text-white">Tier 2</Badge>;
+    return <Badge className="bg-yellow-500 text-black">Tier 1</Badge>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Active Escalations</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Contract</TableHead>
+                <TableHead>Stage</TableHead>
+                <TableHead>Tier</TableHead>
+                <TableHead>Hours Breached</TableHead>
+                <TableHead>Escalated At</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-sm text-muted-foreground">No active escalations.</TableCell>
+                </TableRow>
+              ) : (
+                rows.map((e) => (
+                  <TableRow key={e.id}>
+                    <TableCell>{e.contracts?.title ?? e.contract_id}</TableCell>
+                    <TableCell>{e.stage_name}</TableCell>
+                    <TableCell>{tierBadge(e.tier)}</TableCell>
+                    <TableCell>{e.hoursBreached}h</TableCell>
+                    <TableCell>{new Date(e.escalated_at).toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Button size="sm" variant="outline" onClick={() => resolveEscalation(e.id)}>Resolve</Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

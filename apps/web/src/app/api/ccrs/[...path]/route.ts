@@ -9,60 +9,52 @@ function getBearerToken(request: NextRequest, session: { accessToken?: string } 
   return cookie?.value ?? null;
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> },
-) {
+async function forwardResponse(res: Response): Promise<NextResponse> {
+  const contentType = res.headers.get('Content-Type') ?? 'application/json';
+  const body = await res.arrayBuffer();
+  return new NextResponse(body, {
+    status: res.status,
+    headers: { 'Content-Type': contentType },
+  });
+}
+
+async function authenticate(request: NextRequest): Promise<{ token: string } | NextResponse> {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const token = getBearerToken(request, session as { accessToken?: string });
   if (!token) return NextResponse.json({ error: 'No token' }, { status: 401 });
+  return { token };
+}
+
+export async function GET(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  const authResult = await authenticate(request);
+  if (authResult instanceof NextResponse) return authResult;
   const path = (await params).path.join('/');
-  const url = new URL(request.url);
-  const qs = url.searchParams.toString();
+  const qs = new URL(request.url).searchParams.toString();
   const res = await fetch(`${API_BASE}/${path}${qs ? `?${qs}` : ''}`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${authResult.token}` },
   });
-  const data = await res.text();
-  return new NextResponse(res.ok ? data : JSON.stringify({ error: data }), {
-    status: res.status,
-    headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'application/json' },
-  });
+  return forwardResponse(res);
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> },
-) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const token = getBearerToken(request, session as { accessToken?: string });
-  if (!token) return NextResponse.json({ error: 'No token' }, { status: 401 });
+export async function POST(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  const authResult = await authenticate(request);
+  if (authResult instanceof NextResponse) return authResult;
   const path = (await params).path.join('/');
-  const body = request.headers.get('content-type')?.includes('multipart') ? await request.formData() : await request.text();
-  const res = await fetch(`${API_BASE}/${path}`, {
-    method: 'POST',
-    body: body as BodyInit,
-    headers: {
-      ...(request.headers.get('content-type') ? { 'Content-Type': request.headers.get('Content-Type')! } : {}),
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  const data = await res.text();
-  return new NextResponse(res.ok ? data : JSON.stringify({ error: data }), {
-    status: res.status,
-    headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'application/json' },
-  });
+  const isMultipart = request.headers.get('content-type')?.includes('multipart');
+  const body = isMultipart ? await request.formData() : await request.text();
+  const headers: Record<string, string> = { Authorization: `Bearer ${authResult.token}` };
+  if (!isMultipart) {
+    const ct = request.headers.get('content-type');
+    if (ct) headers['Content-Type'] = ct;
+  }
+  const res = await fetch(`${API_BASE}/${path}`, { method: 'POST', body: body as BodyInit, headers });
+  return forwardResponse(res);
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> },
-) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const token = getBearerToken(request, session as { accessToken?: string });
-  if (!token) return NextResponse.json({ error: 'No token' }, { status: 401 });
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  const authResult = await authenticate(request);
+  if (authResult instanceof NextResponse) return authResult;
   const path = (await params).path.join('/');
   const body = await request.text();
   const res = await fetch(`${API_BASE}/${path}`, {
@@ -70,32 +62,19 @@ export async function PATCH(
     body: body || undefined,
     headers: {
       'Content-Type': request.headers.get('Content-Type') ?? 'application/json',
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${authResult.token}`,
     },
   });
-  const data = await res.text();
-  return new NextResponse(res.ok ? data : JSON.stringify({ error: data }), {
-    status: res.status,
-    headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'application/json' },
-  });
+  return forwardResponse(res);
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> },
-) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const token = getBearerToken(request, session as { accessToken?: string });
-  if (!token) return NextResponse.json({ error: 'No token' }, { status: 401 });
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  const authResult = await authenticate(request);
+  if (authResult instanceof NextResponse) return authResult;
   const path = (await params).path.join('/');
   const res = await fetch(`${API_BASE}/${path}`, {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${authResult.token}` },
   });
-  const data = await res.text();
-  return new NextResponse(res.ok ? data ?? '{}' : JSON.stringify({ error: data }), {
-    status: res.status,
-    headers: { 'Content-Type': 'application/json' },
-  });
+  return forwardResponse(res);
 }
