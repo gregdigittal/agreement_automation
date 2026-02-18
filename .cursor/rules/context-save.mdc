@@ -1,0 +1,10 @@
+---
+description: Require context save after each commit
+alwaysApply: true
+---
+
+# Context Save After Commit
+
+- After every git commit, add a short "Context save (commit)" section in the response.
+- Include the commit hash and 1-3 bullets on what changed and tests run (if any).
+- If a push also happened, add a "Context save (push)" line noting the branch and range.
