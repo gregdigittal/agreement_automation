@@ -23,18 +23,12 @@ class NotificationService
 
     public function sendPending(): int
     {
-        $pending = Notification::where('status', 'pending')
-            ->where('channel', 'email')
-            ->limit(50)
-            ->get();
-
+        $pending = Notification::where('status', 'pending')->limit(50)->get();
         $sent = 0;
+
         foreach ($pending as $notification) {
             try {
-                Mail::raw($notification->body, function ($message) use ($notification) {
-                    $message->to($notification->recipient_email)
-                        ->subject($notification->subject);
-                });
+                $this->dispatchChannel($notification);
                 $notification->update(['status' => 'sent', 'sent_at' => now()]);
                 $sent++;
             } catch (\Exception $e) {
@@ -42,5 +36,26 @@ class NotificationService
             }
         }
         return $sent;
+    }
+
+    public function dispatchChannel(Notification $notification): void
+    {
+        match ($notification->channel) {
+            'teams' => $this->sendViaTeams($notification),
+            default => $this->sendViaEmail($notification),
+        };
+    }
+
+    private function sendViaEmail(Notification $notification): void
+    {
+        Mail::raw($notification->body, function ($message) use ($notification) {
+            $message->to($notification->recipient_email)->subject($notification->subject);
+        });
+    }
+
+    private function sendViaTeams(Notification $notification): void
+    {
+        $teamsService = app(TeamsNotificationService::class);
+        $teamsService->sendNotification($notification->subject, $notification->body);
     }
 }

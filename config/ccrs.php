@@ -7,7 +7,11 @@ return [
     'boldsign_api_key' => env('BOLDSIGN_API_KEY', ''),
     'boldsign_api_url' => env('BOLDSIGN_API_URL', 'https://api.boldsign.com'),
     'boldsign_webhook_secret' => env('BOLDSIGN_WEBHOOK_SECRET', ''),
+    'tito_api_key' => env('TITO_API_KEY', ''),
+    'teams_team_id' => env('TEAMS_TEAM_ID', ''),
+    'teams_channel_id' => env('TEAMS_CHANNEL_ID', ''),
     'azure_ad' => [
+        'tenant_id' => env('AZURE_AD_TENANT_ID', ''),
         'group_map' => array_filter([
             env('AZURE_AD_GROUP_SYSTEM_ADMIN', '') => 'system_admin',
             env('AZURE_AD_GROUP_LEGAL', '') => 'legal',

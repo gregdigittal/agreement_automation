@@ -72,6 +72,29 @@ class MerchantAgreementResource extends Resource
             Tables\Actions\Action::make('download')->icon('heroicon-o-arrow-down-tray')
                 ->url(fn (Contract $record) => $record->storage_path ? route('contract.download', $record) : null)
                 ->visible(fn (Contract $record) => (bool) $record->storage_path),
+            Tables\Actions\Action::make('generate_docx')
+                ->label('Generate DOCX')
+                ->icon('heroicon-o-document-arrow-down')
+                ->visible(fn (Contract $record) => !$record->storage_path)
+                ->requiresConfirmation()
+                ->action(function (Contract $record) {
+                    $input = $record->merchantAgreementInputs()->first();
+                    if (!$input || !$input->template_id) {
+                        \Filament\Notifications\Notification::make()->title('No template linked')->danger()->send();
+                        return;
+                    }
+                    app(\App\Services\MerchantAgreementService::class)->generate([
+                        'region_id' => $record->region_id,
+                        'entity_id' => $record->entity_id,
+                        'project_id' => $record->project_id,
+                        'counterparty_id' => $record->counterparty_id,
+                        'template_id' => $input->template_id,
+                        'vendor_name' => $input->vendor_name,
+                        'merchant_fee' => $input->merchant_fee,
+                        'region_terms' => $input->region_terms,
+                    ]);
+                    \Filament\Notifications\Notification::make()->title('DOCX generated')->success()->send();
+                }),
         ]);
     }
 
