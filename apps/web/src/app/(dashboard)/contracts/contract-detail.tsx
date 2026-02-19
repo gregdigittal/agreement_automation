@@ -1,18 +1,32 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import { handleApiError } from '@/lib/api-error';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import type { Contract } from '@/lib/types';
 
 interface ContractDetailProps {
@@ -35,7 +49,6 @@ export function ContractDetail({ contract }: ContractDetailProps) {
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [workflow, setWorkflow] = useState<WorkflowInstance | null>(null);
   const [history, setHistory] = useState<WorkflowAction[]>([]);
-  const [workflowError, setWorkflowError] = useState<string | null>(null);
   const [linked, setLinked] = useState<LinkedContracts | null>(null);
 
   const [keyDates, setKeyDates] = useState<KeyDate[]>([]);
@@ -50,11 +63,9 @@ export function ContractDetail({ contract }: ContractDetailProps) {
   const [reminderLeadDays, setReminderLeadDays] = useState('30');
   const [reminderChannel, setReminderChannel] = useState('email');
   const [reminderRecipient, setReminderRecipient] = useState('');
-  const [reminderError, setReminderError] = useState<string | null>(null);
 
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const [editingFieldValue, setEditingFieldValue] = useState('');
 
@@ -62,23 +73,25 @@ export function ContractDetail({ contract }: ContractDetailProps) {
   const [languageCode, setLanguageCode] = useState('en');
   const [languagePrimary, setLanguagePrimary] = useState(false);
   const [languageFile, setLanguageFile] = useState<File | null>(null);
-  const [languageError, setLanguageError] = useState<string | null>(null);
+  const [actionDialogOpen, setActionDialogOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'reject' | 'rework' | null>(null);
+  const [actionComment, setActionComment] = useState('');
 
   async function getDownloadUrl() {
     const res = await fetch(`/api/ccrs/contracts/${contract.id}/download-url`);
+    if (await handleApiError(res)) return;
     const data = await res.json();
     if (data?.url) setDownloadUrl(data.url);
   }
 
   async function loadAnalysis() {
     setAnalysisLoading(true);
-    setAnalysisError(null);
     try {
       const res = await fetch(`/api/ccrs/contracts/${contract.id}/analysis`);
-      if (!res.ok) throw new Error(await res.text());
+      if (await handleApiError(res)) return;
       setAnalysis(await res.json());
     } catch (e) {
-      setAnalysisError((e as Error).message);
+      toast.error('Failed to load analysis');
     } finally {
       setAnalysisLoading(false);
     }
@@ -128,54 +141,64 @@ export function ContractDetail({ contract }: ContractDetailProps) {
 
   async function startWorkflow() {
     if (!selectedTemplate) {
-      setWorkflowError('Select a template');
+      toast.error('Select a workflow template');
       return;
     }
-    setWorkflowError(null);
     const res = await fetch(`/api/ccrs/contracts/${contract.id}/workflow`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ templateId: selectedTemplate }),
     });
-    if (!res.ok) {
-      setWorkflowError(await res.text());
-      return;
-    }
+    if (await handleApiError(res)) return;
     const data = await res.json();
     setWorkflow(data);
   }
 
-  async function stageAction(action: 'approve' | 'reject' | 'rework') {
+  async function stageAction(action: 'approve' | 'reject' | 'rework', comment?: string) {
     if (!workflow) return;
-    setWorkflowError(null);
     const res = await fetch(`/api/ccrs/workflow-instances/${workflow.id}/stages/${workflow.current_stage}/action`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ action, comment: comment || undefined }),
     });
-    if (!res.ok) {
-      setWorkflowError(await res.text());
-      return;
-    }
+    if (await handleApiError(res)) return;
     const refreshed = await fetch(`/api/ccrs/contracts/${contract.id}/workflow`).then((r) => (r.ok ? r.json() : null));
     setWorkflow(refreshed);
     const hist = await fetch(`/api/ccrs/workflow-instances/${workflow.id}/history`).then((r) => (r.ok ? r.json() : []));
     setHistory(hist);
+    const suffix = action === 'rework' ? 'reworked' : `${action}d`;
+    toast.success(`Stage ${suffix}`);
+  }
+
+  function openActionDialog(action: 'reject' | 'rework') {
+    setPendingAction(action);
+    setActionComment('');
+    setActionDialogOpen(true);
+  }
+
+  async function submitActionDialog() {
+    if (!pendingAction) return;
+    if (!actionComment.trim()) {
+      toast.error('Comment is required.');
+      return;
+    }
+    await stageAction(pendingAction, actionComment.trim());
+    setActionDialogOpen(false);
+    setPendingAction(null);
+    setActionComment('');
   }
 
   async function sendToSign() {
     const res = await fetch(`/api/ccrs/contracts/${contract.id}/send-to-sign`, { method: 'POST' });
-    if (!res.ok) {
-      setWorkflowError(await res.text());
-    }
+    if (await handleApiError(res)) return;
   }
 
   async function createLinked(type: 'amendments' | 'side-letters') {
     const res = await fetch(`/api/ccrs/contracts/${contract.id}/${type}`, { method: 'POST' });
-    if (res.ok) {
-      const refreshed = await fetch(`/api/ccrs/contracts/${contract.id}/linked`).then((r) => (r.ok ? r.json() : null));
-      setLinked(refreshed);
-    }
+    if (await handleApiError(res)) return;
+    const refreshed = await fetch(`/api/ccrs/contracts/${contract.id}/linked`).then((r) => (r.ok ? r.json() : null));
+    setLinked(refreshed);
+    toast.success(type === 'amendments' ? 'Amendment created' : 'Side letter created');
   }
 
   async function createRenewal(kind: 'extension' | 'new_version') {
@@ -184,10 +207,10 @@ export function ContractDetail({ contract }: ContractDetailProps) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: kind }),
     });
-    if (res.ok) {
-      const refreshed = await fetch(`/api/ccrs/contracts/${contract.id}/linked`).then((r) => (r.ok ? r.json() : null));
-      setLinked(refreshed);
-    }
+    if (await handleApiError(res)) return;
+    const refreshed = await fetch(`/api/ccrs/contracts/${contract.id}/linked`).then((r) => (r.ok ? r.json() : null));
+    setLinked(refreshed);
+    toast.success('Renewal created');
   }
 
   async function addKeyDate() {
@@ -204,34 +227,33 @@ export function ContractDetail({ contract }: ContractDetailProps) {
           : undefined,
       }),
     });
-    if (res.ok) {
-      const updated = await fetch(`/api/ccrs/contracts/${contract.id}/key-dates`).then((r) => (r.ok ? r.json() : []));
-      setKeyDates(updated);
-      setKeyDateType('');
-      setKeyDateValue('');
-      setKeyDateDescription('');
-      setKeyDateReminders('');
-    }
+    if (await handleApiError(res)) return;
+    const updated = await fetch(`/api/ccrs/contracts/${contract.id}/key-dates`).then((r) => (r.ok ? r.json() : []));
+    setKeyDates(updated);
+    setKeyDateType('');
+    setKeyDateValue('');
+    setKeyDateDescription('');
+    setKeyDateReminders('');
+    toast.success('Key date added');
   }
 
   async function verifyKeyDate(id: string) {
     const res = await fetch(`/api/ccrs/key-dates/${id}/verify`, { method: 'PATCH' });
-    if (res.ok) {
-      const updated = await fetch(`/api/ccrs/contracts/${contract.id}/key-dates`).then((r) => (r.ok ? r.json() : []));
-      setKeyDates(updated);
-    }
+    if (await handleApiError(res)) return;
+    const updated = await fetch(`/api/ccrs/contracts/${contract.id}/key-dates`).then((r) => (r.ok ? r.json() : []));
+    setKeyDates(updated);
+    toast.success('Key date verified');
   }
 
   async function deleteKeyDate(id: string) {
     const res = await fetch(`/api/ccrs/key-dates/${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      setKeyDates((prev) => prev.filter((k) => k.id !== id));
-    }
+    if (await handleApiError(res)) return;
+    setKeyDates((prev) => prev.filter((k) => k.id !== id));
+    toast.success('Key date removed');
   }
 
   async function addReminder() {
     if (!reminderLeadDays) return;
-    setReminderError(null);
     const res = await fetch(`/api/ccrs/contracts/${contract.id}/reminders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -243,10 +265,7 @@ export function ContractDetail({ contract }: ContractDetailProps) {
         recipientEmail: reminderRecipient || undefined,
       }),
     });
-    if (!res.ok) {
-      setReminderError(await res.text());
-      return;
-    }
+    if (await handleApiError(res)) return;
     const updated = await fetch(`/api/ccrs/contracts/${contract.id}/reminders`).then((r) => (r.ok ? r.json() : []));
     setReminders(updated);
     setReminderKeyDateId('');
@@ -260,61 +279,62 @@ export function ContractDetail({ contract }: ContractDetailProps) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isActive: !reminder.is_active }),
     });
-    if (res.ok) {
-      const updated = await fetch(`/api/ccrs/contracts/${contract.id}/reminders`).then((r) => (r.ok ? r.json() : []));
-      setReminders(updated);
-    }
+    if (await handleApiError(res)) return;
+    const updated = await fetch(`/api/ccrs/contracts/${contract.id}/reminders`).then((r) => (r.ok ? r.json() : []));
+    setReminders(updated);
+    toast.success('Reminder updated');
   }
 
   async function deleteReminder(id: string) {
     const res = await fetch(`/api/ccrs/reminders/${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      setReminders((prev) => prev.filter((r) => r.id !== id));
-    }
+    if (await handleApiError(res)) return;
+    setReminders((prev) => prev.filter((r) => r.id !== id));
   }
 
   async function triggerAnalysis(type: string) {
-    setAnalysisError(null);
     setAnalysisLoading(true);
     const res = await fetch(`/api/ccrs/contracts/${contract.id}/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ analysisType: type }),
     });
-    if (!res.ok) {
-      setAnalysisError(await res.text());
+    if (await handleApiError(res)) {
       setAnalysisLoading(false);
       return;
     }
     await loadAnalysis();
+    toast.success('Analysis started');
   }
 
   async function verifyField(fieldId: string) {
-    await fetch(`/api/ccrs/ai-fields/${fieldId}/verify`, {
+    const res = await fetch(`/api/ccrs/ai-fields/${fieldId}/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isVerified: true }),
     });
+    if (await handleApiError(res)) return;
     await loadAnalysis();
+    toast.success('Field verified');
   }
 
   async function correctField(fieldId: string, value: string) {
-    await fetch(`/api/ccrs/ai-fields/${fieldId}`, {
+    const res = await fetch(`/api/ccrs/ai-fields/${fieldId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fieldValue: value }),
     });
+    if (await handleApiError(res)) return;
     setEditingFieldId(null);
     setEditingFieldValue('');
     await loadAnalysis();
+    toast.success('Field updated');
   }
 
   async function uploadLanguage() {
     if (!languageFile) {
-      setLanguageError('Select a file');
+      toast.error('Select a file to upload');
       return;
     }
-    setLanguageError(null);
     const form = new FormData();
     form.append('language_code', languageCode);
     form.append('is_primary', String(languagePrimary));
@@ -323,25 +343,23 @@ export function ContractDetail({ contract }: ContractDetailProps) {
       method: 'POST',
       body: form,
     });
-    if (!res.ok) {
-      setLanguageError(await res.text());
-      return;
-    }
+    if (await handleApiError(res)) return;
     const updated = await fetch(`/api/ccrs/contracts/${contract.id}/languages`).then((r) => (r.ok ? r.json() : []));
     setLanguages(updated);
     setLanguageFile(null);
+    toast.success('Language version uploaded');
   }
 
   async function deleteLanguage(id: string) {
     const res = await fetch(`/api/ccrs/contract-languages/${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      setLanguages((prev) => prev.filter((l) => l.id !== id));
-    }
+    if (await handleApiError(res)) return;
+    setLanguages((prev) => prev.filter((l) => l.id !== id));
+    toast.success('Language version removed');
   }
 
   async function downloadLanguage(id: string) {
     const res = await fetch(`/api/ccrs/contract-languages/${id}/download-url`);
-    if (!res.ok) return;
+    if (await handleApiError(res)) return;
     const data = await res.json();
     if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer');
   }
@@ -409,16 +427,18 @@ export function ContractDetail({ contract }: ContractDetailProps) {
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">No active workflow.</p>
                 <div className="flex flex-wrap items-center gap-2">
-                  <select
-                    className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={selectedTemplate}
-                    onChange={(e) => setSelectedTemplate(e.target.value)}
-                  >
-                    <option value="">Select template</option>
-                    {templates.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
+                  <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                    <SelectTrigger className="min-w-[220px]">
+                      <SelectValue placeholder="Select template" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Button onClick={startWorkflow}>Start workflow</Button>
                 </div>
               </div>
@@ -426,14 +446,49 @@ export function ContractDetail({ contract }: ContractDetailProps) {
               <div className="space-y-3">
                 <p className="text-sm">Current stage: <span className="font-medium">{workflow.current_stage}</span></p>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => stageAction('approve')}>Approve</Button>
-                  <Button variant="outline" size="sm" onClick={() => stageAction('reject')}>Reject</Button>
-                  <Button variant="outline" size="sm" onClick={() => stageAction('rework')}>Rework</Button>
+                  <ConfirmDialog
+                    trigger={<Button variant="outline" size="sm">Approve</Button>}
+                    title="Approve this stage"
+                    description={`Approve the "${workflow.current_stage}" stage and advance the workflow.`}
+                    confirmLabel="Approve"
+                    onConfirm={() => stageAction('approve')}
+                  />
+                  <Button variant="outline" size="sm" onClick={() => openActionDialog('reject')}>
+                    Reject
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => openActionDialog('rework')}>
+                    Rework
+                  </Button>
                   <Button variant="outline" size="sm" onClick={sendToSign}>Send to Sign</Button>
                 </div>
+                <Dialog open={actionDialogOpen} onOpenChange={setActionDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>{pendingAction === 'reject' ? 'Reject stage' : 'Request rework'}</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                      {pendingAction === 'reject'
+                        ? 'Rejecting will send the workflow back to the previous stage.'
+                        : 'Request rework to return the workflow to the previous stage.'}
+                    </p>
+                    <div className="space-y-2">
+                      <Label htmlFor="action-comment">Comment</Label>
+                      <Textarea
+                        id="action-comment"
+                        value={actionComment}
+                        onChange={(e) => setActionComment(e.target.value)}
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setActionDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={submitActionDialog}>Confirm</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
             )}
-            {workflowError && <p className="text-sm text-destructive">{workflowError}</p>}
           </CardContent>
         </Card>
 
@@ -539,43 +594,50 @@ export function ContractDetail({ contract }: ContractDetailProps) {
               <div className="space-y-3 border-t border-border pt-4">
                 <p className="text-sm font-medium">Add reminder</p>
                 <div className="grid gap-2 md:grid-cols-3">
-                  <select
-                    className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={reminderKeyDateId}
-                    onChange={(e) => setReminderKeyDateId(e.target.value)}
+                  <Select
+                    value={reminderKeyDateId || 'none'}
+                    onValueChange={(value) => setReminderKeyDateId(value === 'none' ? '' : value)}
                   >
-                    <option value="">Key date (optional)</option>
-                    {keyDates.map((k) => (
-                      <option key={k.id} value={k.id}>{k.date_type}: {k.date_value}</option>
-                    ))}
-                  </select>
-                  <select
-                    className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={reminderType}
-                    onChange={(e) => setReminderType(e.target.value)}
-                  >
-                    <option value="expiry">Expiry</option>
-                    <option value="renewal_notice">Renewal notice</option>
-                    <option value="payment">Payment</option>
-                    <option value="sla">SLA</option>
-                    <option value="obligation">Obligation</option>
-                    <option value="custom">Custom</option>
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Key date (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Key date (optional)</SelectItem>
+                      {keyDates.map((k) => (
+                        <SelectItem key={k.id} value={k.id}>
+                          {k.date_type}: {k.date_value}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={reminderType} onValueChange={setReminderType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Reminder type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="expiry">Expiry</SelectItem>
+                      <SelectItem value="renewal_notice">Renewal notice</SelectItem>
+                      <SelectItem value="payment">Payment</SelectItem>
+                      <SelectItem value="sla">SLA</SelectItem>
+                      <SelectItem value="obligation">Obligation</SelectItem>
+                      <SelectItem value="custom">Custom</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Input placeholder="Lead days" value={reminderLeadDays} onChange={(e) => setReminderLeadDays(e.target.value)} />
                 </div>
                 <div className="grid gap-2 md:grid-cols-2">
-                  <select
-                    className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={reminderChannel}
-                    onChange={(e) => setReminderChannel(e.target.value)}
-                  >
-                    <option value="email">Email</option>
-                    <option value="teams">Teams</option>
-                    <option value="calendar">Calendar</option>
-                  </select>
+                  <Select value={reminderChannel} onValueChange={setReminderChannel}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Channel" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="email">Email</SelectItem>
+                      <SelectItem value="teams">Teams</SelectItem>
+                      <SelectItem value="calendar">Calendar</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Input placeholder="Recipient email" value={reminderRecipient} onChange={(e) => setReminderRecipient(e.target.value)} />
                 </div>
-                {reminderError && <p className="text-sm text-destructive">{reminderError}</p>}
                 <Button variant="outline" size="sm" onClick={addReminder}>Add reminder</Button>
               </div>
             </CardContent>
@@ -606,7 +668,6 @@ export function ContractDetail({ contract }: ContractDetailProps) {
                 </DropdownMenu>
                 {analysisLoading && <p className="text-sm text-muted-foreground">Running analysis…</p>}
               </div>
-              {analysisError && <p className="text-sm text-destructive">{analysisError}</p>}
               <div className="grid gap-3 md:grid-cols-2">
                 {analyses.map((a) => (
                   <Card key={a.id}>
@@ -675,12 +736,22 @@ export function ContractDetail({ contract }: ContractDetailProps) {
                         </TableCell>
                         <TableCell className="max-w-xs text-xs text-muted-foreground">{f.evidence_clause ?? '—'}</TableCell>
                         <TableCell>
-                          <div className="h-2 w-24 rounded-full bg-muted">
+                          <div
+                            className="h-2 w-24 overflow-hidden rounded bg-muted"
+                            role="progressbar"
+                            aria-valuenow={Math.round((f.confidence ?? 0) * 100)}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-label={`Confidence: ${Math.round((f.confidence ?? 0) * 100)}%`}
+                          >
                             <div
-                              className="h-2 rounded-full bg-emerald-500"
+                              className="h-full bg-primary"
                               style={{ width: `${Math.round((f.confidence ?? 0) * 100)}%` }}
                             />
                           </div>
+                          <span className="text-xs text-muted-foreground">
+                            {Math.round((f.confidence ?? 0) * 100)}%
+                          </span>
                         </TableCell>
                         <TableCell>{f.is_verified ? 'Yes' : 'No'}</TableCell>
                         <TableCell>
@@ -844,18 +915,30 @@ export function ContractDetail({ contract }: ContractDetailProps) {
             <div className="space-y-2 border-t border-border pt-4">
               <p className="text-sm font-medium">Add language version</p>
               <div className="grid gap-2 md:grid-cols-3">
-                <select className="rounded-md border border-input bg-background px-3 py-2 text-sm" value={languageCode} onChange={(e) => setLanguageCode(e.target.value)}>
-                  {LANGUAGE_OPTIONS.map((lang) => (
-                    <option key={lang} value={lang}>{lang.toUpperCase()}</option>
-                  ))}
-                </select>
+                <Select value={languageCode} onValueChange={setLanguageCode}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LANGUAGE_OPTIONS.map((lang) => (
+                      <SelectItem key={lang} value={lang}>
+                        {lang.toUpperCase()}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <div className="flex items-center gap-2">
-                  <input type="checkbox" checked={languagePrimary} onChange={(e) => setLanguagePrimary(e.target.checked)} />
-                  <span className="text-sm">Primary</span>
+                  <Checkbox
+                    id="language-primary"
+                    checked={languagePrimary}
+                    onCheckedChange={(value) => setLanguagePrimary(Boolean(value))}
+                  />
+                  <Label htmlFor="language-primary" className="text-sm">
+                    Primary
+                  </Label>
                 </div>
                 <input type="file" onChange={(e) => setLanguageFile(e.target.files?.[0] ?? null)} />
               </div>
-              {languageError && <p className="text-sm text-destructive">{languageError}</p>}
               <Button size="sm" variant="outline" onClick={uploadLanguage}>Upload</Button>
             </div>
           </CardContent>

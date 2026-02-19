@@ -19,6 +19,7 @@ from app.contracts.service import (
     upload_contract,
 )
 from app.deps import get_supabase
+from app.schemas.responses import ContractOut
 from supabase import Client
 
 router = APIRouter(tags=["contracts"])
@@ -27,6 +28,7 @@ router = APIRouter(tags=["contracts"])
 @router.post(
     "/contracts/upload",
     dependencies=[Depends(require_roles("System Admin", "Legal", "Commercial"))],
+    response_model=ContractOut,
 )
 async def contract_upload(
     file: UploadFile = File(...),
@@ -86,7 +88,7 @@ async def contract_upload(
     return data
 
 
-@router.get("/contracts")
+@router.get("/contracts", response_model=list[ContractOut])
 async def contract_list(
     q: str | None = None,
     region_id: UUID | None = Query(None, alias="regionId"),
@@ -115,7 +117,7 @@ async def contract_list(
     return resp
 
 
-@router.get("/contracts/{id}")
+@router.get("/contracts/{id}", response_model=ContractOut)
 async def contract_get(
     id: UUID,
     user: CurrentUser = Depends(get_current_user),
@@ -154,6 +156,7 @@ async def contract_download_url(
 @router.patch(
     "/contracts/{id}",
     dependencies=[Depends(require_roles("System Admin", "Legal"))],
+    response_model=ContractOut,
 )
 async def contract_update(
     id: UUID,

@@ -1,10 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { handleApiError } from '@/lib/api-error';
 
 interface Obligation {
   id: string;
@@ -23,27 +27,28 @@ export default function ObligationsPage() {
   const [obligationType, setObligationType] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const [limit, setLimit] = useState(50);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   async function loadObligations() {
-    setError(null);
+    setLoading(true);
     const params = new URLSearchParams();
     if (status) params.set('status', status);
     if (obligationType) params.set('obligation_type', obligationType);
     params.set('limit', String(limit));
     params.set('offset', String(offset));
     const res = await fetch(`/api/ccrs/obligations?${params.toString()}`);
-    if (!res.ok) {
-      setError(await res.text());
+    if (await handleApiError(res)) {
+      setLoading(false);
       return;
     }
     const data = await res.json();
     const totalCount = res.headers.get('X-Total-Count');
     setTotal(totalCount ? Number(totalCount) : data.length);
     setObligations(data);
+    setLoading(false);
   }
 
   useEffect(() => {
@@ -64,9 +69,9 @@ export default function ObligationsPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: nextStatus }),
     });
-    if (res.ok) {
-      setObligations((prev) => prev.map((o) => (o.id === id ? { ...o, status: nextStatus } : o)));
-    }
+    if (await handleApiError(res)) return;
+    setObligations((prev) => prev.map((o) => (o.id === id ? { ...o, status: nextStatus } : o)));
+    toast.success('Obligation status updated');
   }
 
   function exportCsv() {
@@ -103,30 +108,32 @@ export default function ObligationsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-2 md:grid-cols-4">
-            <select
-              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option value="">All statuses</option>
-              <option value="active">Active</option>
-              <option value="completed">Completed</option>
-              <option value="waived">Waived</option>
-              <option value="overdue">Overdue</option>
-            </select>
-            <select
-              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={obligationType}
-              onChange={(e) => setObligationType(e.target.value)}
-            >
-              <option value="">All types</option>
-              <option value="reporting">Reporting</option>
-              <option value="sla">SLA</option>
-              <option value="insurance">Insurance</option>
-              <option value="deliverable">Deliverable</option>
-              <option value="payment">Payment</option>
-              <option value="other">Other</option>
-            </select>
+            <Select value={status || 'all'} onValueChange={(value) => setStatus(value === 'all' ? '' : value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="waived">Waived</SelectItem>
+                <SelectItem value="overdue">Overdue</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={obligationType || 'all'} onValueChange={(value) => setObligationType(value === 'all' ? '' : value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="All types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="reporting">Reporting</SelectItem>
+                <SelectItem value="sla">SLA</SelectItem>
+                <SelectItem value="insurance">Insurance</SelectItem>
+                <SelectItem value="deliverable">Deliverable</SelectItem>
+                <SelectItem value="payment">Payment</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
             <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
             <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
           </div>
@@ -140,9 +147,16 @@ export default function ObligationsPage() {
             </div>
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
-
-          <Table>
+          {loading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : (
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Contract</TableHead>
@@ -171,22 +185,24 @@ export default function ObligationsPage() {
                     <TableCell>{o.recurrence ?? '—'}</TableCell>
                     <TableCell>{o.responsible_party ?? '—'}</TableCell>
                     <TableCell>
-                      <select
-                        className="rounded-md border border-input bg-background px-2 py-1 text-xs"
-                        value={o.status}
-                        onChange={(e) => updateStatus(o.id, e.target.value)}
-                      >
-                        <option value="active">Active</option>
-                        <option value="completed">Completed</option>
-                        <option value="waived">Waived</option>
-                        <option value="overdue">Overdue</option>
-                      </select>
+                      <Select value={o.status} onValueChange={(value) => updateStatus(o.id, value)}>
+                        <SelectTrigger className="h-7 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="waived">Waived</SelectItem>
+                          <SelectItem value="overdue">Overdue</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                   </TableRow>
                 ))
               )}
             </TableBody>
           </Table>
+          )}
 
           <div className="flex justify-between">
             <Button

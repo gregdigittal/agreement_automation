@@ -31,6 +31,7 @@ from app.escalation.router import router as escalation_router
 from app.notifications.router import router as notifications_router
 from app.reports.router import router as reports_router
 from app.contract_languages.router import router as contract_languages_router
+from app.override_requests.router import router as override_requests_router
 
 structlog.configure(
     processors=[
@@ -101,3 +102,4 @@ app.include_router(escalation_router)
 app.include_router(notifications_router)
 app.include_router(reports_router)
 app.include_router(contract_languages_router)
+app.include_router(override_requests_router)

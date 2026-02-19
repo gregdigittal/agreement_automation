@@ -1,8 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { handleApiError } from '@/lib/api-error';
 
 interface Notification {
   id: string;
@@ -14,15 +18,19 @@ interface Notification {
 
 export default function SettingsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [teamsEnabled, setTeamsEnabled] = useState(false);
 
   useEffect(() => {
     fetch('/api/ccrs/notifications')
-      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-      .then(setNotifications)
-      .catch(() => setError('Failed to load notifications'));
+      .then(async (r) => {
+        if (await handleApiError(r)) return null;
+        return r.json();
+      })
+      .then((data) => {
+        if (data) setNotifications(data);
+      })
+      .catch(() => toast.error('Failed to load notifications'));
   }, []);
 
   return (
@@ -32,14 +40,22 @@ export default function SettingsPage() {
           <CardTitle>Notification Preferences</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-4 text-sm">
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={emailEnabled} onChange={(e) => setEmailEnabled(e.target.checked)} />
-            Email notifications
-          </label>
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={teamsEnabled} onChange={(e) => setTeamsEnabled(e.target.checked)} />
-            Microsoft Teams notifications
-          </label>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="email_enabled"
+              checked={emailEnabled}
+              onCheckedChange={(value) => setEmailEnabled(Boolean(value))}
+            />
+            <Label htmlFor="email_enabled">Email notifications</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="teams_enabled"
+              checked={teamsEnabled}
+              onCheckedChange={(value) => setTeamsEnabled(Boolean(value))}
+            />
+            <Label htmlFor="teams_enabled">Microsoft Teams notifications</Label>
+          </div>
           <p className="text-muted-foreground">Preferences are placeholders for now.</p>
         </CardContent>
       </Card>
@@ -49,7 +65,6 @@ export default function SettingsPage() {
           <CardTitle>Recent Notifications</CardTitle>
         </CardHeader>
         <CardContent>
-          {error && <p className="text-sm text-destructive">{error}</p>}
           <Table>
             <TableHeader>
               <TableRow>

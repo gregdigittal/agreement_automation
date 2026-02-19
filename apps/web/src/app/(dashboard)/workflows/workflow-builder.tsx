@@ -4,9 +4,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ReactFlow, { Background, useEdgesState, useNodesState } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   Dialog,
@@ -16,6 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { handleApiError } from '@/lib/api-error';
 
 type StageType = 'approval' | 'signing' | 'review' | 'draft';
 
@@ -37,6 +41,13 @@ interface WorkflowTemplate {
   contract_type: 'Commercial' | 'Merchant';
   stages: WorkflowStage[];
   status: string;
+  version?: number;
+}
+
+interface WorkflowVersionEntry {
+  id: string;
+  created_at: string;
+  details?: { version?: number; stages?: WorkflowStage[] };
 }
 
 interface EscalationRule {
@@ -83,7 +94,6 @@ export function WorkflowBuilder({ templateId }: { templateId?: string }) {
   const [stages, setStages] = useState<WorkflowStage[]>([defaultStage]);
   const [selectedStage, setSelectedStage] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const [regions, setRegions] = useState<Region[]>([]);
   const [entities, setEntities] = useState<Entity[]>([]);
@@ -104,6 +114,8 @@ export function WorkflowBuilder({ templateId }: { templateId?: string }) {
   const [ruleTier, setRuleTier] = useState('1');
   const [ruleRole, setRuleRole] = useState('');
   const [ruleUserId, setRuleUserId] = useState('');
+
+  const [versions, setVersions] = useState<WorkflowVersionEntry[]>([]);
 
   const nodesData = useMemo(
     () =>
@@ -141,7 +153,7 @@ export function WorkflowBuilder({ templateId }: { templateId?: string }) {
         setContractType(data.contract_type);
         setStages(data.stages?.length ? data.stages : [defaultStage]);
       })
-      .catch((e) => setError(e.message));
+      .catch(() => toast.error('Failed to load workflow template'));
   }, [templateId]);
 
   useEffect(() => {
@@ -168,13 +180,20 @@ export function WorkflowBuilder({ templateId }: { templateId?: string }) {
   }, [templateId]);
 
   useEffect(() => {
+    if (!templateId) return;
+    fetch(`/api/ccrs/workflow-templates/${templateId}/versions`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setVersions(Array.isArray(data) ? data : []))
+      .catch(() => undefined);
+  }, [templateId]);
+
+  useEffect(() => {
     setNodes(nodesData);
     setEdges(edgesData);
   }, [nodesData, edgesData, setNodes, setEdges]);
 
   async function saveTemplate() {
     setSaving(true);
-    setError(null);
     const payload = { name, contractType, stages };
     try {
       if (templateId) {
@@ -183,35 +202,38 @@ export function WorkflowBuilder({ templateId }: { templateId?: string }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
-        if (!res.ok) throw new Error(await res.text());
+        if (await handleApiError(res)) return;
         setTemplate(await res.json());
+        toast.success('Workflow template saved');
       } else {
         const res = await fetch('/api/ccrs/workflow-templates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
-        if (!res.ok) throw new Error(await res.text());
+        if (await handleApiError(res)) return;
         const created = (await res.json()) as WorkflowTemplate;
+        toast.success('Workflow template saved');
         router.push(`/workflows/${created.id}`);
       }
-    } catch (e) {
-      setError((e as Error).message);
     } finally {
       setSaving(false);
     }
   }
 
+  function handleTemplateSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    void saveTemplate();
+  }
+
   async function publishTemplate() {
     if (!templateId) return;
     setSaving(true);
-    setError(null);
     try {
       const res = await fetch(`/api/ccrs/workflow-templates/${templateId}/publish`, { method: 'POST' });
-      if (!res.ok) throw new Error(await res.text());
+      if (await handleApiError(res)) return;
       setTemplate(await res.json());
-    } catch (e) {
-      setError((e as Error).message);
+      toast.success('Workflow template published');
     } finally {
       setSaving(false);
     }
@@ -219,7 +241,6 @@ export function WorkflowBuilder({ templateId }: { templateId?: string }) {
 
   async function generateWithAi() {
     if (!aiDescription.trim()) return;
-    setError(null);
     const res = await fetch('/api/ccrs/workflows/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -230,10 +251,7 @@ export function WorkflowBuilder({ templateId }: { templateId?: string }) {
         projectId: aiProjectId || undefined,
       }),
     });
-    if (!res.ok) {
-      setError(await res.text());
-      return;
-    }
+    if (await handleApiError(res)) return;
     const data = await res.json();
     setStages(data.stages ?? [defaultStage]);
     setSelectedStage(0);
@@ -243,6 +261,7 @@ export function WorkflowBuilder({ templateId }: { templateId?: string }) {
       validation_errors: data.validation_errors,
     });
     setAiOpen(false);
+    toast.success('Workflow generated');
   }
 
   async function addEscalationRule() {
@@ -290,23 +309,43 @@ export function WorkflowBuilder({ templateId }: { templateId?: string }) {
     setStages((prev) => prev.map((s, idx) => (idx === selectedStage ? { ...s, [key]: value } : s)));
   }
 
+  const previousStages = useMemo(() => {
+    if (versions.length < 2) return [];
+    return versions[1]?.details?.stages ?? [];
+  }, [versions]);
+
+  const stageDiffs = useMemo(() => {
+    const currentStages = template?.stages ?? stages;
+    const prevMap = new Map(previousStages.map((s) => [s.name, s]));
+    const currMap = new Map(currentStages.map((s) => [s.name, s]));
+    const added = currentStages.filter((s) => !prevMap.has(s.name));
+    const removed = previousStages.filter((s) => !currMap.has(s.name));
+    const modified = currentStages
+      .filter((s) => prevMap.has(s.name))
+      .filter((s) => JSON.stringify(s) !== JSON.stringify(prevMap.get(s.name)));
+    return { added, removed, modified };
+  }, [previousStages, stages, template?.stages]);
+
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-3">
+      <form onSubmit={handleTemplateSubmit} className="grid gap-4 md:grid-cols-3">
         <div className="space-y-2">
-          <Label htmlFor="name">Template name</Label>
-          <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
+          <Label htmlFor="name">
+            Template name <span className="text-destructive">*</span>
+          </Label>
+          <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
         </div>
         <div className="space-y-2">
           <Label>Contract type</Label>
-          <select
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            value={contractType}
-            onChange={(e) => setContractType(e.target.value as 'Commercial' | 'Merchant')}
-          >
-            <option value="Commercial">Commercial</option>
-            <option value="Merchant">Merchant</option>
-          </select>
+          <Select value={contractType} onValueChange={(value) => setContractType(value as 'Commercial' | 'Merchant')}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select contract type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Commercial">Commercial</SelectItem>
+              <SelectItem value="Merchant">Merchant</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex items-end gap-2">
           <Dialog open={aiOpen} onOpenChange={setAiOpen}>
@@ -318,43 +357,49 @@ export function WorkflowBuilder({ templateId }: { templateId?: string }) {
                 <DialogTitle>Generate workflow with AI</DialogTitle>
               </DialogHeader>
               <div className="space-y-3">
-                <textarea
-                  className="min-h-[140px] w-full rounded-md border border-input bg-background p-3 text-sm"
+                <Textarea
+                  className="min-h-[140px]"
                   placeholder="Describe the workflow requirements..."
                   value={aiDescription}
                   onChange={(e) => setAiDescription(e.target.value)}
                 />
                 <div className="grid gap-2 md:grid-cols-3">
-                  <select
-                    className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={aiRegionId}
-                    onChange={(e) => setAiRegionId(e.target.value)}
-                  >
-                    <option value="">Region (optional)</option>
-                    {regions.map((r) => (
-                      <option key={r.id} value={r.id}>{r.name}</option>
-                    ))}
-                  </select>
-                  <select
-                    className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={aiEntityId}
-                    onChange={(e) => setAiEntityId(e.target.value)}
-                  >
-                    <option value="">Entity (optional)</option>
-                    {entities.map((e) => (
-                      <option key={e.id} value={e.id}>{e.name}</option>
-                    ))}
-                  </select>
-                  <select
-                    className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={aiProjectId}
-                    onChange={(e) => setAiProjectId(e.target.value)}
-                  >
-                    <option value="">Project (optional)</option>
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
+                  <Select value={aiRegionId} onValueChange={setAiRegionId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Region (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {regions.map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={aiEntityId} onValueChange={setAiEntityId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Entity (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {entities.map((e) => (
+                        <SelectItem key={e.id} value={e.id}>
+                          {e.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={aiProjectId} onValueChange={setAiProjectId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Project (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <DialogFooter>
@@ -362,17 +407,19 @@ export function WorkflowBuilder({ templateId }: { templateId?: string }) {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Button onClick={saveTemplate} disabled={saving}>
+          <Button type="button" variant="outline" onClick={() => router.back()}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={saving}>
             {saving ? 'Saving…' : 'Save'}
           </Button>
           {templateId && (
-            <Button variant="outline" onClick={publishTemplate} disabled={saving}>
+            <Button type="button" variant="outline" onClick={publishTemplate} disabled={saving}>
               Publish
             </Button>
           )}
         </div>
-      </div>
-      {error && <p className="text-sm text-destructive">Error: {error}</p>}
+      </form>
       {aiResult && (
         <div className="rounded-md border border-border p-3 text-sm">
           <p className="font-medium">AI summary</p>
@@ -399,15 +446,18 @@ export function WorkflowBuilder({ templateId }: { templateId?: string }) {
           </div>
           <div className="space-y-2">
             <Label>Stage</Label>
-            <select
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={selectedStage}
-              onChange={(e) => setSelectedStage(Number(e.target.value))}
-            >
-              {stages.map((s, idx) => (
-                <option key={s.name} value={idx}>{s.name}</option>
-              ))}
-            </select>
+            <Select value={String(selectedStage)} onValueChange={(value) => setSelectedStage(Number(value))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select stage" />
+              </SelectTrigger>
+              <SelectContent>
+                {stages.map((s, idx) => (
+                  <SelectItem key={s.name} value={String(idx)}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label>Name</Label>
@@ -415,16 +465,20 @@ export function WorkflowBuilder({ templateId }: { templateId?: string }) {
           </div>
           <div className="space-y-2">
             <Label>Type</Label>
-            <select
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            <Select
               value={stages[selectedStage]?.type ?? 'approval'}
-              onChange={(e) => updateStage('type', e.target.value as StageType)}
+              onValueChange={(value) => updateStage('type', value as StageType)}
             >
-              <option value="approval">Approval</option>
-              <option value="signing">Signing</option>
-              <option value="review">Review</option>
-              <option value="draft">Draft</option>
-            </select>
+              <SelectTrigger>
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="approval">Approval</SelectItem>
+                <SelectItem value="signing">Signing</SelectItem>
+                <SelectItem value="review">Review</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label>Allowed transitions (comma-separated)</Label>
@@ -483,6 +537,55 @@ export function WorkflowBuilder({ templateId }: { templateId?: string }) {
           </div>
         </div>
       </div>
+
+      {templateId && versions.length > 1 && (
+        <div className="rounded-md border border-border p-4">
+          <h3 className="text-sm font-medium">Version history</h3>
+          <p className="text-xs text-muted-foreground">
+            Comparing version {versions[1]?.details?.version ?? 'previous'} to current version {template?.version ?? 'current'}.
+          </p>
+          <div className="mt-3 grid gap-4 md:grid-cols-2">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">Previous</p>
+              <pre className="mt-2 max-h-[320px] overflow-auto rounded-md bg-muted p-2 text-xs">
+                {JSON.stringify(previousStages, null, 2)}
+              </pre>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">Current</p>
+              <pre className="mt-2 max-h-[320px] overflow-auto rounded-md bg-muted p-2 text-xs">
+                {JSON.stringify(template?.stages ?? stages, null, 2)}
+              </pre>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 p-2 text-xs">
+              <p className="font-medium text-emerald-700">Added</p>
+              {stageDiffs.added.length === 0 ? (
+                <p className="text-emerald-600">None</p>
+              ) : (
+                stageDiffs.added.map((s) => <p key={s.name}>{s.name}</p>)
+              )}
+            </div>
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs">
+              <p className="font-medium text-amber-700">Modified</p>
+              {stageDiffs.modified.length === 0 ? (
+                <p className="text-amber-600">None</p>
+              ) : (
+                stageDiffs.modified.map((s) => <p key={s.name}>{s.name}</p>)
+              )}
+            </div>
+            <div className="rounded-md border border-rose-200 bg-rose-50 p-2 text-xs">
+              <p className="font-medium text-rose-700">Removed</p>
+              {stageDiffs.removed.length === 0 ? (
+                <p className="text-rose-600">None</p>
+              ) : (
+                stageDiffs.removed.map((s) => <p key={s.name}>{s.name}</p>)
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

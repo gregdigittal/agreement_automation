@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import type { Project } from '@/lib/types';
+import { handleApiError } from '@/lib/api-error';
 
 export function EditProjectForm({ id }: { id: string }) {
   const router = useRouter();
@@ -16,7 +20,6 @@ export function EditProjectForm({ id }: { id: string }) {
   const [entityName, setEntityName] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/ccrs/projects/${id}`)
@@ -30,24 +33,28 @@ export function EditProjectForm({ id }: { id: string }) {
         setCode(data.code ?? '');
         setEntityName(data.entities?.name ?? '');
       })
-      .catch((e) => setError(e.message))
+      .catch(() => toast.error('Failed to load project'))
       .finally(() => setLoading(false));
   }, [id]);
+
+  async function handleDelete() {
+    const res = await fetch(`/api/ccrs/projects/${id}`, { method: 'DELETE' });
+    if (await handleApiError(res)) return;
+    toast.success('Project deleted');
+    router.push('/projects');
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
-    setError(null);
     try {
       const res = await fetch(`/api/ccrs/projects/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, code: code || undefined }),
       });
-      if (!res.ok) {
-        setError((await res.text()) || 'Failed');
-        return;
-      }
+      if (await handleApiError(res)) return;
+      toast.success('Project updated');
       router.push('/projects');
       router.refresh();
     } finally {
@@ -55,8 +62,20 @@ export function EditProjectForm({ id }: { id: string }) {
     }
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading…</p>;
-  if (!project) return <p className="text-sm text-destructive">{error ?? 'Project not found'}</p>;
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Project details</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+  if (!project) return <p className="text-sm text-muted-foreground">Project not found.</p>;
 
   return (
     <Card>
@@ -70,17 +89,31 @@ export function EditProjectForm({ id }: { id: string }) {
             <Input id="entity" value={entityName} disabled />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
+            <Label htmlFor="name">
+              Name <span className="text-destructive">*</span>
+            </Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
           <div className="space-y-2">
             <Label htmlFor="code">Code (optional)</Label>
             <Input id="code" value={code} onChange={(e) => setCode(e.target.value)} />
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" disabled={submitting}>
-            {submitting ? 'Saving…' : 'Save'}
-          </Button>
+          <div className="flex justify-end gap-2">
+            <ConfirmDialog
+              trigger={<Button variant="destructive" type="button">Delete project</Button>}
+              title="Delete project"
+              description="This will permanently delete this project. Any contracts under this project must be reassigned first."
+              confirmLabel="Delete"
+              variant="destructive"
+              onConfirm={handleDelete}
+            />
+            <Button type="button" variant="outline" onClick={() => router.back()}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>

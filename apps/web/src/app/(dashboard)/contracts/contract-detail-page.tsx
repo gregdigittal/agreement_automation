@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ContractDetail } from './contract-detail';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { Contract } from '@/lib/types';
 
 export function ContractDetailPage({ id }: { id: string }) {
@@ -15,7 +16,18 @@ export function ContractDetailPage({ id }: { id: string }) {
       .then((payload: Contract | null) => setContract(payload))
       .finally(() => setLoading(false));
   }, [id]);
-  if (loading) return <p className="text-muted-foreground">Loading…</p>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-1/3" />
+        <div className="grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
   if (!contract) {
     router.push('/contracts');
     return null;

@@ -1,9 +1,9 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 
 class CreateContactInput(BaseModel):
     name: str = Field(...)
-    email: str | None = None
+    email: EmailStr | None = None
     role: str | None = None
     is_signer: bool = Field(False, alias="isSigner")
 
@@ -12,7 +12,7 @@ class CreateContactInput(BaseModel):
 
 class UpdateContactInput(BaseModel):
     name: str | None = None
-    email: str | None = None
+    email: EmailStr | None = None
     role: str | None = None
     is_signer: bool | None = Field(None, alias="isSigner")
 

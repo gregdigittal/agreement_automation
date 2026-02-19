@@ -8,12 +8,17 @@ from app.auth.models import CurrentUser
 from app.deps import get_supabase
 from app.regions.schemas import CreateRegionInput, UpdateRegionInput
 from app.regions.service import create, delete, get_by_id, list_all, update
+from app.schemas.responses import RegionOut
 from supabase import Client
 
 router = APIRouter(tags=["regions"])
 
 
-@router.post("/regions", dependencies=[Depends(require_roles("System Admin"))])
+@router.post(
+    "/regions",
+    dependencies=[Depends(require_roles("System Admin"))],
+    response_model=RegionOut,
+)
 async def region_create(
     body: CreateRegionInput,
     user: CurrentUser = Depends(get_current_user),
@@ -31,7 +36,7 @@ async def region_create(
         raise
 
 
-@router.get("/regions")
+@router.get("/regions", response_model=list[RegionOut])
 async def region_list(
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
@@ -44,7 +49,7 @@ async def region_list(
     return resp
 
 
-@router.get("/regions/{id}")
+@router.get("/regions/{id}", response_model=RegionOut)
 async def region_get(
     id: UUID,
     user: CurrentUser = Depends(get_current_user),
@@ -56,7 +61,11 @@ async def region_get(
     return row
 
 
-@router.patch("/regions/{id}", dependencies=[Depends(require_roles("System Admin"))])
+@router.patch(
+    "/regions/{id}",
+    dependencies=[Depends(require_roles("System Admin"))],
+    response_model=RegionOut,
+)
 async def region_update(
     id: UUID,
     body: UpdateRegionInput,

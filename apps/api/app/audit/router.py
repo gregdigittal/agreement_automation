@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from app.auth.dependencies import get_current_user, require_roles
 from app.auth.models import CurrentUser
 from app.deps import get_supabase
+from app.schemas.responses import AuditLogOut
 from supabase import Client
 
 router = APIRouter(tags=["audit"])
@@ -14,6 +15,7 @@ router = APIRouter(tags=["audit"])
 @router.get(
     "/audit/resource/{resource_type}/{resource_id}",
     dependencies=[Depends(require_roles("System Admin", "Legal", "Audit"))],
+    response_model=list[AuditLogOut],
 )
 async def get_audit_for_resource(
     resource_type: str,
@@ -38,6 +40,7 @@ async def get_audit_for_resource(
 @router.get(
     "/audit/export",
     dependencies=[Depends(require_roles("System Admin", "Legal", "Audit"))],
+    response_model=list[AuditLogOut],
 )
 async def audit_export(
     from_date: datetime | None = Query(None, alias="from"),

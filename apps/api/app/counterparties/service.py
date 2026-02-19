@@ -10,6 +10,7 @@ from app.counterparties.schemas import (
     StatusChangeInput,
     UpdateCounterpartyInput,
 )
+from app.notifications.helpers import notify_counterparty_status_change
 
 
 async def create(
@@ -42,6 +43,7 @@ async def create(
 
 def list_all(
     supabase: Client,
+    search: str | None = None,
     status: str | None = None,
     limit: int = 50,
     offset: int = 0,
@@ -54,6 +56,10 @@ def list_all(
     )
     if status:
         q = q.eq("status", status)
+    if search:
+        q = q.or_(
+            f"legal_name.ilike.%{search}%,registration_number.ilike.%{search}%"
+        )
     r = q.execute()
     total = getattr(r, "count", None) or len(r.data or [])
     return (r.data or [], total)
@@ -175,7 +181,77 @@ async def change_status(
         },
         actor=actor,
     )
-    return r.data[0]
+    row = r.data[0]
+    await notify_counterparty_status_change(
+        supabase,
+        counterparty_id=id,
+        counterparty_name=row.get("legal_name", "Unknown"),
+        old_status=prev or "Unknown",
+        new_status=body.status,
+        reason=body.reason,
+        changed_by=actor.email if actor else "system",
+    )
+    return row
+
+
+async def merge_counterparties(
+    supabase: Client,
+    source_id: UUID,
+    target_id: UUID,
+    actor: CurrentUser,
+) -> dict:
+    source = (
+        supabase.table("counterparties")
+        .select("*")
+        .eq("id", str(source_id))
+        .single()
+        .execute()
+    )
+    target = (
+        supabase.table("counterparties")
+        .select("*")
+        .eq("id", str(target_id))
+        .single()
+        .execute()
+    )
+    if not source.data or not target.data:
+        raise ValueError("Source or target counterparty not found")
+    if str(source_id) == str(target_id):
+        raise ValueError("Cannot merge a counterparty into itself")
+
+    supabase.table("contracts").update({"counterparty_id": str(target_id)}).eq(
+        "counterparty_id", str(source_id)
+    ).execute()
+    supabase.table("counterparty_contacts").update(
+        {"counterparty_id": str(target_id)}
+    ).eq("counterparty_id", str(source_id)).execute()
+
+    supabase.table("counterparty_merges").insert(
+        {
+            "source_counterparty_id": str(source_id),
+            "target_counterparty_id": str(target_id),
+            "merged_by": actor.id,
+            "merged_by_email": actor.email,
+        }
+    ).execute()
+
+    supabase.table("counterparties").delete().eq("id", str(source_id)).execute()
+
+    await audit_log(
+        supabase,
+        action="counterparty_merged",
+        resource_type="counterparty",
+        resource_id=str(target_id),
+        details={
+            "source_id": str(source_id),
+            "source_name": source.data.get("legal_name"),
+            "target_id": str(target_id),
+            "target_name": target.data.get("legal_name"),
+        },
+        actor=actor,
+    )
+
+    return target.data
 
 
 async def delete(

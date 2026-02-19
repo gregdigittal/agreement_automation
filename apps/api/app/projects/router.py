@@ -8,12 +8,17 @@ from app.auth.models import CurrentUser
 from app.deps import get_supabase
 from app.projects.schemas import CreateProjectInput, UpdateProjectInput
 from app.projects.service import create, delete, get_by_id, list_all, update
+from app.schemas.responses import ProjectOut
 from supabase import Client
 
 router = APIRouter(tags=["projects"])
 
 
-@router.post("/projects", dependencies=[Depends(require_roles("System Admin"))])
+@router.post(
+    "/projects",
+    dependencies=[Depends(require_roles("System Admin"))],
+    response_model=ProjectOut,
+)
 async def project_create(
     body: CreateProjectInput,
     user: CurrentUser = Depends(get_current_user),
@@ -31,7 +36,7 @@ async def project_create(
         raise
 
 
-@router.get("/projects")
+@router.get("/projects", response_model=list[ProjectOut])
 async def project_list(
     entity_id: UUID | None = Query(None, alias="entityId"),
     limit: int = Query(50, ge=1, le=500),
@@ -45,7 +50,7 @@ async def project_list(
     return resp
 
 
-@router.get("/projects/{id}")
+@router.get("/projects/{id}", response_model=ProjectOut)
 async def project_get(
     id: UUID,
     user: CurrentUser = Depends(get_current_user),
@@ -57,7 +62,11 @@ async def project_get(
     return row
 
 
-@router.patch("/projects/{id}", dependencies=[Depends(require_roles("System Admin"))])
+@router.patch(
+    "/projects/{id}",
+    dependencies=[Depends(require_roles("System Admin"))],
+    response_model=ProjectOut,
+)
 async def project_update(
     id: UUID,
     body: UpdateProjectInput,

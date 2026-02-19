@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { handleApiError } from '@/lib/api-error';
 
 interface WikiContract {
   id: string;
@@ -29,7 +33,6 @@ export default function WikiContractDetail({ id }: { id: string }) {
   const [category, setCategory] = useState('');
   const [regionId, setRegionId] = useState('');
   const [description, setDescription] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
 
@@ -37,7 +40,7 @@ export default function WikiContractDetail({ id }: { id: string }) {
     fetch('/api/ccrs/regions?limit=500')
       .then((r) => r.json())
       .then(setRegions)
-      .catch(() => undefined);
+      .catch(() => toast.error('Failed to load regions'));
   }, []);
 
   useEffect(() => {
@@ -51,11 +54,11 @@ export default function WikiContractDetail({ id }: { id: string }) {
         setRegionId(payload.region_id ?? '');
         setDescription(payload.description ?? '');
       })
-      .catch(() => undefined);
+      .catch(() => toast.error('Failed to load template'));
   }, [id]);
 
-  async function save() {
-    setError(null);
+  async function save(e?: React.FormEvent) {
+    if (e) e.preventDefault();
     const res = await fetch(`/api/ccrs/wiki-contracts/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -66,21 +69,16 @@ export default function WikiContractDetail({ id }: { id: string }) {
         description: description || undefined,
       }),
     });
-    if (!res.ok) {
-      setError(await res.text());
-      return;
-    }
+    if (await handleApiError(res)) return;
     setData(await res.json());
+    toast.success('Template saved');
   }
 
   async function publish() {
-    setError(null);
     const res = await fetch(`/api/ccrs/wiki-contracts/${id}/publish`, { method: 'PATCH' });
-    if (!res.ok) {
-      setError(await res.text());
-      return;
-    }
+    if (await handleApiError(res)) return;
     setData(await res.json());
+    toast.success('Template published');
   }
 
   async function upload() {
@@ -88,59 +86,73 @@ export default function WikiContractDetail({ id }: { id: string }) {
     const form = new FormData();
     form.append('file', file);
     const res = await fetch(`/api/ccrs/wiki-contracts/${id}/upload`, { method: 'POST', body: form });
-    if (!res.ok) {
-      setError(await res.text());
-      return;
-    }
+    if (await handleApiError(res)) return;
     setData(await res.json());
+    toast.success('File uploaded');
   }
 
   async function getDownloadUrl() {
     const res = await fetch(`/api/ccrs/wiki-contracts/${id}/download-url`);
+    if (await handleApiError(res)) return;
     const payload = await res.json();
     if (payload?.url) setDownloadUrl(payload.url);
   }
 
-  if (!data) return <p className="text-muted-foreground">Loading…</p>;
+  if (!data) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-1/3" />
+        <div className="grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 max-w-xl">
       <h1 className="text-2xl font-bold">WikiContract</h1>
-      <div className="space-y-4">
+      <form onSubmit={save} className="space-y-4">
         <div className="space-y-2">
-          <Label>Name</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} />
+          <Label>
+            Name <span className="text-destructive">*</span>
+          </Label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} required />
         </div>
         <div className="space-y-2">
-          <Label>Category</Label>
-          <Input value={category} onChange={(e) => setCategory(e.target.value)} />
+          <Label>
+            Category <span className="text-destructive">*</span>
+          </Label>
+          <Input value={category} onChange={(e) => setCategory(e.target.value)} required />
         </div>
         <div className="space-y-2">
           <Label>Region</Label>
-          <select
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            value={regionId}
-            onChange={(e) => setRegionId(e.target.value)}
-          >
-            <option value="">All regions</option>
-            {regions.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-          </select>
+          <Select value={regionId} onValueChange={setRegionId}>
+            <SelectTrigger>
+              <SelectValue placeholder="All regions" />
+            </SelectTrigger>
+            <SelectContent>
+              {regions.map((r) => (
+                <SelectItem key={r.id} value={r.id}>
+                  {r.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label>Description</Label>
           <Input value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={save}>Save</Button>
-          <Button variant="outline" onClick={publish}>
+          <Button type="submit">Save</Button>
+          <Button type="button" variant="outline" onClick={publish}>
             Publish
           </Button>
         </div>
-      </div>
+      </form>
 
       <div className="space-y-2">
         <Label>Upload template (PDF/DOCX)</Label>
@@ -161,7 +173,6 @@ export default function WikiContractDetail({ id }: { id: string }) {
         )}
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
       <Button variant="outline" onClick={() => router.push('/wiki-contracts')}>
         Back
       </Button>

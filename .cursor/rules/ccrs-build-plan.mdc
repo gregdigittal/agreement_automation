@@ -1,0 +1,21 @@
+---
+description: CCRS phased build plan — source of truth for remaining work (Phase 1a-fix, 1b, 1c, 2)
+alwaysApply: true
+---
+
+# CCRS Phased Build Plan (Context)
+
+**Source of truth:** `docs/CCRS-Phased-Build-Plan-Remaining.md`
+
+Use this document when planning work, estimating effort, or deciding what to build next. It supersedes older backlog/build-plan docs for **remaining** work.
+
+## Summary
+
+- **Phase 1a (API):** Done — FastAPI backend with 41 endpoints; 5 API polish items and low test coverage remain.
+- **Phase 1a (Frontend):** 11 outstanding bugs (root page, entity/project edit pages, counterparty edit/status, contract search UI, audit UI, proxy/multipart, nav, auth, middleware, dead code).
+- **Phase 1a-fix:** 2–3 sprints — frontend remediation (F1–F18) + API polish (A1–A10). Complete before new epics.
+- **Phase 1b:** Workflows, visual builder, WikiContracts, Boldsign, TiTo, amendments/renewals (10–12 sprints). Depends on Phase 1a complete.
+- **Phase 1c:** AI (Claude Agent SDK + Messages API), LLM workflow generator, reminders, escalation, reporting, multi-language (10–12 sprints). Depends on Phase 1b.
+- **Phase 2:** Future — vendor portal, redlining, regulatory, advanced search, Redis, OpenTelemetry.
+
+When implementing tasks, refer to the specific task IDs (F1–F18, A1–A10) and sprint breakdowns in the full document.

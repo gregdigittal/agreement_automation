@@ -356,6 +356,8 @@ class MockSupabase:
                     "updated_at": now,
                 }
             ],
+            "override_requests": [],
+            "counterparty_merges": [],
             "contracts": [
                 {
                     "id": contract_id,

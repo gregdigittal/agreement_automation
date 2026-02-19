@@ -1,10 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import { RoleGuard } from '@/components/role-guard';
+import { handleApiError } from '@/lib/api-error';
 
 interface EscalationEvent {
   id: string;
@@ -18,18 +23,16 @@ interface EscalationEvent {
 
 export default function EscalationsPage() {
   const [events, setEvents] = useState<EscalationEvent[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   async function loadEscalations() {
-    setError(null);
     setLoading(true);
     try {
       const res = await fetch('/api/ccrs/escalations/active');
-      if (!res.ok) throw new Error(`${res.status}`);
+      if (await handleApiError(res)) return;
       setEvents(await res.json());
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Request failed');
+      toast.error('Failed to load escalations');
     } finally {
       setLoading(false);
     }
@@ -45,9 +48,9 @@ export default function EscalationsPage() {
 
   async function resolveEscalation(id: string) {
     const res = await fetch(`/api/ccrs/escalations/${id}/resolve`, { method: 'POST' });
-    if (res.ok) {
-      setEvents((prev) => prev.filter((e) => e.id !== id));
-    }
+    if (await handleApiError(res)) return;
+    setEvents((prev) => prev.filter((e) => e.id !== id));
+    toast.success('Escalation resolved');
   }
 
   const rows = useMemo(() => {
@@ -66,14 +69,22 @@ export default function EscalationsPage() {
   }
 
   return (
+    <RoleGuard allowed={['System Admin', 'Legal']}>
     <div className="space-y-4">
       <Card>
         <CardHeader>
           <CardTitle>Active Escalations</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          {loading && <p className="text-sm text-muted-foreground">Loading escalations…</p>}
+          {loading && (
+            <div className="space-y-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          )}
           <Table>
             <TableHeader>
               <TableRow>
@@ -99,7 +110,17 @@ export default function EscalationsPage() {
                     <TableCell>{e.hoursBreached}h</TableCell>
                     <TableCell>{new Date(e.escalated_at).toLocaleString()}</TableCell>
                     <TableCell>
-                      <Button size="sm" variant="outline" onClick={() => resolveEscalation(e.id)}>Resolve</Button>
+                      <ConfirmDialog
+                        trigger={
+                          <Button size="sm" variant="outline">
+                            Resolve
+                          </Button>
+                        }
+                        title="Resolve escalation"
+                        description="This will mark the escalation as resolved."
+                        confirmLabel="Resolve"
+                        onConfirm={() => resolveEscalation(e.id)}
+                      />
                     </TableCell>
                   </TableRow>
                 ))
@@ -109,5 +130,6 @@ export default function EscalationsPage() {
         </CardContent>
       </Card>
     </div>
+    </RoleGuard>
   );
 }
