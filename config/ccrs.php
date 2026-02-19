@@ -23,4 +23,5 @@ return [
     ],
     'contracts_disk' => 's3',
     'wiki_contracts_disk' => 's3',
+    'otel_enabled' => env('OTEL_ENABLED', false),
 ];

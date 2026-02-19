@@ -79,10 +79,38 @@ services:
     networks:
       - ccrs_net
 
+  meilisearch:
+    image: getmeili/meilisearch:v1.6
+    container_name: ccrs_meilisearch
+    restart: unless-stopped
+    ports:
+      - "7700:7700"
+    volumes:
+      - meilisearch_data:/meili_data
+    environment:
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_ENV: development
+    networks:
+      - ccrs_net
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    container_name: ccrs_otel
+    restart: unless-stopped
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./docker/otel/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    networks:
+      - ccrs_net
+
 volumes:
   mysql_data:
   redis_data:
   laravel_storage:
+  meilisearch_data:
 
 networks:
   ccrs_net:
