@@ -65,6 +65,12 @@ class ContractResource extends Resource
             Tables\Columns\TextColumn::make('counterparty.legal_name')->sortable()->limit(30),
             Tables\Columns\TextColumn::make('region.name')->sortable(),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
+            Tables\Columns\TextColumn::make('languages_count')
+                ->label('Languages')
+                ->counts('languages')
+                ->badge()
+                ->color('gray')
+                ->toggleable(isToggledHiddenByDefault: true),
             Tables\Columns\IconColumn::make('sharepoint_url')
                 ->label('SP')
                 ->boolean()
@@ -134,6 +140,7 @@ class ContractResource extends Resource
     {
         return [
             RelationManagers\ContractLinksRelationManager::class,
+            RelationManagers\ContractLanguagesRelationManager::class,
         ];
     }
 

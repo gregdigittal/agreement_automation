@@ -34,6 +34,7 @@ class Contract extends Model
     public function reminders(): HasMany { return $this->hasMany(Reminder::class); }
     public function obligations(): HasMany { return $this->hasMany(ObligationsRegister::class); }
     public function languages(): HasMany { return $this->hasMany(ContractLanguage::class); }
+    public function primaryLanguage() { return $this->hasOne(ContractLanguage::class)->where('is_primary', true); }
     public function parentLinks(): HasMany { return $this->hasMany(ContractLink::class, 'parent_contract_id'); }
     public function childLinks(): HasMany { return $this->hasMany(ContractLink::class, 'child_contract_id'); }
 

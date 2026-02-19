@@ -25,3 +25,10 @@ Route::get('/vendor/contracts/{contract}/download', function (\App\Models\Contra
     $url = $service->getSignedUrl($contract);
     return $url ? redirect($url) : abort(404);
 })->middleware('auth:vendor')->name('vendor.contract.download');
+
+use App\Http\Controllers\Reports\ReportExportController;
+
+Route::prefix('reports/export')->middleware('auth')->group(function () {
+    Route::get('/contracts/excel', [ReportExportController::class, 'contractsExcel'])->name('reports.export.contracts.excel');
+    Route::get('/contracts/pdf', [ReportExportController::class, 'contractsPdf'])->name('reports.export.contracts.pdf');
+});
