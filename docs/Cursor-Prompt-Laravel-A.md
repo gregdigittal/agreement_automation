@@ -4,13 +4,36 @@
 
 The CCRS (Contract & Merchant Agreement Repository System) is being ported from Python FastAPI + Next.js + Supabase/PostgreSQL to **PHP 8.3 + Laravel 11 + Laravel Filament 3 + MySQL 8+**. This is Phase A (scaffold) — it lays the entire structural foundation but does not implement any business logic yet.
 
-The source of truth for the database schema is `supabase/migrations/` in the `gregdigittal/agreement_automation` repo. All 27 tables must be translated from PostgreSQL to MySQL following the type-mapping rules below.
+The source of truth for the database schema is `supabase/migrations/` in this repo. All 27 tables must be translated from PostgreSQL to MySQL following the type-mapping rules below.
 
 ---
 
-## ⚠️ IMPORTANT: Repository and Structure
+## ⚠️ IMPORTANT: Where to Run This Prompt
 
-**This prompt runs in the `digittaldotio/digittal-ccrs` repo** (cloned from the `digittaldotio/sandbox-template-laravel-filament` template). That template already provides:
+**Run this prompt in the current `agreement_automation` repo on the `laravel-migration` branch.** Do not clone a separate repo.
+
+```bash
+# Confirm you are on the correct branch before starting
+git checkout laravel-migration
+```
+
+The production deployment target is `digittaldotio/digittal-ccrs` (not yet provisioned). All work is done here on `laravel-migration` until the CTO provisions that repo.
+
+---
+
+## ⚠️ IMPORTANT: Pre-requisite — Fetch Template Infrastructure Files
+
+The CTO's deployment template (`digittaldotio/sandbox-template-laravel-filament`) provides a pre-wired `Dockerfile`, nginx, supervisor, and Kubernetes manifests. Fetch these files into the repo root **before** running any other task:
+
+```bash
+# From the repo root on laravel-migration branch
+git remote add template https://github.com/digittaldotio/sandbox-template-laravel-filament.git
+git fetch template main
+git checkout template/main -- Dockerfile docker/ deploy/ Jenkinsfile
+git remote remove template
+```
+
+After this step the repo root will contain:
 
 | Template file | Status |
 |---|---|
@@ -19,7 +42,7 @@ The source of truth for the database schema is `supabase/migrations/` in the `gr
 | `docker/php/` configs | ✅ **DO NOT recreate** |
 | `docker/docker-entrypoint.sh` | ✅ **DO NOT recreate** — runs `php artisan migrate --force` + `filament:assets` on boot |
 | `docker/supervisor/supervisord.conf` | ⚠️ **EXTEND** — add queue worker and scheduler (see Task 9) |
-| `deploy/k8s/deployment.yaml` | ⚠️ **UPDATE** — add MySQL/Redis env vars (see Task 10) |
+| `deploy/k8s/deployment.yaml` | ⚠️ **UPDATE** — add MySQL/Redis env vars (see Task 9) |
 | `Jenkinsfile` | ✅ **DO NOT touch** — auto-builds and deploys to Kubernetes |
 
 **The Laravel application code lives at the repository root** — not in a `laravel/` subdirectory. All file paths in this prompt are relative to the repo root.
