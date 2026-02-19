@@ -35,6 +35,21 @@ class ContractResource extends Resource
                     }
                 }),
             Forms\Components\Hidden::make('file_name'),
+            Forms\Components\Section::make('SharePoint Collaboration')
+                ->description('Link the SharePoint document URL for collaborative review.')
+                ->collapsed()
+                ->schema([
+                    Forms\Components\TextInput::make('sharepoint_url')
+                        ->label('SharePoint URL')
+                        ->url()
+                        ->maxLength(2048)
+                        ->placeholder('https://digittalgroup.sharepoint.com/sites/legal/...'),
+                    Forms\Components\TextInput::make('sharepoint_version')
+                        ->label('SharePoint Version')
+                        ->maxLength(50)
+                        ->placeholder('e.g. 2.3'),
+                ])
+                ->columns(2),
         ]);
     }
 
@@ -50,6 +65,12 @@ class ContractResource extends Resource
             Tables\Columns\TextColumn::make('counterparty.legal_name')->sortable()->limit(30),
             Tables\Columns\TextColumn::make('region.name')->sortable(),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
+            Tables\Columns\IconColumn::make('sharepoint_url')
+                ->label('SP')
+                ->boolean()
+                ->trueIcon('heroicon-o-document-text')
+                ->falseIcon('heroicon-o-minus')
+                ->toggleable(isToggledHiddenByDefault: true),
         ])
         ->filters([
             Tables\Filters\SelectFilter::make('contract_type')->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant']),
@@ -64,7 +85,56 @@ class ContractResource extends Resource
             Tables\Actions\Action::make('download')->icon('heroicon-o-arrow-down-tray')
                 ->url(fn (Contract $record) => $record->storage_path ? route('contract.download', $record) : null)
                 ->visible(fn (Contract $record) => (bool) $record->storage_path),
+            Tables\Actions\Action::make('create_amendment')
+                ->label('Amendment')
+                ->icon('heroicon-o-document-plus')
+                ->color('warning')
+                ->form([
+                    \Filament\Forms\Components\TextInput::make('title')->required()->placeholder('e.g. Amendment No. 1'),
+                ])
+                ->action(function (Contract $record, array $data) {
+                    app(ContractLinkService::class)->createLinkedContract($record, 'amendment', $data['title'], auth()->user());
+                    \Filament\Notifications\Notification::make()->title('Amendment created')->success()->send();
+                }),
+            Tables\Actions\Action::make('create_renewal')
+                ->label('Renewal')
+                ->icon('heroicon-o-arrow-path')
+                ->color('info')
+                ->form([
+                    \Filament\Forms\Components\TextInput::make('title')->required()->placeholder('e.g. Renewal 2027-2029'),
+                    \Filament\Forms\Components\Select::make('renewal_type')
+                        ->options(['extension' => 'Extension', 'new_version' => 'New Version'])
+                        ->required()
+                        ->default('new_version'),
+                ])
+                ->action(function (Contract $record, array $data) {
+                    app(ContractLinkService::class)->createLinkedContract($record, 'renewal', $data['title'], auth()->user(), ['renewal_type' => $data['renewal_type']]);
+                    \Filament\Notifications\Notification::make()->title('Renewal created')->success()->send();
+                }),
+            Tables\Actions\Action::make('add_side_letter')
+                ->label('Side Letter')
+                ->icon('heroicon-o-paper-clip')
+                ->color('success')
+                ->form([
+                    \Filament\Forms\Components\TextInput::make('title')->required()->placeholder('e.g. Side Letter - Data Sharing'),
+                    \Filament\Forms\Components\FileUpload::make('file')
+                        ->label('File (PDF/DOCX)')
+                        ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
+                        ->disk('s3')
+                        ->directory('side_letters'),
+                ])
+                ->action(function (Contract $record, array $data) {
+                    app(ContractLinkService::class)->createLinkedContract($record, 'side_letter', $data['title'], auth()->user(), ['storage_path' => $data['file'] ?? null]);
+                    \Filament\Notifications\Notification::make()->title('Side letter linked')->success()->send();
+                }),
         ]);
+    }
+
+    public static function getRelationManagers(): array
+    {
+        return [
+            RelationManagers\ContractLinksRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

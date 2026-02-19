@@ -36,6 +36,10 @@ class Contract extends Model
     public function languages(): HasMany { return $this->hasMany(ContractLanguage::class); }
     public function parentLinks(): HasMany { return $this->hasMany(ContractLink::class, 'parent_contract_id'); }
     public function childLinks(): HasMany { return $this->hasMany(ContractLink::class, 'child_contract_id'); }
+
+    public function amendments() { return $this->parentLinks()->where('link_type', 'amendment')->with('childContract'); }
+    public function renewals() { return $this->parentLinks()->where('link_type', 'renewal')->with('childContract'); }
+    public function sideLetters() { return $this->parentLinks()->where('link_type', 'side_letter')->with('childContract'); }
     public function aiAnalyses(): HasMany { return $this->hasMany(AiAnalysisResult::class); }
     public function boldsignEnvelopes(): HasMany { return $this->hasMany(BoldsignEnvelope::class); }
     public function workflowInstances(): HasMany { return $this->hasMany(WorkflowInstance::class); }
