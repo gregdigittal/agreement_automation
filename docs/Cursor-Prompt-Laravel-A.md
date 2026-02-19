@@ -4,9 +4,29 @@
 
 The CCRS (Contract & Merchant Agreement Repository System) is being ported from Python FastAPI + Next.js + Supabase/PostgreSQL to **PHP 8.3 + Laravel 11 + Laravel Filament 3 + MySQL 8+**. This is Phase A (scaffold) — it lays the entire structural foundation but does not implement any business logic yet.
 
-The source of truth for the database schema is `supabase/migrations/`. All 27 tables must be translated from PostgreSQL to MySQL following the type-mapping rules below.
+The source of truth for the database schema is `supabase/migrations/` in the `gregdigittal/agreement_automation` repo. All 27 tables must be translated from PostgreSQL to MySQL following the type-mapping rules below.
 
-**Work exclusively in the `laravel-migration` branch.** Do not touch `apps/` or `supabase/` directories.
+---
+
+## ⚠️ IMPORTANT: Repository and Structure
+
+**This prompt runs in the `digittaldotio/digittal-ccrs` repo** (cloned from the `digittaldotio/sandbox-template-laravel-filament` template). That template already provides:
+
+| Template file | Status |
+|---|---|
+| `Dockerfile` | ✅ **DO NOT recreate** — multi-stage PHP 8.3, port 8080 |
+| `docker/nginx/nginx.conf` + `default.conf` | ✅ **DO NOT recreate** — already listens on port 8080 |
+| `docker/php/` configs | ✅ **DO NOT recreate** |
+| `docker/docker-entrypoint.sh` | ✅ **DO NOT recreate** — runs `php artisan migrate --force` + `filament:assets` on boot |
+| `docker/supervisor/supervisord.conf` | ⚠️ **EXTEND** — add queue worker and scheduler (see Task 9) |
+| `deploy/k8s/deployment.yaml` | ⚠️ **UPDATE** — add MySQL/Redis env vars (see Task 10) |
+| `Jenkinsfile` | ✅ **DO NOT touch** — auto-builds and deploys to Kubernetes |
+
+**The Laravel application code lives at the repository root** — not in a `laravel/` subdirectory. All file paths in this prompt are relative to the repo root.
+
+**Port is 8080** everywhere (the template's nginx and Docker EXPOSE use 8080, not 8000).
+
+For **local development**, create a `docker-compose.yml` at the repo root that uses the template's Dockerfile but adds MySQL and Redis sidecars.
 
 ---
 
@@ -41,17 +61,29 @@ Use a shared `HasUuidPrimaryKey` trait (create at `app/Traits/HasUuidPrimaryKey.
 
 ## Task 1: Create the Laravel Application
 
+**Run from the repo root** (the cloned `digittal-ccrs` directory). Install Laravel into the current directory — the template files (Dockerfile, Jenkinsfile, docker/, deploy/) must be preserved.
+
 ```bash
-# Run from the repo root
-composer create-project laravel/laravel laravel --prefer-dist
-cd laravel
+# Install Laravel into the current directory, keeping existing files
+composer create-project laravel/laravel . --prefer-dist --no-interaction
+
+# Note: composer will warn about the non-empty directory — that is expected.
+# It will create Laravel's standard file structure alongside the template files.
+```
+
+If composer refuses to install into a non-empty directory, use this alternative:
+```bash
+# Create in a temp dir then merge
+composer create-project laravel/laravel /tmp/ccrs-laravel --prefer-dist
+# Copy Laravel files to repo root, excluding Dockerfile/Jenkinsfile/docker/deploy
+rsync -av --exclude='Dockerfile' --exclude='Jenkinsfile' --exclude='docker' --exclude='deploy' --exclude='.git' /tmp/ccrs-laravel/ .
 ```
 
 ---
 
 ## Task 2: Install Composer Dependencies
 
-Update `laravel/composer.json` `require` section to include all packages, then run `composer install`:
+Update `composer.json` `require` section to include all packages, then run `composer install`:
 
 ```json
 {
@@ -96,13 +128,13 @@ php artisan vendor:publish --provider="Laravel\Telescope\TelescopeServiceProvide
 
 ## Task 3: Configure the Application
 
-### `laravel/.env.example` (create this file)
+### `.env.example` (update the template's existing file — do not create a new one)
 ```
 APP_NAME="CCRS"
 APP_ENV=local
 APP_KEY=
 APP_DEBUG=true
-APP_URL=http://localhost:8000
+APP_URL=http://localhost:8080
 
 DB_CONNECTION=mysql
 DB_HOST=mysql
@@ -152,7 +184,7 @@ AI_WORKER_SECRET=
 ANTHROPIC_API_KEY=
 ```
 
-### `laravel/config/ccrs.php` (create this file)
+### `config/ccrs.php` (create this file)
 ```php
 <?php
 
@@ -178,7 +210,7 @@ return [
 ];
 ```
 
-### `laravel/config/filesystems.php` — Add S3 disk config
+### `config/filesystems.php` — Add S3 disk config
 In the `disks` array, add (or update the `s3` disk):
 ```php
 's3' => [
@@ -194,7 +226,7 @@ In the `disks` array, add (or update the `s3` disk):
 ],
 ```
 
-### `laravel/config/services.php` — Add Azure AD and BoldSign
+### `config/services.php` — Add Azure AD and BoldSign
 ```php
 'azure' => [
     'client_id' => env('AZURE_AD_CLIENT_ID'),
@@ -208,7 +240,7 @@ In the `disks` array, add (or update the `s3` disk):
 
 ## Task 4: Create All Laravel Database Migrations
 
-Create the following migration files in `laravel/database/migrations/`. **Use exact timestamps shown so foreign key order is preserved.**
+Create the following migration files in `database/migrations/`. **Use exact timestamps shown so foreign key order is preserved.**
 
 ### 2026_02_20_000001_create_regions_table.php
 ```php
@@ -709,7 +741,7 @@ Schema::create('users', function (Blueprint $table) {
 });
 ```
 
-After creating this migration, update `laravel/app/Models/User.php`:
+After creating this migration, update `app/Models/User.php`:
 - Remove `$incrementing` default (already string PK)
 - Add `protected $keyType = 'string'; public $incrementing = false;`
 - Change `$fillable` to `['id', 'email', 'name']`
@@ -721,7 +753,7 @@ After creating this migration, update `laravel/app/Models/User.php`:
 
 ## Task 5: Create the `HasUuidPrimaryKey` Trait
 
-Create `laravel/app/Traits/HasUuidPrimaryKey.php`:
+Create `app/Traits/HasUuidPrimaryKey.php`:
 ```php
 <?php
 
@@ -741,7 +773,7 @@ trait HasUuidPrimaryKey
 
 ## Task 6: Create All 27 Eloquent Models
 
-Create these models in `laravel/app/Models/`. Every model must:
+Create these models in `app/Models/`. Every model must:
 1. Use `HasUuidPrimaryKey` trait
 2. Have correct `$fillable` array
 3. Have `$casts` for JSON columns (`array`), boolean columns (`bool`), date columns (`date`/`datetime`)
@@ -823,7 +855,7 @@ Set `'column_names' => ['model_morph_key' => 'id']` to use string UUIDs as model
 php artisan shield:install --fresh
 ```
 
-### Create a database seeder `laravel/database/seeders/RoleSeeder.php`:
+### Create a database seeder `database/seeders/RoleSeeder.php`:
 ```php
 use Spatie\Permission\Models\Role;
 
@@ -839,7 +871,7 @@ Register in `DatabaseSeeder.php` and run: `php artisan db:seed --class=RoleSeede
 
 ## Task 8: Create Filament AdminPanel Provider
 
-Update `laravel/app/Providers/Filament/AdminPanelProvider.php` to:
+Update `app/Providers/Filament/AdminPanelProvider.php` to:
 1. Register all Resources (stub list — full implementation in Prompt B):
    - ContractResource, MerchantAgreementResource, CounterpartyResource, WorkflowTemplateResource, WikiContractResource, RegionResource, EntityResource, ProjectResource, SigningAuthorityResource, OverrideRequestResource, AuditLogResource, NotificationResource
 2. Register all Pages:
@@ -855,85 +887,157 @@ Run `php artisan filament:make-resource` stubs for each resource (can be empty s
 
 ---
 
-## Task 9: Create Dockerfiles
+## Task 9: Extend Template Infrastructure
 
-### `laravel/Dockerfile`
-```dockerfile
-FROM php:8.3-fpm-alpine
+The template already provides a production-ready `Dockerfile`, nginx, and supervisor config at the repo root. **Do NOT recreate or overwrite them.** Instead, extend two files:
 
-# Install system deps
-RUN apk add --no-cache \
-    nginx \
-    nodejs \
-    npm \
-    git \
-    curl \
-    libpng-dev \
-    libjpeg-turbo-dev \
-    freetype-dev \
-    libzip-dev \
-    oniguruma-dev \
-    icu-dev \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) \
-        pdo_mysql \
-        mbstring \
-        exif \
-        pcntl \
-        bcmath \
-        gd \
-        zip \
-        intl \
-        opcache
+### 9a. Extend `docker/supervisor/supervisord.conf`
 
-# Install Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+The template's supervisor only manages `php-fpm` and `nginx`. Open the existing file and **append** these two program sections — do not remove any existing sections:
 
-# Nginx config
-COPY docker/nginx.conf /etc/nginx/nginx.conf
+```ini
+[program:queue-worker]
+process_name=%(program_name)s_%(process_num)02d
+command=php /var/www/html/artisan queue:work --sleep=3 --tries=3 --max-time=3600
+directory=/var/www/html
+autostart=true
+autorestart=true
+numprocs=2
+redirect_stderr=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
 
-WORKDIR /var/www/html
-
-# Copy application
-COPY . .
-
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
-
-# Install and build frontend assets (Filament uses Vite)
-RUN npm ci && npm run build
-
-# Set permissions
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
-
-# Expose port
-EXPOSE 8000
-
-CMD ["sh", "-c", "php artisan config:cache && php artisan route:cache && nginx -g 'daemon off;' & php-fpm"]
+[program:scheduler]
+command=/bin/sh -c "while true; do php /var/www/html/artisan schedule:run --verbose --no-interaction && sleep 60; done"
+directory=/var/www/html
+autostart=true
+autorestart=true
+redirect_stderr=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
 ```
 
-Create `laravel/docker/nginx.conf` for PHP-FPM:
-```nginx
-events { worker_connections 1024; }
-http {
-    server {
-        listen 8000;
-        root /var/www/html/public;
-        index index.php;
-        location / {
-            try_files $uri $uri/ /index.php?$query_string;
-        }
-        location ~ \.php$ {
-            fastcgi_pass 127.0.0.1:9000;
-            fastcgi_index index.php;
-            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-            include fastcgi_params;
-        }
-    }
-}
+### 9b. Update `deploy/k8s/deployment.yaml` environment variables
+
+The template's deployment uses SQLite env vars. Replace them with MySQL + Redis + secrets for CCRS. Update the `env:` array in the container spec to:
+
+```yaml
+env:
+  - name: APP_NAME
+    value: "CCRS"
+  - name: APP_ENV
+    value: "production"
+  - name: APP_KEY
+    valueFrom:
+      secretKeyRef:
+        name: ccrs-secrets
+        key: APP_KEY
+  - name: APP_DEBUG
+    value: "false"
+  - name: APP_URL
+    value: "https://ccrs-sandbox.digittal.mobi"
+  - name: DB_CONNECTION
+    value: "mysql"
+  - name: DB_HOST
+    valueFrom:
+      secretKeyRef:
+        name: ccrs-secrets
+        key: DB_HOST
+  - name: DB_PORT
+    value: "3306"
+  - name: DB_DATABASE
+    value: "ccrs"
+  - name: DB_USERNAME
+    valueFrom:
+      secretKeyRef:
+        name: ccrs-secrets
+        key: DB_USERNAME
+  - name: DB_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: ccrs-secrets
+        key: DB_PASSWORD
+  - name: CACHE_STORE
+    value: "redis"
+  - name: QUEUE_CONNECTION
+    value: "redis"
+  - name: SESSION_DRIVER
+    value: "redis"
+  - name: REDIS_HOST
+    valueFrom:
+      secretKeyRef:
+        name: ccrs-secrets
+        key: REDIS_HOST
+  - name: REDIS_PORT
+    value: "6379"
+  - name: AI_WORKER_URL
+    value: "http://ccrs-ai-worker:8001"
+  - name: AI_WORKER_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: ccrs-secrets
+        key: AI_WORKER_SECRET
+  - name: ANTHROPIC_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: ccrs-secrets
+        key: ANTHROPIC_API_KEY
+  - name: AZURE_AD_CLIENT_ID
+    valueFrom:
+      secretKeyRef:
+        name: ccrs-secrets
+        key: AZURE_AD_CLIENT_ID
+  - name: AZURE_AD_CLIENT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: ccrs-secrets
+        key: AZURE_AD_CLIENT_SECRET
+  - name: AZURE_AD_TENANT_ID
+    valueFrom:
+      secretKeyRef:
+        name: ccrs-secrets
+        key: AZURE_AD_TENANT_ID
+  - name: BOLDSIGN_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: ccrs-secrets
+        key: BOLDSIGN_API_KEY
+  - name: BOLDSIGN_WEBHOOK_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: ccrs-secrets
+        key: BOLDSIGN_WEBHOOK_SECRET
 ```
 
-### `ai-worker/Dockerfile`
+Create `deploy/k8s/ccrs-secrets-template.yaml` (add to `.gitignore` — reference for ops team):
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ccrs-secrets
+  namespace: cco-sandbox
+type: Opaque
+stringData:
+  APP_KEY: "base64:changeme"
+  DB_HOST: "mysql-service"
+  DB_USERNAME: "ccrs"
+  DB_PASSWORD: "changeme"
+  REDIS_HOST: "redis-service"
+  AI_WORKER_SECRET: "changeme"
+  ANTHROPIC_API_KEY: "sk-ant-..."
+  AZURE_AD_CLIENT_ID: ""
+  AZURE_AD_CLIENT_SECRET: ""
+  AZURE_AD_TENANT_ID: ""
+  BOLDSIGN_API_KEY: ""
+  BOLDSIGN_WEBHOOK_SECRET: ""
+```
+
+### 9c. Create `ai-worker/Dockerfile`
 ```dockerfile
 FROM python:3.12-slim
 
@@ -984,22 +1088,26 @@ async def health():
 
 ## Task 10: Create `docker-compose.yml` at Repo Root
 
+This file is for **local development only** — K8s is handled by the Jenkinsfile and `deploy/k8s/`. The `app` service uses the template's `Dockerfile` at the repo root (context: `.`) and port 8080.
+
 ```yaml
 version: "3.9"
 
 services:
   app:
     build:
-      context: ./laravel
+      context: .
       dockerfile: Dockerfile
     container_name: ccrs_laravel
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8080:8080"
     env_file:
-      - ./laravel/.env
+      - .env
     volumes:
-      - ./laravel:/var/www/html
+      - .:/var/www/html
+      - /var/www/html/vendor          # exclude vendor from mount
+      - /var/www/html/node_modules    # exclude node_modules from mount
       - laravel_storage:/var/www/html/storage
     depends_on:
       mysql:
@@ -1008,12 +1116,6 @@ services:
         condition: service_healthy
     networks:
       - ccrs_net
-    command: >
-      sh -c "php artisan migrate --force &&
-             php artisan db:seed --class=RoleSeeder --force &
-             php artisan queue:work --sleep=3 --tries=3 &
-             php artisan schedule:work &
-             php-fpm"
 
   mysql:
     image: mysql:8.0
@@ -1030,7 +1132,7 @@ services:
       - mysql_data:/var/lib/mysql
     command: --default-authentication-plugin=mysql_native_password
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "ccrs", "-pccrspassword"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u ccrs -p${DB_PASSWORD:-ccrspassword}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -1059,8 +1161,7 @@ services:
       dockerfile: Dockerfile
     container_name: ccrs_ai_worker
     restart: unless-stopped
-    ports:
-      - "8001:8001"
+    # Not exposed to host — only accessible by app via ccrs_net
     environment:
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
       AI_WORKER_SECRET: "${AI_WORKER_SECRET:-changeme}"
@@ -1082,39 +1183,99 @@ networks:
     driver: bridge
 ```
 
-Also create `.env` at repo root for docker-compose variable substitution (gitignored):
-```
+Create `.env` at repo root (used by both `docker-compose` and Laravel — gitignored):
+
+```dotenv
+APP_NAME="CCRS"
+APP_ENV=local
+APP_KEY=
+APP_DEBUG=true
+APP_URL=http://localhost:8080
+
+DB_CONNECTION=mysql
+DB_HOST=mysql
+DB_PORT=3306
+DB_DATABASE=ccrs
+DB_USERNAME=ccrs
 DB_PASSWORD=ccrspassword
 DB_ROOT_PASSWORD=rootpassword
-ANTHROPIC_API_KEY=your_key_here
+
+CACHE_STORE=redis
+QUEUE_CONNECTION=redis
+SESSION_DRIVER=redis
+
+REDIS_HOST=redis
+REDIS_PORT=6379
+
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=ap-southeast-2
+AWS_BUCKET=ccrs-contracts
+AWS_ENDPOINT=
+
+AZURE_AD_CLIENT_ID=
+AZURE_AD_CLIENT_SECRET=
+AZURE_AD_TENANT_ID=
+AZURE_AD_GROUP_SYSTEM_ADMIN=
+AZURE_AD_GROUP_LEGAL=
+AZURE_AD_GROUP_COMMERCIAL=
+AZURE_AD_GROUP_FINANCE=
+AZURE_AD_GROUP_OPERATIONS=
+AZURE_AD_GROUP_AUDIT=
+
+BOLDSIGN_API_KEY=
+BOLDSIGN_API_URL=https://api.boldsign.com
+BOLDSIGN_WEBHOOK_SECRET=
+
+AI_WORKER_URL=http://ai-worker:8001
 AI_WORKER_SECRET=changeme_to_random_secret
+
+ANTHROPIC_API_KEY=your_key_here
+
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.sendgrid.net
+MAIL_PORT=587
+MAIL_USERNAME=apikey
+MAIL_PASSWORD=
+MAIL_FROM_ADDRESS=noreply@ccrs.digittal.com
+MAIL_FROM_NAME="CCRS"
+```
+
+**Note:** The template's `docker/docker-entrypoint.sh` already runs `php artisan migrate --force` and `php artisan filament:assets` on container start. Supervisor (extended in Task 9) then manages nginx, php-fpm, queue worker, and scheduler. After first `docker compose up`, seed roles manually:
+```bash
+docker compose exec app php artisan db:seed --class=RoleSeeder
 ```
 
 ---
 
-## Task 11: Create `.gitignore` additions at repo root
+## Task 11: Update `.gitignore` at repo root
 
-Add to `.gitignore`:
+The template likely has a basic `.gitignore`. **Add** these entries (do not remove existing ones):
+
 ```
-# Laravel
-laravel/.env
-laravel/vendor/
-laravel/node_modules/
-laravel/public/build/
-laravel/storage/app/public/
-laravel/storage/framework/cache/
-laravel/storage/framework/sessions/
-laravel/storage/framework/views/
-laravel/storage/logs/
+# Laravel (app lives at repo root)
+.env
+vendor/
+node_modules/
+public/build/
+storage/app/public/
+storage/framework/cache/
+storage/framework/sessions/
+storage/framework/views/
+storage/logs/
+bootstrap/cache/*.php
 
 # AI Worker
 ai-worker/.env
 ai-worker/__pycache__/
+ai-worker/**/__pycache__/
 
-# Docker
-.env
+# Docker local dev
 docker-compose.override.yml
-mysql_data/
+
+# K8s secrets (never commit)
+deploy/k8s/ccrs-secrets*.yaml
+deploy/k8s/ccrs-secrets-template.yaml
 ```
 
 ---
@@ -1124,10 +1285,11 @@ mysql_data/
 After completing all tasks, verify:
 
 1. **`docker compose up --build`** — all 4 services start without errors
-2. **`docker compose exec app php artisan migrate`** — all 25 migrations run successfully (zero errors)
+2. Container logs show `php artisan migrate --force` completed (template entrypoint runs this automatically)
 3. **`docker compose exec mysql mysql -u ccrs -pccrspassword ccrs -e "SHOW TABLES;"` shows all 27 tables**
-4. **`curl http://localhost:8000/admin`** — returns Filament login page (HTTP 200 or redirect)
+4. **`curl http://localhost:8080/admin`** — returns Filament login page (HTTP 200 or redirect)
 5. **`curl http://localhost:8001/health`** — returns `{"status": "ok", "service": "ai-worker"}`
 6. **`docker compose exec app php artisan db:seed --class=RoleSeeder`** — creates 6 roles without error
 7. **`docker compose exec app php artisan route:list`** — shows Filament routes
 8. No PHP syntax errors: `docker compose exec app php artisan about`
+9. **`docker compose exec app supervisorctl status`** — shows `queue-worker` and `scheduler` as RUNNING alongside `nginx` and `php-fpm`

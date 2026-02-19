@@ -475,7 +475,7 @@ app.include_router(analysis.router, tags=["analysis-root"])
 
 ---
 
-## Task 10: Implement `laravel/app/Services/AiWorkerClient.php`
+## Task 10: Implement `app/Services/AiWorkerClient.php`
 
 Full implementation replacing the placeholder from Phase B:
 
@@ -564,14 +564,14 @@ class AiWorkerClient
 }
 ```
 
-Register in `laravel/app/Providers/AppServiceProvider.php`:
+Register in `app/Providers/AppServiceProvider.php`:
 ```php
 $this->app->singleton(AiWorkerClient::class, fn() => new AiWorkerClient());
 ```
 
 ---
 
-## Task 11: Implement `laravel/app/Jobs/ProcessAiAnalysis.php`
+## Task 11: Implement `app/Jobs/ProcessAiAnalysis.php`
 
 Full implementation replacing the Phase B placeholder. This is the port of `apps/api/app/ai_analysis/service.py::trigger_analysis()` — the database write side.
 
@@ -730,7 +730,7 @@ class ProcessAiAnalysis implements ShouldQueue
 
 ## Task 12: Add AI Analysis Trigger to ContractResource
 
-In `laravel/app/Filament/Resources/ContractResource.php`, update the `trigger_ai_analysis` action that was stubbed in Phase B:
+In `app/Filament/Resources/ContractResource.php`, update the `trigger_ai_analysis` action that was stubbed in Phase B:
 
 ```php
 Tables\Actions\Action::make('trigger_ai_analysis')
@@ -782,12 +782,11 @@ Tables\Actions\Action::make('generate_ai')
             ->required()
             ->rows(3),
     ])
-    ->action(function (array $data, Forms\Set $set) {
+    ->action(function (array $data, $livewire) {
         try {
             $client = app(\App\Services\AiWorkerClient::class);
             $result = $client->generateWorkflow($data['description']);
-            // Fill stages repeater with AI-generated stages
-            $set('stages', $result['stages'] ?? []);
+            $livewire->data['stages'] = $result['stages'] ?? [];
             Filament\Notifications\Notification::make()
                 ->title('Workflow generated')
                 ->success()

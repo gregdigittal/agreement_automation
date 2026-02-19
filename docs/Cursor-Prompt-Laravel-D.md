@@ -18,7 +18,7 @@ Phases A, B, and C are complete. The application has all Filament Resources, the
 
 ### 1.1 Add Socialite Provider
 
-In `laravel/config/services.php`, add Azure AD configuration:
+In `config/services.php`, add Azure AD configuration:
 ```php
 'azure' => [
     'client_id' => env('AZURE_AD_CLIENT_ID'),
@@ -29,12 +29,12 @@ In `laravel/config/services.php`, add Azure AD configuration:
 ],
 ```
 
-In `laravel/config/app.php` providers array, add:
+In `config/app.php` providers array, add:
 ```php
 \SocialiteProviders\Manager\ServiceProvider::class,
 ```
 
-In `laravel/app/Providers/EventServiceProvider.php` `$listen` array:
+In `app/Providers/EventServiceProvider.php` `$listen` array:
 ```php
 \SocialiteProviders\Manager\SocialiteWasCalled::class => [
     \SocialiteProviders\Azure\AzureExtendSocialite::class . '@handle',
@@ -43,7 +43,7 @@ In `laravel/app/Providers/EventServiceProvider.php` `$listen` array:
 
 ### 1.2 Create `AzureAdController.php`
 
-Create `laravel/app/Http/Controllers/Auth/AzureAdController.php`:
+Create `app/Http/Controllers/Auth/AzureAdController.php`:
 
 ```php
 <?php
@@ -150,7 +150,7 @@ class AzureAdController extends Controller
 
 ### 1.3 Register Azure Routes
 
-In `laravel/routes/web.php`:
+In `routes/web.php`:
 ```php
 use App\Http\Controllers\Auth\AzureAdController;
 
@@ -166,7 +166,7 @@ Route::post('/logout', function () {
 
 ### 1.4 Override Filament Login Page
 
-In `laravel/app/Providers/Filament/AdminPanelProvider.php`:
+In `app/Providers/Filament/AdminPanelProvider.php`:
 
 ```php
 use Filament\Http\Middleware\Authenticate;
@@ -184,7 +184,7 @@ Create a custom Filament Login page that immediately redirects to Azure:
 php artisan make:filament-page AzureLoginPage
 ```
 
-In `laravel/app/Filament/Pages/AzureLoginPage.php`:
+In `app/Filament/Pages/AzureLoginPage.php`:
 ```php
 <?php
 
@@ -216,7 +216,7 @@ In `AdminPanelProvider.php`:
 
 After running `php artisan shield:generate --all`, configure default role permissions.
 
-In a seeder `laravel/database/seeders/ShieldPermissionSeeder.php`, define default permissions per role:
+In a seeder `database/seeders/ShieldPermissionSeeder.php`, define default permissions per role:
 
 ```php
 use Spatie\Permission\Models\Role;
@@ -276,7 +276,7 @@ php artisan db:seed --class=ShieldPermissionSeeder
 
 ## Task 3: Configure SendGrid Mail
 
-In `laravel/config/mail.php`, ensure the default mailer uses SMTP:
+In `config/mail.php`, ensure the default mailer uses SMTP:
 ```php
 'default' => env('MAIL_MAILER', 'smtp'),
 'mailers' => [
@@ -292,7 +292,7 @@ In `laravel/config/mail.php`, ensure the default mailer uses SMTP:
 ],
 ```
 
-Ensure `laravel/app/Mail/NotificationMail.php` (created in Phase B) is complete:
+Ensure `app/Mail/NotificationMail.php` (created in Phase B) is complete:
 ```php
 <?php
 
@@ -319,7 +319,7 @@ class NotificationMail extends Mailable
 }
 ```
 
-Create `laravel/resources/views/emails/notification.blade.php`:
+Create `resources/views/emails/notification.blade.php`:
 ```html
 <!DOCTYPE html>
 <html>
@@ -367,7 +367,7 @@ Test with an invalid signature: should return HTTP 401 with `{"error": "Invalid 
 
 Ensure Horizon is fully configured for Docker Compose.
 
-In `laravel/app/Providers/HorizonServiceProvider.php`, restrict dashboard access:
+In `app/Providers/HorizonServiceProvider.php`, restrict dashboard access:
 ```php
 protected function gate(): void
 {
@@ -387,7 +387,7 @@ command: >
          php-fpm"
 ```
 
-Ensure `laravel/config/horizon.php` has the correct `environments` config (from Phase B Task 10).
+Ensure `config/horizon.php` has the correct `environments` config (from Phase B Task 10).
 
 ---
 
@@ -429,7 +429,7 @@ Set navigation sort order via `protected static ?int $navigationSort`:
 
 ## Task 7: Configure Error Pages
 
-Create `laravel/resources/views/errors/403.blade.php`:
+Create `resources/views/errors/403.blade.php`:
 ```html
 <!DOCTYPE html>
 <html>
@@ -442,13 +442,13 @@ Create `laravel/resources/views/errors/403.blade.php`:
 </html>
 ```
 
-Create `laravel/resources/views/errors/500.blade.php` similarly.
+Create `resources/views/errors/500.blade.php` similarly.
 
 ---
 
 ## Task 8: Write Feature Tests
 
-Create the following in `laravel/tests/Feature/`:
+Create the following in `tests/Feature/`:
 
 ### `AzureAuthTest.php`
 ```php
@@ -574,14 +574,18 @@ it('marks analysis as failed when ai worker throws', function () {
 
 ### Factories for tests
 
-Create `laravel/database/factories/ContractFactory.php`:
+Create `database/factories/ContractFactory.php`:
 ```php
 public function definition(): array {
+    $region = \App\Models\Region::factory()->create();
+    $entity = \App\Models\Entity::factory()->for($region)->create();
+    $project = \App\Models\Project::factory()->for($entity)->create();
+
     return [
         'id' => \Illuminate\Support\Str::uuid()->toString(),
-        'region_id' => \App\Models\Region::factory(),
-        'entity_id' => \App\Models\Entity::factory(),
-        'project_id' => \App\Models\Project::factory(),
+        'region_id' => $region->id,
+        'entity_id' => $entity->id,
+        'project_id' => $project->id,
         'counterparty_id' => \App\Models\Counterparty::factory(),
         'contract_type' => 'Commercial',
         'title' => fake()->sentence(4),
@@ -597,7 +601,7 @@ Create similar minimal factories for Region, Entity, Project, Counterparty, User
 
 ## Task 9: Final README for Laravel App
 
-Create `laravel/README.md` documenting:
+Create `README.md` documenting:
 1. **Prerequisites**: Docker, Docker Compose, Azure AD app registration
 2. **Quick start**: `cp .env.example .env && docker compose up --build`
 3. **Environment variables**: reference table of all required vars

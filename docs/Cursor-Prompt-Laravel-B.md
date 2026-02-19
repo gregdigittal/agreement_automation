@@ -4,7 +4,7 @@
 
 Phase A has been completed. The following now exist:
 - All 25 Laravel migrations (27 MySQL tables)
-- All 27 Eloquent models in `laravel/app/Models/`
+- All 27 Eloquent models in `app/Models/`
 - Filament AdminPanelProvider with stub Resource registrations
 - Docker Compose with 4 services running
 
@@ -16,7 +16,7 @@ This phase implements **all Filament Resources, Custom Pages, Widgets, Service c
 
 ## Task 1: Implement All Service Classes
 
-Create the following in `laravel/app/Services/`:
+Create the following in `app/Services/`:
 
 ### `AuditService.php`
 Provides a static `log()` method called after every meaningful action.
@@ -169,7 +169,7 @@ Port of `apps/api/app/escalation/service.py`.
 
 ## Task 2: Implement All Scheduled Jobs
 
-Create in `laravel/app/Jobs/`:
+Create in `app/Jobs/`:
 
 ### `SendReminders.php`
 ```php
@@ -213,7 +213,7 @@ public function handle(): void {
 ### `ProcessAiAnalysis.php`
 Placeholder for Phase C — create the class but leave `handle()` body empty with a `// TODO: implement in Phase C` comment. The class must accept `string $contractId` and `string $analysisType` constructor arguments and be `Queueable`.
 
-### Register in `laravel/routes/console.php` (Laravel 11 style):
+### Register in `routes/console.php` (Laravel 11 style):
 ```php
 use Illuminate\Support\Facades\Schedule;
 
@@ -226,7 +226,7 @@ Schedule::job(new \App\Jobs\SendPendingNotifications)->everyFiveMinutes();
 
 ## Task 3: Create Mail Template
 
-Create `laravel/app/Mail/NotificationMail.php` using `Mailable`:
+Create `app/Mail/NotificationMail.php` using `Mailable`:
 - Subject from `$notification->subject`
 - Body from `$notification->body`
 - View: `resources/views/emails/notification.blade.php` (simple HTML template)
@@ -235,7 +235,7 @@ Create `laravel/app/Mail/NotificationMail.php` using `Mailable`:
 
 ## Task 4: Implement Middleware
 
-### `laravel/app/Http/Middleware/AuditMiddleware.php`
+### `app/Http/Middleware/AuditMiddleware.php`
 Logs HTTP actions for Filament form submissions (POST/PUT/PATCH/DELETE to `/admin/*`):
 ```php
 public function handle(Request $request, Closure $next): Response {
@@ -262,7 +262,7 @@ Register in `bootstrap/app.php` for web middleware group.
 
 ## Task 5: Implement BoldSign Webhook Controller
 
-Create `laravel/app/Http/Controllers/Webhooks/BoldsignWebhookController.php`:
+Create `app/Http/Controllers/Webhooks/BoldsignWebhookController.php`:
 ```php
 public function handle(Request $request): JsonResponse {
     $secret = config('ccrs.boldsign_webhook_secret');
@@ -275,7 +275,7 @@ public function handle(Request $request): JsonResponse {
 }
 ```
 
-Register in `laravel/routes/api.php`:
+Register in `routes/api.php`:
 ```php
 Route::post('/webhooks/boldsign', [\App\Http\Controllers\Webhooks\BoldsignWebhookController::class, 'handle']);
 ```
@@ -326,7 +326,11 @@ Forms\Components\FileUpload::make('storage_path')
     ->label('Contract File')
     ->disk('s3')->directory('contracts')
     ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
-    ->afterStateUpdated(fn($state, Set $set, Get $get) => $set('file_name', $state?->getClientOriginalName())),
+    ->afterStateUpdated(function ($state, Set $set) {
+        if ($state instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+            $set('file_name', $state->getClientOriginalName());
+        }
+    }),
 ```
 
 **Table actions (per row):**
@@ -457,7 +461,7 @@ public static function canViewAny(): bool {
 }
 ```
 
-Create `laravel/app/Exports/AuditLogExport.php` using `Maatwebsite\Excel\Concerns\FromQuery` returning filtered `AuditLog` query.
+Create `app/Exports/AuditLogExport.php` using `Maatwebsite\Excel\Concerns\FromQuery` returning filtered `AuditLog` query.
 
 ### 6.9 `NotificationResource.php`
 
@@ -493,7 +497,7 @@ On save: calls `MerchantAgreementService::generate()` which creates the Contract
 
 ## Task 7: Implement All Custom Pages and Widgets
 
-### Dashboard Page (`laravel/app/Filament/Pages/Dashboard.php`)
+### Dashboard Page (`app/Filament/Pages/Dashboard.php`)
 
 Override the default Filament Dashboard. Register 5 widgets.
 
@@ -529,11 +533,22 @@ Shows count of active `workflow_instances` where current user's role is the appr
 
 ```php
 protected function getStats(): array {
+    $userRole = auth()->user()->roles->first()?->name;
     $count = WorkflowInstance::where('state', 'active')
-        ->whereHas('template', fn($q) =>
-            $q->whereJsonContains('stages', [['approver_role' => auth()->user()->roles->first()?->name]])
-        )
+        ->with('template')
+        ->get()
+        ->filter(function ($instance) use ($userRole) {
+            $stages = $instance->template->stages ?? [];
+            foreach ($stages as $stage) {
+                if (($stage['name'] ?? '') === $instance->current_stage) {
+                    $approverRole = $stage['approver_role'] ?? null;
+                    return $approverRole !== null && $approverRole === $userRole;
+                }
+            }
+            return false;
+        })
         ->count();
+
     return [Stat::make('Pending Your Approval', $count)->color('warning')];
 }
 ```
@@ -601,7 +616,7 @@ Assign resources to navigation groups via `protected static ?string $navigationG
 
 ## Task 9: Implement All Policy Classes
 
-Create in `laravel/app/Policies/`:
+Create in `app/Policies/`:
 
 ### `ContractPolicy.php`
 ```php
@@ -632,7 +647,7 @@ All operations: System Admin only. `create/update/delete/publish`: `$user->hasRo
 - create/update: system_admin, legal
 - publish: system_admin
 
-Register all policies in `laravel/app/Providers/AuthServiceProvider.php`:
+Register all policies in `app/Providers/AuthServiceProvider.php`:
 ```php
 protected $policies = [
     Contract::class => ContractPolicy::class,
@@ -689,7 +704,7 @@ protected function gate(): void {
 
 ## Task 11: Feature Tests
 
-Create the following test files in `laravel/tests/Feature/`:
+Create the following test files in `tests/Feature/`:
 
 ### `ContractTest.php`
 - Test create contract via Filament form (authenticated as system_admin)
