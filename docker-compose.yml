@@ -1,0 +1,89 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ccrs_laravel
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - .:/var/www/html
+      - /var/www/html/vendor
+      - /var/www/html/node_modules
+      - laravel_storage:/var/www/html/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ccrs_net
+
+  mysql:
+    image: mysql:8.0
+    container_name: ccrs_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD:-rootpassword}"
+      MYSQL_DATABASE: ccrs
+      MYSQL_USER: ccrs
+      MYSQL_PASSWORD: "${DB_PASSWORD:-ccrspassword}"
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u ccrs -p$$MYSQL_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ccrs_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: ccrs_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - ccrs_net
+
+  ai-worker:
+    build:
+      context: ./ai-worker
+      dockerfile: Dockerfile
+    container_name: ccrs_ai_worker
+    restart: unless-stopped
+    environment:
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
+      AI_WORKER_SECRET: "${AI_WORKER_SECRET:-changeme}"
+      DB_URL: "mysql+pymysql://ccrs:${DB_PASSWORD:-ccrspassword}@mysql:3306/ccrs"
+      LOG_LEVEL: "info"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - ccrs_net
+
+volumes:
+  mysql_data:
+  redis_data:
+  laravel_storage:
+
+networks:
+  ccrs_net:
+    driver: bridge

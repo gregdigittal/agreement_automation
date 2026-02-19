@@ -1,36 +1,59 @@
-# CCRS — Contract & Merchant Agreement Repository System
+<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
-Centralized platform for storing, managing, and monitoring Commercial Contracts and Merchant Agreements (Digittal Group). Backend on **Render**, frontend on **Vercel**, data on **Supabase** (+ optional object storage).
+<p align="center">
+<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+</p>
 
-## Repo structure
+## About Laravel
 
-- **`docs/`** — Backlog, build plan, Phase 1a setup, and dev/testing guide
-- **`.github/workflows/`** — CI (lint & test) on push and PRs
-- **`apps/api`** — Python FastAPI backend (Supabase, JWT auth, regions/entities/projects/counterparties/contracts/audit)
-- **`apps/web`** — Next.js frontend (Shadcn, next-auth, Phase 1a UI)
-- **`supabase/migrations/`** — Phase 1a schema (run in Supabase SQL Editor)
+Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
 
-## Docs
+- [Simple, fast routing engine](https://laravel.com/docs/routing).
+- [Powerful dependency injection container](https://laravel.com/docs/container).
+- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
+- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
+- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
+- [Robust background job processing](https://laravel.com/docs/queues).
+- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
 
-| Document | Purpose |
-|----------|---------|
-| [CCRS-Backlog-and-Build-Plan.md](docs/CCRS-Backlog-and-Build-Plan.md) | Full backlog, phases, hosting and DB recommendations |
-| [Dev-and-Testing-with-GitHub.md](docs/Dev-and-Testing-with-GitHub.md) | Run dev and testing online with GitHub, Vercel, and Render |
-| [Phase-1a-Setup.md](docs/Phase-1a-Setup.md) | How to run Phase 1a (API, web, Supabase, auth) |
+Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
-## CI
+## Learning Laravel
 
-Lint and test run on every push and pull request to `main`, `master`, and `develop`. See the [Actions](https://github.com/gregdigittal/agreement_automation/actions) tab.
+Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
 
-[![CI](https://github.com/gregdigittal/agreement_automation/actions/workflows/ci.yml/badge.svg)](https://github.com/gregdigittal/agreement_automation/actions/workflows/ci.yml)
+If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
 
-## Local setup (Phase 1a)
+## Laravel Sponsors
 
-1. **Supabase:** Create a project, run `supabase/migrations/20260216000000_phase1a_schema.sql`, create Storage bucket `contracts`.
-2. **API:** `cd apps/api && python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt && cp .env.example .env` (set SUPABASE_*, JWT_SECRET), `uvicorn app.main:app --reload --port 4000` → http://localhost:4000
-3. **Web:** `cd apps/web && cp .env.example .env.local` (set AUTH_SECRET, NEXT_PUBLIC_API_URL), `npm install && npm run dev` → http://localhost:3000
-4. Sign in with Dev (any email) when Azure AD is not configured. See [Phase-1a-Setup.md](docs/Phase-1a-Setup.md).
+We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+
+### Premium Partners
+
+- **[Vehikl](https://vehikl.com)**
+- **[Tighten Co.](https://tighten.co)**
+- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
+- **[64 Robots](https://64robots.com)**
+- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
+- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
+- **[Redberry](https://redberry.international/laravel-development)**
+- **[Active Logic](https://activelogic.com)**
+
+## Contributing
+
+Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+
+## Code of Conduct
+
+In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+
+## Security Vulnerabilities
+
+If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
 ## License
 
-Proprietary — Digittal Group.
+The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).

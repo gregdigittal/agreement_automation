@@ -35,3 +35,26 @@ coverage/
 
 # Misc
 *.local
+
+# Laravel (app lives at repo root)
+.env
+vendor/
+node_modules/
+public/build/
+storage/app/public/
+storage/framework/cache/
+storage/framework/sessions/
+storage/framework/views/
+storage/logs/
+bootstrap/cache/*.php
+
+# AI Worker
+ai-worker/.env
+ai-worker/__pycache__/
+ai-worker/**/__pycache__/
+
+# Docker local dev
+docker-compose.override.yml
+
+# K8s secrets (never commit)
+deploy/k8s/ccrs-secrets*.yaml
