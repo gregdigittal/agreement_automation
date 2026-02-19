@@ -1,7 +1,8 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import JSONResponse
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 
 from app.auth.dependencies import get_current_user, require_roles
 from app.auth.models import CurrentUser
@@ -19,6 +20,7 @@ from app.contracts.service import (
     upload_contract,
 )
 from app.deps import get_supabase
+from app.schemas.responses import ContractOut
 from supabase import Client
 
 router = APIRouter(tags=["contracts"])
@@ -27,6 +29,7 @@ router = APIRouter(tags=["contracts"])
 @router.post(
     "/contracts/upload",
     dependencies=[Depends(require_roles("System Admin", "Legal", "Commercial"))],
+    response_model=ContractOut,
 )
 async def contract_upload(
     file: UploadFile = File(...),
@@ -52,7 +55,6 @@ async def contract_upload(
             status_code=400,
             detail="Only PDF and DOCX files are allowed",
         )
-    from datetime import datetime, timezone
     ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
     safe_name = (file.filename or "document").split("/")[-1]
     storage_path = f"{rid}/{eid}/{pid}/{ts}-{safe_name}"
@@ -74,7 +76,7 @@ async def contract_upload(
         file_name=safe_name,
         actor=user,
     )
-    from app.audit.service import audit_log
+    from app.audit.service import audit_log  # noqa: E402
     await audit_log(
         supabase,
         action="contract.upload",
@@ -86,8 +88,9 @@ async def contract_upload(
     return data
 
 
-@router.get("/contracts")
+@router.get("/contracts", response_model=list[ContractOut])
 async def contract_list(
+    response: Response,
     q: str | None = None,
     region_id: UUID | None = Query(None, alias="regionId"),
     entity_id: UUID | None = Query(None, alias="entityId"),
@@ -110,12 +113,11 @@ async def contract_list(
         limit=limit,
         offset=offset,
     )
-    resp = JSONResponse(content=items)
-    resp.headers["X-Total-Count"] = str(total)
-    return resp
+    response.headers["X-Total-Count"] = str(total)
+    return items
 
 
-@router.get("/contracts/{id}")
+@router.get("/contracts/{id}", response_model=ContractOut)
 async def contract_get(
     id: UUID,
     user: CurrentUser = Depends(get_current_user),
@@ -154,6 +156,7 @@ async def contract_download_url(
 @router.patch(
     "/contracts/{id}",
     dependencies=[Depends(require_roles("System Admin", "Legal"))],
+    response_model=ContractOut,
 )
 async def contract_update(
     id: UUID,

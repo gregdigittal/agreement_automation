@@ -1,7 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from app.ai.workflow_generator import generate_workflow
 from app.audit.service import audit_log
@@ -21,6 +20,7 @@ from app.workflows.service import (
     get_active_instance,
     get_history,
     get_template,
+    get_template_versions,
     list_templates,
     publish_template,
     record_action,
@@ -28,11 +28,16 @@ from app.workflows.service import (
     update_template,
 )
 from supabase import Client
+from app.schemas.responses import AuditLogOut, WorkflowTemplateOut
 
 router = APIRouter(tags=["workflows"])
 
 
-@router.post("/workflow-templates", dependencies=[Depends(require_roles("System Admin"))])
+@router.post(
+    "/workflow-templates",
+    dependencies=[Depends(require_roles("System Admin"))],
+    response_model=WorkflowTemplateOut,
+)
 async def workflow_template_create(
     body: CreateWorkflowTemplateInput,
     user: CurrentUser = Depends(get_current_user),
@@ -41,8 +46,9 @@ async def workflow_template_create(
     return await create_template(supabase, body, user)
 
 
-@router.get("/workflow-templates")
+@router.get("/workflow-templates", response_model=list[WorkflowTemplateOut])
 async def workflow_template_list(
+    response: Response,
     status: str | None = None,
     contract_type: str | None = Query(None, alias="contractType"),
     region_id: UUID | None = Query(None, alias="regionId"),
@@ -63,12 +69,11 @@ async def workflow_template_list(
         limit=limit,
         offset=offset,
     )
-    resp = JSONResponse(content=items)
-    resp.headers["X-Total-Count"] = str(total)
-    return resp
+    response.headers["X-Total-Count"] = str(total)
+    return items
 
 
-@router.get("/workflow-templates/{id}")
+@router.get("/workflow-templates/{id}", response_model=WorkflowTemplateOut)
 async def workflow_template_get(
     id: UUID,
     user: CurrentUser = Depends(get_current_user),
@@ -80,7 +85,20 @@ async def workflow_template_get(
     return row
 
 
-@router.patch("/workflow-templates/{id}", dependencies=[Depends(require_roles("System Admin"))])
+@router.get("/workflow-templates/{id}/versions", response_model=list[AuditLogOut])
+async def workflow_template_versions(
+    id: UUID,
+    user: CurrentUser = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase),
+):
+    return get_template_versions(supabase, id)
+
+
+@router.patch(
+    "/workflow-templates/{id}",
+    dependencies=[Depends(require_roles("System Admin"))],
+    response_model=WorkflowTemplateOut,
+)
 async def workflow_template_update(
     id: UUID,
     body: UpdateWorkflowTemplateInput,
@@ -93,7 +111,11 @@ async def workflow_template_update(
     return row
 
 
-@router.post("/workflow-templates/{id}/publish", dependencies=[Depends(require_roles("System Admin"))])
+@router.post(
+    "/workflow-templates/{id}/publish",
+    dependencies=[Depends(require_roles("System Admin"))],
+    response_model=WorkflowTemplateOut,
+)
 async def workflow_template_publish(
     id: UUID,
     user: CurrentUser = Depends(get_current_user),

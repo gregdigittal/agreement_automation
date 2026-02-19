@@ -2,9 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { differenceInDays } from 'date-fns';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Bar,
   BarChart,
@@ -17,6 +20,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { handleApiError } from '@/lib/api-error';
 
 interface Region { id: string; name: string }
 interface Entity { id: string; name: string }
@@ -29,7 +33,6 @@ export default function ReportsPage() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const [contractStatus, setContractStatus] = useState<any>(null);
   const [expiryHorizon, setExpiryHorizon] = useState<any>(null);
@@ -37,21 +40,17 @@ export default function ReportsPage() {
   const [aiCosts, setAiCosts] = useState<any>(null);
 
   useEffect(() => {
-    Promise.all([
-      fetch('/api/ccrs/regions').then((r) => {
-        if (!r.ok) throw new Error(`${r.status}`);
-        return r.json();
-      }),
-      fetch('/api/ccrs/entities').then((r) => {
-        if (!r.ok) throw new Error(`${r.status}`);
-        return r.json();
-      }),
-    ])
+    const fetchJson = async (url: string) => {
+      const res = await fetch(url);
+      if (await handleApiError(res)) return null;
+      return res.json();
+    };
+    Promise.all([fetchJson('/api/ccrs/regions'), fetchJson('/api/ccrs/entities')])
       .then(([regionsData, entitiesData]) => {
-        setRegions(regionsData);
-        setEntities(entitiesData);
+        if (regionsData) setRegions(regionsData);
+        if (entitiesData) setEntities(entitiesData);
       })
-      .catch((e) => setError(e.message));
+      .catch(() => toast.error('Failed to load filters'));
   }, []);
 
   useEffect(() => {
@@ -60,7 +59,7 @@ export default function ReportsPage() {
     if (entityId) params.set('entity_id', entityId);
     const fetchJson = async (url: string) => {
       const res = await fetch(url);
-      if (!res.ok) throw new Error(`${res.status}`);
+      if (await handleApiError(res)) return null;
       return res.json();
     };
     let periodDays = 30;
@@ -68,7 +67,6 @@ export default function ReportsPage() {
       periodDays = Math.max(1, differenceInDays(new Date(toDate), new Date(fromDate)));
     }
     setLoading(true);
-    setError(null);
     Promise.all([
       fetchJson(`/api/ccrs/reports/contract-status?${params.toString()}`),
       fetchJson(`/api/ccrs/reports/expiry-horizon?${regionId ? `region_id=${regionId}` : ''}`),
@@ -76,12 +74,12 @@ export default function ReportsPage() {
       fetchJson(`/api/ccrs/reports/ai-costs?period_days=${periodDays}`),
     ])
       .then(([statusData, horizonData, signingData, costsData]) => {
-        setContractStatus(statusData);
-        setExpiryHorizon(horizonData);
-        setSigningStatus(signingData);
-        setAiCosts(costsData);
+        if (statusData) setContractStatus(statusData);
+        if (horizonData) setExpiryHorizon(horizonData);
+        if (signingData) setSigningStatus(signingData);
+        if (costsData) setAiCosts(costsData);
       })
-      .catch((e) => setError(e.message))
+      .catch(() => toast.error('Failed to load reports'))
       .finally(() => setLoading(false));
   }, [regionId, entityId, fromDate, toDate]);
 
@@ -115,8 +113,38 @@ export default function ReportsPage() {
     }));
   }, [aiCosts]);
 
-  function downloadText(filename: string, content: string, type = 'text/plain') {
-    const blob = new Blob([content], { type });
+  const stateLabel = stateData.length
+    ? `Contract status breakdown: ${stateData.map((s) => `${s.name} ${s.value}`).join(', ')}`
+    : 'Contract status breakdown: no data';
+  const typeLabel = typeData.length
+    ? `Contract type distribution: ${typeData.map((s) => `${s.name} ${s.value}`).join(', ')}`
+    : 'Contract type distribution: no data';
+  const expiryLabel = expiryData.length
+    ? `Expiry horizon distribution: ${expiryData.map((s) => `${s.name} ${s.value}`).join(', ')}`
+    : 'Expiry horizon distribution: no data';
+  const signingLabel = signingData.length
+    ? `Signing status distribution: ${signingData.map((s) => `${s.name} ${s.value}`).join(', ')}`
+    : 'Signing status distribution: no data';
+  const aiCostLabel = aiCostData.length
+    ? `AI cost by type: ${aiCostData.map((s) => `${s.name} ${s.cost}`).join(', ')}`
+    : 'AI cost by type: no data';
+
+  function toCsv(rows: Record<string, unknown>[]): string {
+    if (rows.length === 0) return '';
+    const headers = Object.keys(rows[0]);
+    const lines = [headers.join(',')];
+    for (const row of rows) {
+      lines.push(headers.map((h) => {
+        const v = row[h];
+        const s = v == null ? '' : String(v);
+        return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s;
+      }).join(','));
+    }
+    return lines.join('\n');
+  }
+
+  function downloadCsv(filename: string, rows: Record<string, unknown>[]) {
+    const blob = new Blob([toCsv(rows)], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -127,25 +155,44 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-4">
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      {loading && <p className="text-sm text-muted-foreground">Loading reports…</p>}
+      {loading && (
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>Reports</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-2 md:grid-cols-4">
-          <select className="rounded-md border border-input bg-background px-3 py-2 text-sm" value={regionId} onChange={(e) => setRegionId(e.target.value)}>
-            <option value="">All regions</option>
-            {regions.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
-          <select className="rounded-md border border-input bg-background px-3 py-2 text-sm" value={entityId} onChange={(e) => setEntityId(e.target.value)}>
-            <option value="">All entities</option>
-            {entities.map((e) => (
-              <option key={e.id} value={e.id}>{e.name}</option>
-            ))}
-          </select>
+          <Select value={regionId || 'all'} onValueChange={(value) => setRegionId(value === 'all' ? '' : value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="All regions" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All regions</SelectItem>
+              {regions.map((r) => (
+                <SelectItem key={r.id} value={r.id}>
+                  {r.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={entityId || 'all'} onValueChange={(value) => setEntityId(value === 'all' ? '' : value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="All entities" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All entities</SelectItem>
+              {entities.map((e) => (
+                <SelectItem key={e.id} value={e.id}>
+                  {e.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
           <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         </CardContent>
@@ -156,7 +203,7 @@ export default function ReportsPage() {
           <CardTitle>Contract Status Summary</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
-          <div className="h-64">
+          <div className="h-64" role="img" aria-label={stateLabel}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={stateData} dataKey="value" nameKey="name" outerRadius={90}>
@@ -169,7 +216,7 @@ export default function ReportsPage() {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="h-64">
+          <div className="h-64" role="img" aria-label={typeLabel}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={typeData}>
                 <XAxis dataKey="name" />
@@ -181,7 +228,7 @@ export default function ReportsPage() {
             </ResponsiveContainer>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => downloadText('contract-status.csv', JSON.stringify(contractStatus, null, 2))}>Export CSV</Button>
+            <Button variant="outline" size="sm" onClick={() => downloadCsv('contract-status.csv', [...stateData.map((s) => ({ category: 'state', name: s.name, value: s.value })), ...typeData.map((s) => ({ category: 'type', name: s.name, value: s.value }))])}>Export CSV</Button>
           </div>
         </CardContent>
       </Card>
@@ -191,7 +238,7 @@ export default function ReportsPage() {
           <CardTitle>Expiry Horizon</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="h-64">
+          <div className="h-64" role="img" aria-label={expiryLabel}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={expiryData}>
                 <XAxis dataKey="name" />
@@ -203,7 +250,7 @@ export default function ReportsPage() {
             </ResponsiveContainer>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => downloadText('expiry-horizon.csv', JSON.stringify(expiryHorizon, null, 2))}>Export CSV</Button>
+            <Button variant="outline" size="sm" onClick={() => downloadCsv('expiry-horizon.csv', expiryData.map((s) => ({ range: s.name, count: s.value })))}>Export CSV</Button>
           </div>
         </CardContent>
       </Card>
@@ -213,7 +260,7 @@ export default function ReportsPage() {
           <CardTitle>Signing Pipeline</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="h-64">
+          <div className="h-64" role="img" aria-label={signingLabel}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart layout="vertical" data={signingData}>
                 <XAxis type="number" />
@@ -224,7 +271,7 @@ export default function ReportsPage() {
             </ResponsiveContainer>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => downloadText('signing-status.csv', JSON.stringify(signingStatus, null, 2))}>Export CSV</Button>
+            <Button variant="outline" size="sm" onClick={() => downloadCsv('signing-status.csv', signingData.map((s) => ({ status: s.name, count: s.value })))}>Export CSV</Button>
           </div>
         </CardContent>
       </Card>
@@ -234,7 +281,7 @@ export default function ReportsPage() {
           <CardTitle>AI Costs</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="h-64">
+          <div className="h-64" role="img" aria-label={aiCostLabel}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={aiCostData}>
                 <XAxis dataKey="name" />
@@ -246,7 +293,7 @@ export default function ReportsPage() {
             </ResponsiveContainer>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => downloadText('ai-costs.csv', JSON.stringify(aiCosts, null, 2))}>Export CSV</Button>
+            <Button variant="outline" size="sm" onClick={() => downloadCsv('ai-costs.csv', aiCostData as Record<string, unknown>[])}>Export CSV</Button>
           </div>
         </CardContent>
       </Card>

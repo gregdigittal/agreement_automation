@@ -82,6 +82,19 @@ def get_template(supabase: Client, id: UUID) -> dict | None:
     return r.data[0]
 
 
+def get_template_versions(supabase: Client, template_id: UUID) -> list[dict]:
+    audit = (
+        supabase.table("audit_log")
+        .select("*")
+        .eq("resource_type", "workflow_template")
+        .eq("resource_id", str(template_id))
+        .eq("action", "workflow_template_published")
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return audit.data or []
+
+
 async def update_template(
     supabase: Client, id: UUID, body: UpdateWorkflowTemplateInput, actor: CurrentUser | None
 ) -> dict | None:
@@ -130,9 +143,13 @@ async def publish_template(
         return None
     await audit_log(
         supabase,
-        action="workflow_template.publish",
+        action="workflow_template_published",
         resource_type="workflow_template",
         resource_id=str(id),
+        details={
+            "version": payload["version"],
+            "stages": current.get("stages"),
+        },
         actor=actor,
     )
     return r.data[0]

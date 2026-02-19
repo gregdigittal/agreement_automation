@@ -2,10 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Contract, Counterparty, Entity, Project, Region } from '@/lib/types';
+import { handleApiError } from '@/lib/api-error';
 
 const LIMIT = 25;
 const WORKFLOW_OPTIONS = ['draft', 'review', 'signing', 'executed', 'archived'];
@@ -13,7 +17,6 @@ const WORKFLOW_OPTIONS = ['draft', 'review', 'signing', 'executed', 'archived'];
 export function ContractsList() {
   const [list, setList] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
 
   const [regions, setRegions] = useState<Region[]>([]);
@@ -33,24 +36,23 @@ export function ContractsList() {
     fetch('/api/ccrs/regions?limit=500')
       .then((r) => r.json())
       .then(setRegions)
-      .catch(() => undefined);
+      .catch(() => toast.error('Failed to load regions'));
     fetch('/api/ccrs/entities?limit=500')
       .then((r) => r.json())
       .then(setEntities)
-      .catch(() => undefined);
+      .catch(() => toast.error('Failed to load entities'));
     fetch('/api/ccrs/projects?limit=500')
       .then((r) => r.json())
       .then(setProjects)
-      .catch(() => undefined);
+      .catch(() => toast.error('Failed to load projects'));
     fetch('/api/ccrs/counterparties?limit=500')
       .then((r) => r.json())
       .then(setCounterparties)
-      .catch(() => undefined);
+      .catch(() => toast.error('Failed to load counterparties'));
   }, []);
 
   useEffect(() => {
     setLoading(true);
-    setError(null);
     const params = new URLSearchParams();
     if (q.trim()) params.set('q', q.trim());
     if (regionId) params.set('regionId', regionId);
@@ -61,14 +63,17 @@ export function ContractsList() {
     params.set('limit', String(LIMIT));
     params.set('offset', String(offset));
     fetch(`/api/ccrs/contracts?${params.toString()}`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`${r.status}`);
+      .then(async (r) => {
+        if (await handleApiError(r)) return null;
         const countHeader = r.headers.get('X-Total-Count');
         setTotalCount(countHeader ? Number(countHeader) : 0);
         return r.json();
       })
-      .then(setList)
-      .catch((e) => setError(e.message))
+      .then((data) => {
+        if (!data) return;
+        setList(data);
+      })
+      .catch(() => toast.error('Failed to load contracts'))
       .finally(() => setLoading(false));
   }, [q, regionId, entityId, projectId, contractType, workflowState, offset]);
 
@@ -83,8 +88,6 @@ export function ContractsList() {
   const start = totalCount === 0 ? 0 : offset + 1;
   const end = offset + list.length;
 
-  if (loading) return <p className="text-muted-foreground">Loading…</p>;
-
   return (
     <div className="space-y-4">
       <div className="space-y-3">
@@ -98,78 +101,114 @@ export function ContractsList() {
             }}
             className="max-w-sm"
           />
-          <select
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-            value={regionId}
-            onChange={(e) => {
-              setRegionId(e.target.value);
+          <Select
+            value={regionId || 'all'}
+            onValueChange={(value) => {
+              setRegionId(value === 'all' ? '' : value);
               setEntityId('');
               setProjectId('');
               setOffset(0);
             }}
           >
-            <option value="">All regions</option>
-            {regions.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
-          <select
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-            value={entityId}
-            onChange={(e) => {
-              setEntityId(e.target.value);
+            <SelectTrigger className="min-w-[180px]">
+              <SelectValue placeholder="All regions" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All regions</SelectItem>
+              {regions.map((r) => (
+                <SelectItem key={r.id} value={r.id}>
+                  {r.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={entityId || 'all'}
+            onValueChange={(value) => {
+              setEntityId(value === 'all' ? '' : value);
               setProjectId('');
               setOffset(0);
             }}
           >
-            <option value="">All entities</option>
-            {filteredEntities.map((e) => (
-              <option key={e.id} value={e.id}>{e.name}</option>
-            ))}
-          </select>
-          <select
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-            value={projectId}
-            onChange={(e) => {
-              setProjectId(e.target.value);
+            <SelectTrigger className="min-w-[180px]">
+              <SelectValue placeholder="All entities" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All entities</SelectItem>
+              {filteredEntities.map((e) => (
+                <SelectItem key={e.id} value={e.id}>
+                  {e.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={projectId || 'all'}
+            onValueChange={(value) => {
+              setProjectId(value === 'all' ? '' : value);
               setOffset(0);
             }}
           >
-            <option value="">All projects</option>
-            {filteredProjects.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-          <select
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-            value={contractType}
-            onChange={(e) => {
-              setContractType(e.target.value);
+            <SelectTrigger className="min-w-[180px]">
+              <SelectValue placeholder="All projects" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All projects</SelectItem>
+              {filteredProjects.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={contractType || 'all'}
+            onValueChange={(value) => {
+              setContractType(value === 'all' ? '' : value);
               setOffset(0);
             }}
           >
-            <option value="">All types</option>
-            <option value="Commercial">Commercial</option>
-            <option value="Merchant">Merchant</option>
-          </select>
-          <select
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-            value={workflowState}
-            onChange={(e) => {
-              setWorkflowState(e.target.value);
+            <SelectTrigger className="min-w-[160px]">
+              <SelectValue placeholder="All types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All types</SelectItem>
+              <SelectItem value="Commercial">Commercial</SelectItem>
+              <SelectItem value="Merchant">Merchant</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={workflowState || 'all'}
+            onValueChange={(value) => {
+              setWorkflowState(value === 'all' ? '' : value);
               setOffset(0);
             }}
           >
-            <option value="">All states</option>
-            {WORKFLOW_OPTIONS.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+            <SelectTrigger className="min-w-[160px]">
+              <SelectValue placeholder="All states" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All states</SelectItem>
+              {WORKFLOW_OPTIONS.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      {error && <p className="text-sm text-destructive">Error: {error}</p>}
-      <Table>
+      {loading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      ) : (
+        <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Title</TableHead>
@@ -207,6 +246,7 @@ export function ContractsList() {
           )}
         </TableBody>
       </Table>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">

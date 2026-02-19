@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface WorkflowTemplate {
@@ -16,7 +18,6 @@ interface WorkflowTemplate {
 export function WorkflowTemplatesList() {
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/ccrs/workflow-templates')
@@ -25,11 +26,21 @@ export function WorkflowTemplatesList() {
         return r.json();
       })
       .then(setTemplates)
-      .catch((e) => setError(e.message))
+      .catch(() => toast.error('Failed to load workflows'))
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <p className="text-muted-foreground">Loading…</p>;
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -39,7 +50,6 @@ export function WorkflowTemplatesList() {
           <Link href="/workflows/new">New template</Link>
         </Button>
       </div>
-      {error && <p className="text-sm text-destructive">Error: {error}</p>}
       <Table>
         <TableHeader>
           <TableRow>

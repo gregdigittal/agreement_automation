@@ -392,13 +392,67 @@ contract_languages          — Language tags for multi-language support
 
 ---
 
+## Phase 1d — UI/UX Overhaul
+
+**Goal:** Transform the developer prototype into a production-quality business application with consistent design, accessibility, and usable flows.
+**Dependencies:** Phase 1c complete (all features scaffolded). Code Rectification and Gaps prompts applied first.
+**Estimated effort:** 3–4 sprints
+
+### Sprint 1d.1: Navigation, Toast, Confirmations (P0)
+
+| # | Task | Priority |
+|---|------|----------|
+| U1 | Replace horizontal nav with collapsible sidebar (grouped, icons, mobile drawer) | Critical |
+| U2 | Install `sonner` toast provider, add `<Toaster />` to root layout | Critical |
+| U3 | Add success toasts to all ~30 mutation operations across the app | Critical |
+| U4 | Replace all `window.confirm()` with shadcn AlertDialog (contacts, escalations, workflow actions) | Critical |
+| U5 | Add confirmation dialogs to destructive workflow actions (reject, rework) with mandatory comment | Critical |
+
+### Sprint 1d.2: Components, Forms, Dashboard (P1)
+
+| # | Task | Priority |
+|---|------|----------|
+| U6 | Generate and replace: shadcn Select, Textarea, Checkbox, Skeleton components | High |
+| U7 | Replace all ~20 raw `<select>` elements with shadcn Select | High |
+| U8 | Add required field indicators (`*`) to all forms | High |
+| U9 | Add Cancel/Back buttons to all 10 create/edit forms | High |
+| U10 | Parse API error responses (extract `detail` from JSON, not raw text) | High |
+| U11 | Wrap all forms in `<form onSubmit>` so HTML validation and Enter-to-submit work | High |
+| U12 | Build real dashboard: KPIs, expiry horizon, pending approvals, recent activity | High |
+| U13 | Replace all `<p>Loading...</p>` with Skeleton components matching final layout | High |
+
+### Sprint 1d.3: Detail Pages, Search, Accessibility (P2)
+
+| # | Task | Priority |
+|---|------|----------|
+| U14 | Split `contract-detail.tsx` (968 lines) into 6 per-tab sub-components | Medium |
+| U15 | Add 300ms debounce to all search inputs | Medium |
+| U16 | Persist contract list filters in URL searchParams | Medium |
+| U17 | Add search + status filter + pagination to counterparties list | Medium |
+| U18 | Add search + category filter to wiki-contracts list | Medium |
+| U19 | Standardize Card wrapping (forms never self-wrap, parent page always wraps) | Medium |
+| U20 | Add skip-to-content link, `aria-current="page"`, `aria-label` on nav, chart alt text | Medium |
+| U21 | Use CSS chart color tokens instead of hardcoded hex in Reports charts | Medium |
+
+### Sprint 1d.4: Polish & Identity (P3)
+
+| # | Task | Priority |
+|---|------|----------|
+| U22 | Add brand primary color, Digittal Group logo to sidebar | Low |
+| U23 | Add dark mode toggle (CSS tokens already defined) | Low |
+| U24 | Add placeholder text to all inputs | Low |
+| U25 | Remove developer jargon from UI ("Phase 1a", unexplained "CCRS") | Low |
+| U26 | Fix Reports CSV export (currently exports JSON with .csv extension) | Low |
+
+---
+
 ## Deferred Items (Track Before Phase 2)
 
 These items were intentionally deferred from Phase 1c prompts and must be addressed before production:
 
 | # | Item | Reason Deferred | When to Address |
 |---|------|----------------|-----------------|
-| D1 | **RLS policies for all 20+ tables** — Row-Level Security policies to enforce tenant/role isolation at the database level | Separate security hardening pass needed; too large for a single prompt | Dedicated security sprint before production launch |
+| D1 | **RLS policies for all 24 tables** — Row-Level Security policies to enforce tenant/role isolation at the database level | Separate security hardening pass needed; too large for a single prompt | **Phase 1e — Final Hardening prompt (delivered 2026-02-19)** |
 | D2 | **SharePoint URL/version fields in Pydantic schemas** — `sharepoint_url` and `sharepoint_version` fields exist in DB but are missing from contract create/update Pydantic models | Intentional omission — SharePoint integration not yet active | When SharePoint integration is activated (Phase 1b Sprint 1b.7–8 or later) |
 | D3 | **`preferred_language` field in counterparty create/update schemas** — DB column exists but not exposed in API input schemas | Multi-language support deferred to Phase 1c Sprint 1c.10 | Phase 1c Sprint 1c.10 (Multi-Language Support) |
 
@@ -431,11 +485,25 @@ Phase 1a (DONE) ──→ Phase 1a-fix (frontend + API polish)
                           │
                           ▼
                     Phase 1c
-                    ├── Sprint 1c.1-3: AI Intelligence (Epic 3) ←── needs WikiContracts for template comparison
-                    ├── Sprint 1c.4-5: LLM Workflow Gen (Epic 6) ←── needs Workflow Engine
-                    ├── Sprint 1c.6-7: Monitoring + Escalation (Epic 11, 16) ←── needs Workflow + Key Dates
+                    ├── Sprint 1c.1-3: AI Intelligence (Epic 3)
+                    ├── Sprint 1c.4-5: LLM Workflow Gen (Epic 6)
+                    ├── Sprint 1c.6-7: Monitoring + Escalation (Epic 11, 16)
                     ├── Sprint 1c.8-9: Reporting Dashboard (Epic 12)
                     └── Sprint 1c.10: Multi-Language (Epic 13)
+                          │
+                          ▼
+                    Phase 1d — UI/UX Overhaul
+                    ├── Sprint 1d.1: Nav, Toast, Confirmations (P0)
+                    ├── Sprint 1d.2: Components, Forms, Dashboard (P1)
+                    ├── Sprint 1d.3: Detail Pages, Search, A11y (P2)
+                    └── Sprint 1d.4: Polish & Identity (P3)
+                          │
+                          ▼
+                    Phase 1e — Final Hardening
+                    ├── Critical bug fixes (now() string, audit bypass)
+                    ├── Frontend RBAC (roles in JWT, sidebar gating, RoleGuard)
+                    ├── RLS policies on all 24 tables
+                    └── Minor polish (delete ops, CSV export, pagination)
                           │
                           ▼
                     Phase 2 (future)
@@ -450,3 +518,5 @@ Phase 1a (DONE) ──→ Phase 1a-fix (frontend + API polish)
 | 1a-fix | — | — |
 | 1b | `python-docx-template`, `boldsign` (or httpx), `redis` (optional), `celery` (optional) | `reactflow`, `@reactflow/core` |
 | 1c | `anthropic`, `anthropic[agent]` (Claude Agent SDK), `celery`, `redis`, `apscheduler` | Chart library (e.g. `recharts`), `date-fns` |
+| 1d | — | `sonner` (toast), shadcn components: Select, Textarea, Checkbox, Skeleton, AlertDialog, Sidebar |
+| 1e | `pydantic[email]` | — |

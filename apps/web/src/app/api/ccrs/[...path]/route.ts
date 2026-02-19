@@ -12,9 +12,12 @@ function getBearerToken(request: NextRequest, session: { accessToken?: string } 
 async function forwardResponse(res: Response): Promise<NextResponse> {
   const contentType = res.headers.get('Content-Type') ?? 'application/json';
   const body = await res.arrayBuffer();
+  const headers: Record<string, string> = { 'Content-Type': contentType };
+  const totalCount = res.headers.get('X-Total-Count');
+  if (totalCount) headers['X-Total-Count'] = totalCount;
   return new NextResponse(body, {
     status: res.status,
-    headers: { 'Content-Type': contentType },
+    headers,
   });
 }
 

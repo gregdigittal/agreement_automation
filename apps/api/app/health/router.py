@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 
 from app.deps import get_supabase
 from supabase import Client
@@ -12,4 +13,7 @@ async def health(supabase: Client = Depends(get_supabase)):
         supabase.table("regions").select("id").limit(1).execute()
         return {"status": "ok", "db": "connected"}
     except Exception as e:
-        return {"status": "degraded", "db": "error", "error": str(e)}
+        return JSONResponse(
+            status_code=503,
+            content={"status": "degraded", "db": "error", "error": str(e)},
+        )

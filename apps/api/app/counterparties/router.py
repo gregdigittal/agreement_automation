@@ -1,12 +1,12 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from app.auth.dependencies import get_current_user, require_roles
 from app.auth.models import CurrentUser
 from app.counterparties.schemas import (
     CreateCounterpartyInput,
+    MergeCounterpartyInput,
     StatusChangeInput,
     UpdateCounterpartyInput,
 )
@@ -17,9 +17,11 @@ from app.counterparties.service import (
     find_duplicates,
     get_by_id,
     list_all,
+    merge_counterparties,
     update,
 )
 from app.deps import get_supabase
+from app.schemas.responses import CounterpartyOut
 from supabase import Client
 
 router = APIRouter(tags=["counterparties"])
@@ -41,6 +43,7 @@ async def counterparty_duplicates(
 @router.post(
     "/counterparties",
     dependencies=[Depends(require_roles("System Admin", "Legal", "Commercial"))],
+    response_model=CounterpartyOut,
 )
 async def counterparty_create(
     body: CreateCounterpartyInput,
@@ -56,21 +59,22 @@ async def counterparty_create(
         raise
 
 
-@router.get("/counterparties")
+@router.get("/counterparties", response_model=list[CounterpartyOut])
 async def counterparty_list(
+    response: Response,
+    search: str | None = None,
     status: str | None = None,
-    limit: int = Query(50, ge=1, le=500),
+    limit: int = Query(25, ge=1, le=500),
     offset: int = Query(0, ge=0),
     user: CurrentUser = Depends(get_current_user),
     supabase: Client = Depends(get_supabase),
 ):
-    items, total = list_all(supabase, status=status, limit=limit, offset=offset)
-    resp = JSONResponse(content=items)
-    resp.headers["X-Total-Count"] = str(total)
-    return resp
+    items, total = list_all(supabase, search=search, status=status, limit=limit, offset=offset)
+    response.headers["X-Total-Count"] = str(total)
+    return items
 
 
-@router.get("/counterparties/{id}")
+@router.get("/counterparties/{id}", response_model=CounterpartyOut)
 async def counterparty_get(
     id: UUID,
     user: CurrentUser = Depends(get_current_user),
@@ -85,6 +89,7 @@ async def counterparty_get(
 @router.patch(
     "/counterparties/{id}",
     dependencies=[Depends(require_roles("System Admin", "Legal", "Commercial"))],
+    response_model=CounterpartyOut,
 )
 async def counterparty_update(
     id: UUID,
@@ -101,6 +106,7 @@ async def counterparty_update(
 @router.patch(
     "/counterparties/{id}/status",
     dependencies=[Depends(require_roles("Legal"))],
+    response_model=CounterpartyOut,
 )
 async def counterparty_status(
     id: UUID,
@@ -112,6 +118,22 @@ async def counterparty_status(
     if not row:
         raise HTTPException(status_code=404, detail="Counterparty not found")
     return row
+
+
+@router.post(
+    "/counterparties/{id}/merge",
+    dependencies=[Depends(require_roles("System Admin", "Legal"))],
+)
+async def counterparty_merge(
+    id: UUID,
+    body: MergeCounterpartyInput,
+    user: CurrentUser = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase),
+):
+    try:
+        return await merge_counterparties(supabase, body.source_id, id, user)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.delete(

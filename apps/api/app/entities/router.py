@@ -1,19 +1,23 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from app.auth.dependencies import get_current_user, require_roles
 from app.auth.models import CurrentUser
 from app.deps import get_supabase
 from app.entities.schemas import CreateEntityInput, UpdateEntityInput
 from app.entities.service import create, delete, get_by_id, list_all, update
+from app.schemas.responses import EntityOut
 from supabase import Client
 
 router = APIRouter(tags=["entities"])
 
 
-@router.post("/entities", dependencies=[Depends(require_roles("System Admin"))])
+@router.post(
+    "/entities",
+    dependencies=[Depends(require_roles("System Admin"))],
+    response_model=EntityOut,
+)
 async def entity_create(
     body: CreateEntityInput,
     user: CurrentUser = Depends(get_current_user),
@@ -31,8 +35,9 @@ async def entity_create(
         raise
 
 
-@router.get("/entities")
+@router.get("/entities", response_model=list[EntityOut])
 async def entity_list(
+    response: Response,
     region_id: UUID | None = Query(None, alias="regionId"),
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
@@ -40,12 +45,11 @@ async def entity_list(
     supabase: Client = Depends(get_supabase),
 ):
     items, total = list_all(supabase, region_id=region_id, limit=limit, offset=offset)
-    resp = JSONResponse(content=items)
-    resp.headers["X-Total-Count"] = str(total)
-    return resp
+    response.headers["X-Total-Count"] = str(total)
+    return items
 
 
-@router.get("/entities/{id}")
+@router.get("/entities/{id}", response_model=EntityOut)
 async def entity_get(
     id: UUID,
     user: CurrentUser = Depends(get_current_user),
@@ -57,7 +61,11 @@ async def entity_get(
     return row
 
 
-@router.patch("/entities/{id}", dependencies=[Depends(require_roles("System Admin"))])
+@router.patch(
+    "/entities/{id}",
+    dependencies=[Depends(require_roles("System Admin"))],
+    response_model=EntityOut,
+)
 async def entity_update(
     id: UUID,
     body: UpdateEntityInput,

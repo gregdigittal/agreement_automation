@@ -1,7 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 
 from app.auth.dependencies import get_current_user, require_roles
 from app.auth.models import CurrentUser
@@ -33,6 +32,7 @@ async def wiki_contract_create(
 
 @router.get("/wiki-contracts")
 async def wiki_contract_list(
+    response: Response,
     status: str | None = None,
     region_id: UUID | None = Query(None, alias="regionId"),
     category: str | None = None,
@@ -44,9 +44,8 @@ async def wiki_contract_list(
     items, total = list_all(
         supabase, status=status, region_id=region_id, category=category, limit=limit, offset=offset
     )
-    resp = JSONResponse(content=items)
-    resp.headers["X-Total-Count"] = str(total)
-    return resp
+    response.headers["X-Total-Count"] = str(total)
+    return items
 
 
 @router.get("/wiki-contracts/{id}")

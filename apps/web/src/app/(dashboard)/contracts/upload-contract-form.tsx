@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { handleApiError } from '@/lib/api-error';
 
 interface Option {
   id: string;
@@ -25,7 +28,6 @@ export function UploadContractForm() {
   const [title, setTitle] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/ccrs/regions')
@@ -34,46 +36,53 @@ export function UploadContractForm() {
         return r.json();
       })
       .then(setRegions)
-      .catch((e) => setError(e.message));
+      .catch(() => toast.error('Failed to load regions'));
     fetch('/api/ccrs/counterparties')
       .then((r) => {
         if (!r.ok) throw new Error(`${r.status}`);
         return r.json();
       })
       .then(setCounterparties)
-      .catch((e) => setError(e.message));
+      .catch(() => toast.error('Failed to load counterparties'));
   }, []);
   useEffect(() => {
-    if (!regionId) { setEntities([]); setEntityId(''); return; }
+    if (!regionId) {
+      setEntities([]);
+      setEntityId('');
+      return;
+    }
     fetch(`/api/ccrs/entities?regionId=${regionId}`)
       .then((r) => {
         if (!r.ok) throw new Error(`${r.status}`);
         return r.json();
       })
       .then(setEntities)
-      .catch((e) => setError(e.message));
+      .catch(() => toast.error('Failed to load entities'));
     setEntityId('');
   }, [regionId]);
   useEffect(() => {
-    if (!entityId) { setProjects([]); setProjectId(''); return; }
+    if (!entityId) {
+      setProjects([]);
+      setProjectId('');
+      return;
+    }
     fetch(`/api/ccrs/projects?entityId=${entityId}`)
       .then((r) => {
         if (!r.ok) throw new Error(`${r.status}`);
         return r.json();
       })
       .then(setProjects)
-      .catch((e) => setError(e.message));
+      .catch(() => toast.error('Failed to load projects'));
     setProjectId('');
   }, [entityId]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!file || !regionId || !entityId || !projectId || !counterpartyId) {
-      setError('Fill all required fields and choose a file (PDF or DOCX).');
+      toast.error('Fill all required fields and choose a file (PDF or DOCX).');
       return;
     }
     setSubmitting(true);
-    setError(null);
     try {
       const form = new FormData();
       form.append('file', file);
@@ -84,11 +93,10 @@ export function UploadContractForm() {
       form.append('contractType', contractType);
       if (title) form.append('title', title);
       const res = await fetch('/api/ccrs/contracts/upload', { method: 'POST', body: form });
-      if (!res.ok) { setError(await res.text()); return; }
+      if (await handleApiError(res)) return;
+      toast.success('Contract uploaded');
       router.push('/contracts');
       router.refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Request failed');
     } finally {
       setSubmitting(false);
     }
@@ -97,50 +105,105 @@ export function UploadContractForm() {
   return (
     <form onSubmit={submit} className="space-y-4">
       <div className="space-y-2">
-        <Label>Region</Label>
-        <select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={regionId} onChange={(e) => setRegionId(e.target.value)} required>
-          <option value="">Select region</option>
-          {regions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-        </select>
+        <Label>
+          Region <span className="text-destructive">*</span>
+        </Label>
+        <Select value={regionId} onValueChange={setRegionId}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select region" />
+          </SelectTrigger>
+          <SelectContent>
+            {regions.map((r) => (
+              <SelectItem key={r.id} value={r.id}>
+                {r.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div className="space-y-2">
-        <Label>Entity</Label>
-        <select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={entityId} onChange={(e) => setEntityId(e.target.value)} required>
-          <option value="">Select entity</option>
-          {entities.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-        </select>
+        <Label>
+          Entity <span className="text-destructive">*</span>
+        </Label>
+        <Select value={entityId} onValueChange={setEntityId}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select entity" />
+          </SelectTrigger>
+          <SelectContent>
+            {entities.map((entity) => (
+              <SelectItem key={entity.id} value={entity.id}>
+                {entity.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div className="space-y-2">
-        <Label>Project</Label>
-        <select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={projectId} onChange={(e) => setProjectId(e.target.value)} required>
-          <option value="">Select project</option>
-          {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        <Label>
+          Project <span className="text-destructive">*</span>
+        </Label>
+        <Select value={projectId} onValueChange={setProjectId}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select project" />
+          </SelectTrigger>
+          <SelectContent>
+            {projects.map((project) => (
+              <SelectItem key={project.id} value={project.id}>
+                {project.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div className="space-y-2">
-        <Label>Counterparty</Label>
-        <select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={counterpartyId} onChange={(e) => setCounterpartyId(e.target.value)} required>
-          <option value="">Select counterparty</option>
-          {counterparties.map((c) => <option key={c.id} value={c.id}>{(c as { legal_name?: string }).legal_name ?? c.name}</option>)}
-        </select>
+        <Label>
+          Counterparty <span className="text-destructive">*</span>
+        </Label>
+        <Select value={counterpartyId} onValueChange={setCounterpartyId}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select counterparty" />
+          </SelectTrigger>
+          <SelectContent>
+            {counterparties.map((counterparty) => (
+              <SelectItem key={counterparty.id} value={counterparty.id}>
+                {(counterparty as { legal_name?: string }).legal_name ?? counterparty.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div className="space-y-2">
-        <Label>Contract type</Label>
-        <select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={contractType} onChange={(e) => setContractType(e.target.value as 'Commercial' | 'Merchant')}>
-          <option value="Commercial">Commercial</option>
-          <option value="Merchant">Merchant</option>
-        </select>
+        <Label>
+          Contract type <span className="text-destructive">*</span>
+        </Label>
+        <Select value={contractType} onValueChange={(value) => setContractType(value as 'Commercial' | 'Merchant')}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select contract type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Commercial">Commercial</SelectItem>
+            <SelectItem value="Merchant">Merchant</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       <div className="space-y-2">
         <Label htmlFor="title">Title (optional)</Label>
         <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="file">File (PDF or DOCX)</Label>
+        <Label htmlFor="file">
+          File (PDF or DOCX) <span className="text-destructive">*</span>
+        </Label>
         <Input id="file" type="file" accept=".pdf,.docx" onChange={(e) => setFile(e.target.files?.[0] ?? null)} required />
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      <Button type="submit" disabled={submitting}>{submitting ? 'Uploading…' : 'Upload'}</Button>
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={() => router.back()}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={submitting}>
+          {submitting ? 'Uploading…' : 'Upload'}
+        </Button>
+      </div>
     </form>
   );
 }

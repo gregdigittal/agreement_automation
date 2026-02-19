@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from pydantic import BaseModel, Field
 
 
@@ -25,5 +27,15 @@ class StatusChangeInput(BaseModel):
     status: str = Field(..., pattern="^(Active|Suspended|Blacklisted)$")
     reason: str = Field(...)
     supporting_document_ref: str | None = Field(None, alias="supportingDocumentRef")
+
+    model_config = {"populate_by_name": True}
+
+
+class MergeCounterpartyInput(BaseModel):
+    source_id: UUID = Field(
+        ...,
+        alias="sourceId",
+        description="The duplicate counterparty to merge INTO this one",
+    )
 
     model_config = {"populate_by_name": True}

@@ -168,9 +168,24 @@ async def check_sla_breaches(supabase: Client) -> int:
                         }
                     ).execute()
 
+                    # Resolve recipient email from user_id if set
+                    recipient_email = None
+                    user_id = rule.get("escalate_to_user_id")
+                    if user_id:
+                        user_row = (
+                            supabase.table("users")
+                            .select("email")
+                            .eq("id", user_id)
+                            .limit(1)
+                            .execute()
+                        )
+                        if user_row.data:
+                            recipient_email = user_row.data[0].get("email")
+
                     supabase.table("notifications").insert(
                         {
-                            "recipient_email": rule.get("escalate_to_user_id"),
+                            "recipient_user_id": user_id,
+                            "recipient_email": recipient_email,
                             "channel": "email",
                             "subject": f"CCRS Escalation (Tier {rule['tier']}): SLA breach on stage '{current_stage}'",
                             "body": (
