@@ -2,6 +2,8 @@
 
 ## Context
 
+**Run this prompt in the `agreement_automation` repo on the `laravel-migration` branch** — the same branch where Phases A, B, and C were executed.
+
 Phases A, B, and C are complete. The application has all Filament Resources, the AI worker is running, and Docker Compose works end-to-end. Phase D wires up:
 1. Azure AD authentication replacing Filament's built-in login
 2. Role assignment from Azure AD group memberships via Microsoft Graph

@@ -2,6 +2,8 @@
 
 ## Context
 
+**Run this prompt in the `agreement_automation` repo on the `laravel-migration` branch** — the same branch where Phases A and B were executed.
+
 Phases A and B are complete. The `ai-worker/` directory exists with a minimal FastAPI stub. Phase C extracts the Python AI code from `apps/api/app/ai/` and `apps/api/app/ai_analysis/` into the standalone `ai-worker/` service, adapts it to use SQLAlchemy+MySQL instead of Supabase, and wires up the `ProcessAiAnalysis` Laravel Job to call it.
 
 **The AI worker does NOT write to the database.** It receives file content, runs Claude AI analysis, and returns the result JSON to the Laravel caller. Laravel writes results to the database.

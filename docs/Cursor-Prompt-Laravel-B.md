@@ -2,6 +2,8 @@
 
 ## Context
 
+**Run this prompt in the `agreement_automation` repo on the `laravel-migration` branch** — the same branch where Phase A was executed.
+
 Phase A has been completed. The following now exist:
 - All 25 Laravel migrations (27 MySQL tables)
 - All 27 Eloquent models in `app/Models/`
