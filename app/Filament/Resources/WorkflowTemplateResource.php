@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\WorkflowTemplateResource\Pages;
 use App\Models\WorkflowTemplate;
 use Filament\Forms;
+use App\Forms\Components\WorkflowBuilderField;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -24,20 +25,7 @@ class WorkflowTemplateResource extends Resource
             Forms\Components\Select::make('region_id')->relationship('region', 'name')->searchable(),
             Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->searchable(),
             Forms\Components\Select::make('project_id')->relationship('project', 'name')->searchable(),
-            Forms\Components\Repeater::make('stages')
-                ->schema([
-                    Forms\Components\TextInput::make('name')->required(),
-                    Forms\Components\TextInput::make('order')->numeric()->required(),
-                    Forms\Components\Select::make('type')->options([
-                        'review' => 'Review',
-                        'approval' => 'Approval',
-                        'signing' => 'Signing',
-                    ])->required(),
-                    Forms\Components\TextInput::make('approver_role')->maxLength(255),
-                ])
-                ->columns(4)
-                ->collapsible()
-                ->orderColumn('order'),
+            WorkflowBuilderField::make('stages')->columnSpanFull(),
             Forms\Components\Select::make('status')->options(['active' => 'Active', 'draft' => 'Draft', 'archived' => 'Archived'])->default('draft'),
         ]);
     }
