@@ -1,2 +1,0 @@
-# AI helpers
-# AI utilities
