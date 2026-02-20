@@ -32,15 +32,89 @@ spec:
               name: http
           env:
             - name: APP_NAME
-              value: "${APP_NAME}"
+              value: "CCRS"
             - name: APP_ENV
               value: "production"
+            - name: APP_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ccrs-secrets
+                  key: APP_KEY
+            - name: APP_DEBUG
+              value: "false"
             - name: APP_URL
-              value: "https://${DOMAIN}"
+              value: "https://ccrs-sandbox.digittal.mobi"
             - name: DB_CONNECTION
-              value: "sqlite"
+              value: "mysql"
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: ccrs-secrets
+                  key: DB_HOST
+            - name: DB_PORT
+              value: "3306"
             - name: DB_DATABASE
-              value: "/var/www/html/storage/database.sqlite"
+              value: "ccrs"
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: ccrs-secrets
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ccrs-secrets
+                  key: DB_PASSWORD
+            - name: CACHE_STORE
+              value: "redis"
+            - name: QUEUE_CONNECTION
+              value: "redis"
+            - name: SESSION_DRIVER
+              value: "redis"
+            - name: REDIS_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: ccrs-secrets
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              value: "6379"
+            - name: AI_WORKER_URL
+              value: "http://ccrs-ai-worker:8001"
+            - name: AI_WORKER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: ccrs-secrets
+                  key: AI_WORKER_SECRET
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ccrs-secrets
+                  key: ANTHROPIC_API_KEY
+            - name: AZURE_AD_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: ccrs-secrets
+                  key: AZURE_AD_CLIENT_ID
+            - name: AZURE_AD_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: ccrs-secrets
+                  key: AZURE_AD_CLIENT_SECRET
+            - name: AZURE_AD_TENANT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: ccrs-secrets
+                  key: AZURE_AD_TENANT_ID
+            - name: BOLDSIGN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ccrs-secrets
+                  key: BOLDSIGN_API_KEY
+            - name: BOLDSIGN_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+        name: ccrs-secrets
+        key: BOLDSIGN_WEBHOOK_SECRET
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: false
