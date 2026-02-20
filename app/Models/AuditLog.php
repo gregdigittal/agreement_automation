@@ -11,7 +11,7 @@ class AuditLog extends Model
     protected $table = 'audit_log';
     public $timestamps = false;
 
-    protected $fillable = ['at', 'actor_id', 'actor_email', 'action', 'resource_type', 'resource_id', 'details', 'ip_address'];
+    protected $fillable = ['id', 'at', 'actor_id', 'actor_email', 'action', 'resource_type', 'resource_id', 'details', 'ip_address'];
     protected $casts = ['details' => 'array', 'at' => 'datetime'];
 
     protected static function boot(): void

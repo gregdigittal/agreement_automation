@@ -2,41 +2,42 @@
 
 namespace App\Services;
 
-use App\Models\Contract;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 class ContractFileService
 {
-    public function upload(Contract $contract, UploadedFile $file): string
-    {
-        $disk = config('ccrs.contracts_disk', 's3');
-        $path = "contracts/{$contract->id}/{$file->getClientOriginalName()}";
+    private const ALLOWED_MIMES = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
 
-        Storage::disk($disk)->putFileAs(
-            "contracts/{$contract->id}",
+    public function upload(UploadedFile $file, string $contractId, string $disk = 's3'): array
+    {
+        if (!in_array($file->getMimeType(), self::ALLOWED_MIMES, true)) {
+            throw new \InvalidArgumentException('File must be PDF or DOCX');
+        }
+        $path = Storage::disk($disk)->putFileAs(
+            "contracts/{$contractId}",
             $file,
             $file->getClientOriginalName()
         );
-
-        $contract->update([
+        return [
             'storage_path' => $path,
             'file_name' => $file->getClientOriginalName(),
-            'file_version' => ($contract->file_version ?? 0) + 1,
-        ]);
-
-        AuditService::log('contract_file_uploaded', 'contract', $contract->id, [
-            'file_name' => $file->getClientOriginalName(),
-            'version' => $contract->file_version,
-        ]);
-
-        return $path;
+        ];
     }
 
-    public function getSignedUrl(Contract $contract, int $expiry = 3600): ?string
+    public function getSignedUrl(string $storagePath, int $minutes = 60): string
     {
-        if (!$contract->storage_path) return null;
-        $disk = config('ccrs.contracts_disk', 's3');
-        return Storage::disk($disk)->temporaryUrl($contract->storage_path, now()->addSeconds($expiry));
+        return Storage::disk(config('ccrs.contracts_disk', 's3'))->temporaryUrl(
+            $storagePath,
+            now()->addMinutes($minutes)
+        );
+    }
+
+    public function download(string $storagePath): string
+    {
+        return Storage::disk(config('ccrs.contracts_disk', 's3'))->get($storagePath);
     }
 }

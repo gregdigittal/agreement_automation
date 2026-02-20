@@ -4,14 +4,16 @@ namespace App\Services;
 
 use App\Models\EscalationEvent;
 use App\Models\EscalationRule;
+use App\Models\User;
 use App\Models\WorkflowInstance;
+use Illuminate\Support\Facades\DB;
 
 class EscalationService
 {
-    public function checkBreaches(): int
+    public function checkSlaBreaches(): int
     {
         $activeInstances = WorkflowInstance::where('state', 'active')
-            ->with('template.escalationRules')
+            ->with(['template.escalationRules', 'stageActions'])
             ->get();
 
         $escalated = 0;
@@ -26,7 +28,7 @@ class EscalationService
                     ->first();
 
                 $stageEnteredAt = $lastAction?->created_at ?? $instance->started_at;
-                $hoursInStage = now()->diffInHours($stageEnteredAt);
+                $hoursInStage = (int) now()->diffInHours($stageEnteredAt);
 
                 if ($hoursInStage >= $rule->sla_breach_hours) {
                     $existing = EscalationEvent::where('workflow_instance_id', $instance->id)
@@ -40,15 +42,46 @@ class EscalationService
                             'rule_id' => $rule->id,
                             'contract_id' => $instance->contract_id,
                             'stage_name' => $instance->current_stage,
-                            'tier' => $rule->tier,
+                            'tier' => $rule->tier ?? 1,
                             'escalated_at' => now(),
                             'created_at' => now(),
                         ]);
+                        $this->notifyEscalation($rule, $instance);
                         $escalated++;
                     }
                 }
             }
         }
         return $escalated;
+    }
+
+    public function resolveEscalation(string $eventId, User $actor): EscalationEvent
+    {
+        $event = EscalationEvent::findOrFail($eventId);
+        $event->update([
+            'resolved_at' => now(),
+            'resolved_by' => $actor->email,
+        ]);
+        AuditService::log('escalation_resolved', 'escalation_event', $event->id, [], $actor);
+        return $event->fresh();
+    }
+
+    private function notifyEscalation(EscalationRule $rule, WorkflowInstance $instance): void
+    {
+        $contract = $instance->contract;
+        $role = $rule->escalate_to_role;
+        $users = $role ? \App\Models\User::role($role)->get() : collect();
+        foreach ($users as $user) {
+            app(NotificationService::class)->create([
+                'recipient_email' => $user->email,
+                'recipient_user_id' => $user->id,
+                'channel' => 'email',
+                'subject' => 'Escalation: SLA breach',
+                'body' => "Contract {$contract->title} stage {$instance->current_stage} has breached SLA.",
+                'related_resource_type' => 'escalation_event',
+                'related_resource_id' => null,
+                'status' => 'pending',
+            ]);
+        }
     }
 }

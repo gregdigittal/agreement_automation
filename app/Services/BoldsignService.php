@@ -8,57 +8,67 @@ use Illuminate\Support\Facades\Http;
 
 class BoldsignService
 {
-    public function sendToSign(Contract $contract, array $signers): BoldsignEnvelope
+    public function sendToSign(Contract $contract, array $signers, string $signingOrder = 'sequential'): BoldsignEnvelope
     {
+        $response = Http::withToken(config('ccrs.boldsign_api_key'))
+            ->post(config('ccrs.boldsign_api_url') . '/v1/document/send', [
+                'title' => $contract->title ?? 'Contract',
+                'signerDetails' => $signers,
+                'signingOrder' => $signingOrder,
+            ]);
+
+        if (!$response->successful()) {
+            throw new \RuntimeException('Boldsign API error: ' . $response->body());
+        }
+
+        $documentId = $response->json('documentId');
         $envelope = BoldsignEnvelope::create([
             'contract_id' => $contract->id,
+            'boldsign_document_id' => $documentId,
             'status' => 'sent',
+            'signing_order' => $signingOrder,
             'signers' => $signers,
             'sent_at' => now(),
         ]);
 
-        try {
-            $response = Http::withToken(config('ccrs.boldsign_api_key'))
-                ->post(config('ccrs.boldsign_api_url') . '/v1/document/send', [
-                    'title' => $contract->title ?? 'Contract',
-                    'signerDetails' => $signers,
-                ]);
-
-            if ($response->successful()) {
-                $envelope->update([
-                    'boldsign_document_id' => $response->json('documentId'),
-                ]);
-            }
-        } catch (\Exception $e) {
-            $envelope->update(['status' => 'draft']);
-            throw $e;
-        }
+        $contract->update(['signing_status' => 'sent']);
 
         AuditService::log('contract_sent_to_sign', 'contract', $contract->id, [
             'envelope_id' => $envelope->id,
-            'signer_count' => count($signers),
+            'document_id' => $documentId,
         ]);
 
         return $envelope;
     }
 
+    public function getSigningStatus(string $documentId): array
+    {
+        $response = Http::withToken(config('ccrs.boldsign_api_key'))
+            ->get(config('ccrs.boldsign_api_url') . '/v1/document/properties', [
+                'documentId' => $documentId,
+            ]);
+        return $response->successful() ? $response->json() : [];
+    }
+
     public function handleWebhook(array $payload): void
     {
-        $documentId = $payload['documentId'] ?? null;
+        $documentId = $payload['documentId'] ?? $payload['DocumentId'] ?? null;
         if (!$documentId) return;
 
         $envelope = BoldsignEnvelope::where('boldsign_document_id', $documentId)->first();
         if (!$envelope) return;
 
-        $status = $payload['event'] ?? 'unknown';
+        $status = $payload['event'] ?? $payload['Event'] ?? $payload['status'] ?? 'unknown';
         $statusMap = [
             'Completed' => 'completed',
+            'DocumentCompleted' => 'completed',
             'Declined' => 'declined',
             'Expired' => 'expired',
             'Viewed' => 'viewed',
+            'PartiallySigned' => 'partially_signed',
         ];
-
         $newStatus = $statusMap[$status] ?? $envelope->status;
+
         $envelope->update([
             'status' => $newStatus,
             'webhook_payload' => $payload,
@@ -68,5 +78,15 @@ class BoldsignService
         if ($newStatus === 'completed') {
             $envelope->contract->update(['signing_status' => 'completed']);
         }
+
+        AuditService::log('boldsign_webhook', 'boldsign_envelope', $envelope->id, ['status' => $newStatus]);
+    }
+
+    public function verifyWebhookSignature(string $rawBody, string $signature, string $secret): bool
+    {
+        return hash_equals(
+            hash_hmac('sha256', $rawBody, $secret),
+            $signature
+        );
     }
 }

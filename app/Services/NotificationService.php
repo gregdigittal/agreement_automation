@@ -3,59 +3,46 @@
 namespace App\Services;
 
 use App\Models\Notification;
-use Illuminate\Support\Facades\Mail;
+use App\Models\User;
+use Illuminate\Support\Collection;
 
 class NotificationService
 {
-    public function create(string $recipientEmail, string $subject, string $body, string $channel = 'email', ?string $resourceType = null, ?string $resourceId = null): Notification
+    public function listNotifications(User $user, bool $unreadOnly = false): Collection
     {
-        return Notification::create([
-            'recipient_email' => $recipientEmail,
-            'channel' => $channel,
-            'subject' => $subject,
-            'body' => $body,
-            'related_resource_type' => $resourceType,
-            'related_resource_id' => $resourceId,
-            'status' => 'pending',
-            'created_at' => now(),
-        ]);
-    }
-
-    public function sendPending(): int
-    {
-        $pending = Notification::where('status', 'pending')->limit(50)->get();
-        $sent = 0;
-
-        foreach ($pending as $notification) {
-            try {
-                $this->dispatchChannel($notification);
-                $notification->update(['status' => 'sent', 'sent_at' => now()]);
-                $sent++;
-            } catch (\Exception $e) {
-                $notification->update(['status' => 'failed', 'error_message' => $e->getMessage()]);
-            }
-        }
-        return $sent;
-    }
-
-    public function dispatchChannel(Notification $notification): void
-    {
-        match ($notification->channel) {
-            'teams' => $this->sendViaTeams($notification),
-            default => $this->sendViaEmail($notification),
-        };
-    }
-
-    private function sendViaEmail(Notification $notification): void
-    {
-        Mail::raw($notification->body, function ($message) use ($notification) {
-            $message->to($notification->recipient_email)->subject($notification->subject);
+        $query = Notification::where(function ($q) use ($user) {
+            $q->where('recipient_user_id', $user->id)
+                ->orWhere('recipient_email', $user->email);
         });
+        if ($unreadOnly) {
+            $query->whereNull('read_at');
+        }
+        return $query->orderByDesc('created_at')->get();
     }
 
-    private function sendViaTeams(Notification $notification): void
+    public function markRead(string $notificationId, User $user): void
     {
-        $teamsService = app(TeamsNotificationService::class);
-        $teamsService->sendNotification($notification->subject, $notification->body);
+        Notification::where('id', $notificationId)
+            ->where(function ($q) use ($user) {
+                $q->where('recipient_user_id', $user->id)->orWhere('recipient_email', $user->email);
+            })
+            ->update(['read_at' => now()]);
+    }
+
+    public function markAllRead(User $user): int
+    {
+        return Notification::whereNull('read_at')
+            ->where(function ($q) use ($user) {
+                $q->where('recipient_user_id', $user->id)->orWhere('recipient_email', $user->email);
+            })
+            ->update(['read_at' => now()]);
+    }
+
+    public function create(array $data): Notification
+    {
+        return Notification::create(array_merge($data, [
+            'status' => $data['status'] ?? 'pending',
+            'created_at' => $data['created_at'] ?? now(),
+        ]));
     }
 }
