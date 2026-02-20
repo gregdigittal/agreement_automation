@@ -58,3 +58,4 @@ docker-compose.override.yml
 
 # K8s secrets (never commit)
 deploy/k8s/ccrs-secrets*.yaml
+deploy/k8s/ccrs-secrets-template.yaml
