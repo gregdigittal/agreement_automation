@@ -67,6 +67,8 @@ services:
       context: ./ai-worker
       dockerfile: Dockerfile
     container_name: ccrs_ai_worker
+    ports:
+      - "8001:8001"
     restart: unless-stopped
     environment:
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
