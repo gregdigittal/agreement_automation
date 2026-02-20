@@ -73,6 +73,7 @@ class WorkflowTemplateResource extends Resource
                         \Filament\Notifications\Notification::make()->title('Generation failed')->body($e->getMessage())->danger()->send();
                     }
                 }),
+        ]);
     }
 
     public static function getRelationManagers(): array
