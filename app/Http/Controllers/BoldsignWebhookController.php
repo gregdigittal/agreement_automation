@@ -9,7 +9,8 @@ class BoldsignWebhookController extends Controller
     public function handle(Request $request, BoldsignService $service)
     {
         $secret = config('ccrs.boldsign_webhook_secret');
-        if ($secret && $request->header('X-BoldSign-Signature') !== $secret) {
+        $signature = $request->header('X-BoldSign-Signature') ?? $request->header('Boldsign-Signature') ?? '';
+        if ($secret && ! $service->verifyWebhookSignature($request->getContent(), $signature, $secret)) {
             abort(401, 'Invalid webhook signature');
         }
         $service->handleWebhook($request->all());

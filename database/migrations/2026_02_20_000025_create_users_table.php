@@ -11,7 +11,7 @@ return new class extends Migration {
             $table->string('id')->primary();
             $table->string('email')->unique()->nullable();
             $table->string('name')->nullable();
-            $table->json('roles')->default(new Expression("('[]')"));
+$table->rememberToken();
             $table->timestamps();
         });
     }

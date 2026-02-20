@@ -34,7 +34,9 @@ return new class extends Migration {
             $table->index(['region_id', 'entity_id', 'project_id']);
             $table->index('counterparty_id');
             $table->index('workflow_state');
+            if (DB::connection()->getDriverName() !== 'sqlite') {
             $table->fullText(['title', 'contract_type']);
+        }
         });
     }
 

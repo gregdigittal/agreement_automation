@@ -2,13 +2,14 @@
 namespace App\Models;
 
 use App\Traits\HasUuidPrimaryKey;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Entity extends Model
 {
-    use HasUuidPrimaryKey;
+    use HasFactory, HasUuidPrimaryKey;
 
     protected $fillable = ['region_id', 'name', 'code'];
 

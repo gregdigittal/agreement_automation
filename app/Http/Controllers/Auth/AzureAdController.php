@@ -40,7 +40,6 @@ class AzureAdController extends Controller
         if ($role) {
             $user->syncRoles([$role]);
         } else {
-            $user->syncRoles([]);
             Log::warning('Azure AD user has no CCRS group membership', ['email' => $user->email]);
             return redirect('/admin/login')->withErrors(['auth' => 'You do not have access to CCRS. Contact your administrator.']);
         }

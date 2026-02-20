@@ -2,12 +2,13 @@
 namespace App\Models;
 
 use App\Traits\HasUuidPrimaryKey;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 class Contract extends Model
 {
-    use HasUuidPrimaryKey;
+    use HasFactory, HasUuidPrimaryKey;
     protected $fillable = ['region_id', 'entity_id', 'project_id', 'counterparty_id', 'parent_contract_id', 'contract_type', 'title', 'workflow_state', 'signing_status', 'storage_path', 'file_name', 'file_version', 'sharepoint_url', 'sharepoint_version', 'created_by', 'updated_by'];
     protected $casts = ['file_version' => 'integer', 'workflow_state' => 'string', 'signing_status' => 'string'];
 

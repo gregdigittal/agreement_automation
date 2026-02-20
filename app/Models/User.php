@@ -14,5 +14,4 @@ class User extends Authenticatable
     protected string $guard_name = 'web';
 
     protected $fillable = ['id', 'email', 'name'];
-    protected $casts = ['roles' => 'array'];
 }

@@ -2,11 +2,12 @@
 namespace App\Models;
 
 use App\Traits\HasUuidPrimaryKey;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 class Counterparty extends Model
 {
-    use HasUuidPrimaryKey;
+    use HasFactory, HasUuidPrimaryKey;
     protected $fillable = ['legal_name', 'registration_number', 'address', 'jurisdiction', 'status', 'status_reason', 'status_changed_at', 'status_changed_by', 'preferred_language'];
 
     protected $casts = [
