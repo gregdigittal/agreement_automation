@@ -65,8 +65,10 @@ class WorkflowService
 
         if ($nextStage === null) {
             $instance->update(['state' => 'completed', 'completed_at' => now()]);
-            $instance->contract->update(['workflow_state' => 'executed']);
+            $newState = 'executed';
+            $instance->contract->update(['workflow_state' => $newState]);
         } else {
+            $newState = $nextStage;
             $instance->update(['current_stage' => $nextStage]);
             $instance->contract->update(['workflow_state' => $nextStage]);
         }
@@ -75,6 +77,11 @@ class WorkflowService
             'stage' => $instance->current_stage,
             'action' => $action,
         ]);
+
+        if (in_array($newState, ['active', 'executed'])) {
+            $contract = $instance->contract->fresh('counterparty');
+            app(VendorNotificationService::class)->notifyContractStatusChange($contract, $newState);
+        }
 
         return $instance->fresh();
     }

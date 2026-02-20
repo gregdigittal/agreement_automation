@@ -38,7 +38,7 @@ coverage/
 
 # Laravel (app lives at repo root)
 .env
-vendor/
+/vendor/
 node_modules/
 public/build/
 storage/app/public/

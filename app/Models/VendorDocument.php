@@ -10,8 +10,12 @@ class VendorDocument extends Model
 {
     use HasUuidPrimaryKey;
 
-    protected $fillable = ['counterparty_id', 'contract_id', 'title', 'storage_path', 'file_name', 'uploaded_by'];
+    protected $fillable = [
+        'id', 'counterparty_id', 'contract_id', 'filename', 'storage_path',
+        'document_type', 'uploaded_by_vendor_user_id',
+    ];
 
     public function counterparty(): BelongsTo { return $this->belongsTo(Counterparty::class); }
     public function contract(): BelongsTo { return $this->belongsTo(Contract::class); }
+    public function uploadedBy(): BelongsTo { return $this->belongsTo(VendorUser::class, 'uploaded_by_vendor_user_id'); }
 }

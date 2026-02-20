@@ -31,4 +31,6 @@ class Counterparty extends Model
     public function contracts(): HasMany { return $this->hasMany(Contract::class); }
     public function overrideRequests(): HasMany { return $this->hasMany(OverrideRequest::class); }
     public function counterpartyMerges(): HasMany { return $this->hasMany(CounterpartyMerge::class, 'target_counterparty_id'); }
+    public function vendorDocuments(): HasMany { return $this->hasMany(VendorDocument::class); }
+    public function vendorUsers(): HasMany { return $this->hasMany(VendorUser::class); }
 }

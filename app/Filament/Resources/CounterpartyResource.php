@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\CounterpartyResource\Pages;
+use App\Filament\Resources\CounterpartyResource\RelationManagers\VendorDocumentsRelationManager;
 use App\Models\Counterparty;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -38,6 +39,13 @@ class CounterpartyResource extends Resource
             Tables\Columns\TextColumn::make('jurisdiction'),
             Tables\Columns\TextColumn::make('contracts_count')->counts('contracts')->label('Contracts'),
         ])->actions([Tables\Actions\EditAction::make()]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            VendorDocumentsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
