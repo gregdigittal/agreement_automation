@@ -26,6 +26,7 @@ class NotificationMail extends Mailable
     {
         return new Content(
             view: 'emails.notification',
+            with: ['notification' => $this->notification],
         );
     }
 }
