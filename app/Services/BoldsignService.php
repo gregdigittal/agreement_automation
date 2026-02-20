@@ -84,9 +84,10 @@ class BoldsignService
 
     public function verifyWebhookSignature(string $rawBody, string $signature, string $secret): bool
     {
-        return hash_equals(
-            hash_hmac('sha256', $rawBody, $secret),
-            $signature
-        );
+        if (empty($signature) || empty($secret)) {
+            return false;
+        }
+        $expected = hash_hmac('sha256', $rawBody, $secret);
+        return hash_equals($expected, $signature);
     }
 }
