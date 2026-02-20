@@ -5,25 +5,11 @@ use App\Traits\HasUuidPrimaryKey;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Laravel\Scout\Searchable;
-
 class Contract extends Model
 {
     use HasUuidPrimaryKey;
-    use Searchable;
-
     protected $fillable = ['region_id', 'entity_id', 'project_id', 'counterparty_id', 'parent_contract_id', 'contract_type', 'title', 'workflow_state', 'signing_status', 'storage_path', 'file_name', 'file_version', 'sharepoint_url', 'sharepoint_version', 'created_by', 'updated_by'];
-    protected $casts = ['file_version' => 'integer'];
-
-    public function toSearchableArray(): array
-    {
-        return [
-            'title' => $this->title,
-            'contract_type' => $this->contract_type,
-            'workflow_state' => $this->workflow_state,
-            'file_name' => $this->file_name,
-        ];
-    }
+    protected $casts = ['file_version' => 'integer', 'workflow_state' => 'string', 'signing_status' => 'string'];
 
     public function region(): BelongsTo { return $this->belongsTo(Region::class); }
     public function entity(): BelongsTo { return $this->belongsTo(Entity::class); }
