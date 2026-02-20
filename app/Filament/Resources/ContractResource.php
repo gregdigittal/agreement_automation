@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\ContractResource\Pages;
+use App\Jobs\ProcessAiAnalysis;
 use App\Models\Contract;
 use App\Services\ContractLinkService;
 use Filament\Forms;
@@ -91,8 +92,45 @@ class ContractResource extends Resource
         ->actions([
             Tables\Actions\EditAction::make(),
             Tables\Actions\Action::make('download')->icon('heroicon-o-arrow-down-tray')
-                ->url(fn (Contract $record) => $record->storage_path ? route('contract.download', $record) : null)
+                ->url(fn (Contract $record) => $record->storage_path ? app(\App\Services\ContractFileService::class)->getSignedUrl($record->storage_path, 60) : null)
+                ->openUrlInNewTab()
                 ->visible(fn (Contract $record) => (bool) $record->storage_path),
+            Tables\Actions\Action::make('trigger_ai_analysis')
+                ->label('AI Analysis')
+                ->icon('heroicon-o-cpu-chip')
+                ->form([
+                    Forms\Components\Select::make('analysis_type')
+                        ->options([
+                            'summary' => 'Summary',
+                            'extraction' => 'Field Extraction',
+                            'risk' => 'Risk Assessment',
+                            'deviation' => 'Template Deviation',
+                            'obligations' => 'Obligations Register',
+                        ])
+                        ->required(),
+                ])
+                ->action(function (Contract $record, array $data) {
+                    if (!$record->storage_path) {
+                        \Filament\Notifications\Notification::make()
+                            ->title('No file uploaded')
+                            ->body('Upload a contract file before running AI analysis.')
+                            ->danger()
+                            ->send();
+                        return;
+                    }
+                    ProcessAiAnalysis::dispatch(
+                        $record->id,
+                        $data['analysis_type'],
+                        auth()->id(),
+                        auth()->user()?->email,
+                    );
+                    \Filament\Notifications\Notification::make()
+                        ->title('AI Analysis queued')
+                        ->body('Analysis will complete in the background.')
+                        ->success()
+                        ->send();
+                })
+                ->visible(fn (Contract $record) => $record->storage_path !== null),
             Tables\Actions\Action::make('create_amendment')
                 ->label('Amendment')
                 ->icon('heroicon-o-document-plus')

@@ -60,11 +60,19 @@ class WorkflowTemplateResource extends Resource
                 ->label('Generate with AI')
                 ->icon('heroicon-o-sparkles')
                 ->color('info')
-                ->form([Forms\Components\Textarea::make('description')->required()->rows(3)])
-                ->action(function (WorkflowTemplate $record, array $data): void {
-                    \Filament\Notifications\Notification::make()->title('AI workflow generation in Phase C')->info()->send();
+                ->form([
+                    Forms\Components\Textarea::make('description')->label('Describe the workflow')->required()->rows(3),
+                ])
+                ->action(function (array $data, $livewire) {
+                    try {
+                        $client = app(\App\Services\AiWorkerClient::class);
+                        $result = $client->generateWorkflow($data['description']);
+                        $livewire->data['stages'] = $result['stages'] ?? [];
+                        \Filament\Notifications\Notification::make()->title('Workflow generated')->success()->send();
+                    } catch (\Exception $e) {
+                        \Filament\Notifications\Notification::make()->title('Generation failed')->body($e->getMessage())->danger()->send();
+                    }
                 }),
-        ]);
     }
 
     public static function getRelationManagers(): array
