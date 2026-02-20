@@ -10,6 +10,7 @@ use Filament\Forms\Set;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 class ContractResource extends Resource
 {
@@ -139,9 +140,32 @@ class ContractResource extends Resource
     public static function getRelationManagers(): array
     {
         return [
-            RelationManagers\ContractLinksRelationManager::class,
+            RelationManagers\KeyDatesRelationManager::class,
+            RelationManagers\RemindersRelationManager::class,
+            RelationManagers\ObligationsRelationManager::class,
             RelationManagers\ContractLanguagesRelationManager::class,
+            RelationManagers\ContractLinksRelationManager::class,
+            RelationManagers\AiAnalysisRelationManager::class,
+            RelationManagers\BoldsignEnvelopesRelationManager::class,
         ];
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->hasAnyRole(['system_admin', 'legal', 'commercial']) ?? false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return auth()->user()?->hasAnyRole(['system_admin', 'legal']) ?? false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        if (in_array($record->workflow_state, ['completed', 'executed'])) {
+            return false;
+        }
+        return auth()->user()?->hasRole('system_admin') ?? false;
     }
 
     public static function getPages(): array
