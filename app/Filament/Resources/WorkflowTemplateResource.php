@@ -15,7 +15,8 @@ use Filament\Tables\Table;
 class WorkflowTemplateResource extends Resource
 {
     protected static ?string $model = WorkflowTemplate::class;
-    protected static ?string $navigationIcon = 'heroicon-o-cog';
+    protected static ?string $navigationIcon = 'heroicon-o-arrow-path';
+    protected static ?int $navigationSort = 20;
     protected static ?string $navigationGroup = 'Workflows';
 
     public static function form(Form $form): Form

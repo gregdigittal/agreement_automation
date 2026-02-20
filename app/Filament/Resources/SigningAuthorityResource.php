@@ -13,9 +13,9 @@ use Filament\Tables\Table;
 class SigningAuthorityResource extends Resource
 {
     protected static ?string $model = SigningAuthority::class;
-    protected static ?string $navigationIcon = 'heroicon-o-key';
+    protected static ?string $navigationIcon = 'heroicon-o-pen-nib';
     protected static ?string $navigationGroup = 'Org Structure';
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 13;
 
     public static function form(Form $form): Form
     {

@@ -12,7 +12,8 @@ use Filament\Tables\Table;
 class AuditLogResource extends Resource
 {
     protected static ?string $model = AuditLog::class;
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
+    protected static ?string $navigationIcon = 'heroicon-o-shield-check';
+    protected static ?int $navigationSort = 30;
     protected static ?string $navigationGroup = 'Admin';
 
     public static function canCreate(): bool

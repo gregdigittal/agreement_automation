@@ -18,7 +18,8 @@ use Illuminate\Database\Eloquent\Builder;
 class CounterpartyResource extends Resource
 {
     protected static ?string $model = Counterparty::class;
-    protected static ?string $navigationIcon = 'heroicon-o-users';
+    protected static ?string $navigationIcon = 'heroicon-o-building-office-2';
+    protected static ?int $navigationSort = 3;
     protected static ?string $navigationGroup = 'Counterparties';
 
     public static function form(Form $form): Form

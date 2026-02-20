@@ -15,8 +15,9 @@ use Illuminate\Database\Eloquent\Builder;
 class MerchantAgreementResource extends Resource
 {
     protected static ?string $model = Contract::class;
-    protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
+    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document';
     protected static ?string $navigationGroup = 'Contracts';
+    protected static ?int $navigationSort = 2;
     protected static ?string $navigationLabel = 'Merchant Agreements';
     protected static ?string $modelLabel = 'Merchant Agreement';
     protected static ?string $pluralModelLabel = 'Merchant Agreements';

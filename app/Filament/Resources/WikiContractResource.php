@@ -14,6 +14,7 @@ class WikiContractResource extends Resource
 {
     protected static ?string $model = WikiContract::class;
     protected static ?string $navigationIcon = 'heroicon-o-book-open';
+    protected static ?int $navigationSort = 4;
     protected static ?string $navigationGroup = 'Contracts';
 
     public static function form(Form $form): Form

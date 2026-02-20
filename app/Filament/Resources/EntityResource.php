@@ -13,9 +13,9 @@ use Filament\Tables\Table;
 class EntityResource extends Resource
 {
     protected static ?string $model = Entity::class;
-    protected static ?string $navigationIcon = 'heroicon-o-building-office';
+    protected static ?string $navigationIcon = 'heroicon-o-building-library';
     protected static ?string $navigationGroup = 'Org Structure';
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 11;
 
     public static function form(Form $form): Form
     {
