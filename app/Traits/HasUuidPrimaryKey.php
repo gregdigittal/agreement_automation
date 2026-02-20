@@ -9,4 +9,13 @@ trait HasUuidPrimaryKey
         $this->keyType = 'string';
         $this->incrementing = false;
     }
+
+    public static function bootHasUuidPrimaryKey(): void
+    {
+        static::creating(function ($model) {
+            if (empty($model->{$model->getKeyName()})) {
+                $model->{$model->getKeyName()} = \Illuminate\Support\Str::uuid()->toString();
+            }
+        });
+    }
 }
