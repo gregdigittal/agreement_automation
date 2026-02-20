@@ -1,10 +1,21 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\Auth\AzureAdController;
 
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::get('/auth/azure/redirect', [AzureAdController::class, 'redirect'])->name('azure.redirect');
+Route::get('/auth/azure/callback', [AzureAdController::class, 'callback'])->name('azure.callback');
+Route::post('/logout', function () {
+    Auth::logout();
+    request()->session()->invalidate();
+    request()->session()->regenerateToken();
+    return redirect('/');
+})->name('logout');
 
 Route::get('/contracts/{contract}/download', function (\App\Models\Contract $contract) {
     $service = app(\App\Services\ContractFileService::class);

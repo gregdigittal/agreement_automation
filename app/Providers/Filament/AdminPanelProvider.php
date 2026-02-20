@@ -26,6 +26,7 @@ class AdminPanelProvider extends PanelProvider
         return $panel
             ->id('admin')
             ->path('admin')
+            ->login(\App\Filament\Pages\AzureLoginPage::class)
             ->brandName('CCRS')
             ->authGuard('web')
             ->loginRouteSlug('login')

@@ -40,6 +40,7 @@ return [
         'client_secret' => env('AZURE_AD_CLIENT_SECRET'),
         'redirect' => env('APP_URL') . '/auth/azure/callback',
         'tenant' => env('AZURE_AD_TENANT_ID'),
+        'proxy' => null,
     ],
 
 ];
