@@ -1,0 +1,21 @@
+name: Sync laravel-migration → digittal-ccrs
+
+on:
+  push:
+    branches:
+      - laravel-migration
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout laravel-migration
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: laravel-migration
+
+      - name: Push to digittal-ccrs main
+        run: |
+          git remote add ccrs https://x-access-token:${{ secrets.DIGITTAL_CCRS_PAT }}@github.com/digittaldotio/digittal-ccrs.git
+          git push ccrs laravel-migration:main
