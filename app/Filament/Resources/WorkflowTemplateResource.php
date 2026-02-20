@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\WorkflowTemplateResource\Pages;
+use App\Filament\Resources\WorkflowTemplateResource\RelationManagers\EscalationRulesRelationManager;
 use App\Models\WorkflowTemplate;
 use Filament\Forms;
 use App\Forms\Components\WorkflowBuilderField;
@@ -38,7 +39,37 @@ class WorkflowTemplateResource extends Resource
             Tables\Columns\BadgeColumn::make('status')->colors(['success' => 'active', 'gray' => 'draft', 'secondary' => 'archived']),
             Tables\Columns\TextColumn::make('version')->sortable(),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
-        ])->actions([Tables\Actions\EditAction::make()]);
+        ])
+        ->actions([
+            Tables\Actions\EditAction::make(),
+            Tables\Actions\Action::make('publish')
+                ->label('Publish')
+                ->icon('heroicon-o-check-badge')
+                ->color('success')
+                ->visible(fn (): bool => auth()->user()?->hasRole('system_admin') ?? false)
+                ->action(function (WorkflowTemplate $record): void {
+                    $stages = $record->stages ?? [];
+                    if (empty($stages) || !is_array($stages)) {
+                        \Filament\Notifications\Notification::make()->title('Cannot publish: stages empty')->danger()->send();
+                        return;
+                    }
+                    $record->update(['status' => 'published', 'version' => ($record->version ?? 0) + 1, 'published_at' => now()]);
+                    \Filament\Notifications\Notification::make()->title('Template published')->success()->send();
+                }),
+            Tables\Actions\Action::make('generate_ai')
+                ->label('Generate with AI')
+                ->icon('heroicon-o-sparkles')
+                ->color('info')
+                ->form([Forms\Components\Textarea::make('description')->required()->rows(3)])
+                ->action(function (WorkflowTemplate $record, array $data): void {
+                    \Filament\Notifications\Notification::make()->title('AI workflow generation in Phase C')->info()->send();
+                }),
+        ]);
+    }
+
+    public static function getRelationManagers(): array
+    {
+        return [EscalationRulesRelationManager::class];
     }
 
     public static function getPages(): array
