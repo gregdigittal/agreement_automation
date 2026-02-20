@@ -9,7 +9,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm install
 
 # Copy source files needed for build
 COPY resources ./resources
@@ -23,8 +23,25 @@ RUN npm run build
 # ============================================================
 FROM composer:2 AS composer-builder
 
-# Install intl extension required by Filament
-RUN apk add --no-cache icu-dev && docker-php-ext-install intl
+# Install PHP extensions required by composer deps (pcntl, gd, exif for Horizon/Spreadshet/MediaLibrary)
+RUN apk add --no-cache \
+    icu-dev \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    autoconf \
+    dpkg-dev \
+    dpkg \
+    file \
+    g++ \
+    gcc \
+    libc-dev \
+    make \
+    pkgconf \
+    re2c \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) intl pcntl gd exif \
+    && apk del autoconf dpkg-dev dpkg file g++ gcc libc-dev make pkgconf re2c
 
 WORKDIR /app
 
@@ -38,7 +55,7 @@ RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 COPY . .
 
 # Generate optimized autoloader
-RUN composer dump-autoload --optimize --no-dev
+RUN composer dump-autoload --optimize --no-dev --no-scripts
 
 # ============================================================
 # Stage 3: Production image
