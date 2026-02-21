@@ -2,86 +2,80 @@
 
 namespace App\Jobs;
 
+use App\Models\BulkUploadRow;
 use App\Models\Contract;
+use App\Models\Counterparty;
+use App\Models\Entity;
+use App\Models\Project;
+use App\Models\Region;
 use App\Services\AuditService;
+use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
-use ZipArchive;
+use Illuminate\Support\Str;
 
 class ProcessContractBatch implements ShouldQueue
 {
-    use Queueable;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public int $tries = 3;
+    public int $timeout = 120;
 
     public function __construct(
-        public string $batchId,
-        public int $rowIndex,
-        public array $record,
-        public ?string $zipPath = null,
+        public readonly string $bulkUploadRowId,
     ) {}
 
     public function handle(): void
     {
-        $this->updateStatus('processing');
+        $row = BulkUploadRow::findOrFail($this->bulkUploadRowId);
+        $row->update(['status' => 'processing']);
 
         try {
+            $data = $row->row_data;
+
+            $region = Region::where('code', $data['region_code'])->firstOrFail();
+            $entity = Entity::where('code', $data['entity_code'])->where('region_id', $region->id)->firstOrFail();
+            $project = Project::where('code', $data['project_code'])->where('entity_id', $entity->id)->firstOrFail();
+            $counterparty = Counterparty::where('registration_number', $data['counterparty_registration'])->firstOrFail();
+
+            $sourceKey = 'bulk_uploads/files/' . $data['file_path'];
+            $destKey = 'contracts/' . Str::uuid() . '/' . basename($data['file_path']);
+            Storage::disk('s3')->copy($sourceKey, $destKey);
+
             $contract = Contract::create([
-                'region_id' => $this->record['region_id'] ?? null,
-                'entity_id' => $this->record['entity_id'] ?? null,
-                'project_id' => $this->record['project_id'] ?? null,
-                'counterparty_id' => $this->record['counterparty_id'] ?? null,
-                'contract_type' => $this->record['contract_type'] ?? 'Commercial',
-                'title' => $this->record['title'] ?? 'Bulk Upload Row ' . $this->rowIndex,
+                'id' => Str::uuid()->toString(),
+                'title' => $data['title'],
+                'contract_type' => $data['contract_type'] ?? 'Commercial',
+                'counterparty_id' => $counterparty->id,
+                'region_id' => $region->id,
+                'entity_id' => $entity->id,
+                'project_id' => $project->id,
                 'workflow_state' => 'draft',
-                'created_by' => $this->record['created_by'] ?? null,
+                'storage_path' => $destKey,
+                'created_by' => $row->created_by,
             ]);
 
-            if ($this->zipPath && !empty($this->record['file_name'])) {
-                $this->extractAndUploadFile($contract, $this->record['file_name']);
-            }
+            AuditService::log(
+                'contract.bulk_created',
+                'contract',
+                $contract->id,
+                ['bulk_upload_row_id' => $row->id],
+            );
 
-            AuditService::log('bulk_contract_created', 'contract', $contract->id, [
-                'batch_id' => $this->batchId,
-                'row' => $this->rowIndex,
+            $row->update([
+                'status' => 'completed',
+                'contract_id' => $contract->id,
+                'error' => null,
             ]);
-
-            $this->updateStatus('completed');
-        } catch (\Exception $e) {
-            $this->updateStatus('failed');
+        } catch (\Throwable $e) {
+            $row->update([
+                'status' => 'failed',
+                'error' => $e->getMessage(),
+            ]);
             throw $e;
         }
-    }
-
-    private function extractAndUploadFile(Contract $contract, string $fileName): void
-    {
-        $zip = new ZipArchive();
-        if ($zip->open($this->zipPath) !== true) return;
-
-        $index = $zip->locateName($fileName);
-        if ($index === false) {
-            $zip->close();
-            return;
-        }
-
-        $content = $zip->getFromIndex($index);
-        $zip->close();
-
-        $s3Path = "contracts/{$contract->id}/{$fileName}";
-        Storage::disk(config('ccrs.contracts_disk', 's3'))->put($s3Path, $content);
-
-        $contract->update([
-            'storage_path' => $s3Path,
-            'file_name' => $fileName,
-            'file_version' => 1,
-        ]);
-    }
-
-    private function updateStatus(string $status): void
-    {
-        $key = "bulk_upload:{$this->batchId}";
-        $data = Cache::get($key, []);
-        $data[$this->rowIndex] = $status;
-        Cache::put($key, $data, 3600);
     }
 }
