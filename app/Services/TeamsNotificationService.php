@@ -8,66 +8,71 @@ use Illuminate\Support\Facades\Log;
 
 class TeamsNotificationService
 {
-    private function getGraphToken(): string
+    /**
+     * Get an access token for Microsoft Graph using client credentials flow.
+     * Token is cached for 50 minutes (tokens expire at 60 min).
+     */
+    private function getAccessToken(): string
     {
-        return Cache::remember('ms_graph_token', 3000, function () {
-            $tenantId = config('ccrs.azure_ad.tenant_id', config('services.azure.tenant'));
-            $clientId = config('services.azure.client_id');
-            $clientSecret = config('services.azure.client_secret');
+        return Cache::remember('ms_graph_token', now()->addMinutes(50), function () {
+            $response = Http::asForm()->post(config('ccrs.teams.token_endpoint'), [
+                'grant_type' => 'client_credentials',
+                'client_id' => config('services.azure.client_id'),
+                'client_secret' => config('services.azure.client_secret'),
+                'scope' => config('ccrs.teams.graph_scope', 'https://graph.microsoft.com/.default'),
+            ]);
 
-            $response = Http::asForm()->post(
-                "https://login.microsoftonline.com/{$tenantId}/oauth2/v2.0/token",
-                [
-                    'grant_type' => 'client_credentials',
-                    'client_id' => $clientId,
-                    'client_secret' => $clientSecret,
-                    'scope' => 'https://graph.microsoft.com/.default',
-                ]
-            );
-
-            if (!$response->successful()) {
-                Log::error('Failed to get Graph token', ['status' => $response->status(), 'body' => $response->body()]);
-                throw new \RuntimeException('Failed to obtain Microsoft Graph token');
+            if (! $response->successful()) {
+                Log::error('Failed to obtain Microsoft Graph token', [
+                    'status' => $response->status(),
+                    'response' => $response->json(),
+                ]);
+                throw new \RuntimeException('Microsoft Graph token request failed');
             }
 
             return $response->json('access_token');
         });
     }
 
-    public function send(string $teamId, string $channelId, string $subject, string $body): bool
+    /**
+     * Post a message to the configured Teams channel.
+     *
+     * @param  string  $subject  Bold header line
+     * @param  string  $body  Message body (plain text or simple HTML)
+     */
+    public function sendToChannel(string $subject, string $body): void
     {
-        $token = $this->getGraphToken();
+        $teamId = config('ccrs.teams.team_id');
+        $channelId = config('ccrs.teams.channel_id');
 
-        $response = Http::withToken($token)
-            ->post("https://graph.microsoft.com/v1.0/teams/{$teamId}/channels/{$channelId}/messages", [
-                'body' => [
-                    'contentType' => 'html',
-                    'content' => "<h3>{$subject}</h3><p>{$body}</p>",
-                ],
-            ]);
+        if (! $teamId || ! $channelId) {
+            Log::warning('Teams notification skipped — TEAMS_TEAM_ID or TEAMS_CHANNEL_ID not configured');
+            return;
+        }
 
-        if (!$response->successful()) {
-            Log::error('Teams message failed', [
+        $token = $this->getAccessToken();
+
+        $url = sprintf(
+            '%s/teams/%s/channels/%s/messages',
+            config('ccrs.teams.graph_base_url'),
+            $teamId,
+            $channelId
+        );
+
+        $response = Http::withToken($token)->post($url, [
+            'body' => [
+                'contentType' => 'html',
+                'content' => "<b>{$subject}</b><br/>{$body}",
+            ],
+        ]);
+
+        if (! $response->successful()) {
+            Log::error('Failed to send Teams notification', [
                 'status' => $response->status(),
-                'team' => $teamId,
-                'channel' => $channelId,
+                'response' => $response->json(),
+                'subject' => $subject,
             ]);
-            return false;
+            throw new \RuntimeException('Teams notification failed: ' . $response->status());
         }
-
-        return true;
-    }
-
-    public function sendNotification(string $subject, string $body): bool
-    {
-        $teamId = config('ccrs.teams_team_id', '');
-        $channelId = config('ccrs.teams_channel_id', '');
-
-        if (!$teamId || !$channelId) {
-            Log::warning('Teams notification skipped: team_id or channel_id not configured');
-            return false;
-        }
-
-        return $this->send($teamId, $channelId, $subject, $body);
     }
 }

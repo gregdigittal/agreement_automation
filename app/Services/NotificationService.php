@@ -45,4 +45,57 @@ class NotificationService
             'created_at' => $data['created_at'] ?? now(),
         ]));
     }
+    /**
+     * Send a single notification by its channel; update status and sent_at or error_message.
+     */
+    public function sendNotification(Notification $notification): void
+    {
+        try {
+            $this->dispatchChannel(
+                $notification->channel,
+                $notification->subject,
+                $notification->body ?? '',
+                $notification->recipient_user_id,
+                $notification->recipient_email
+            );
+            $notification->update(['status' => 'sent', 'sent_at' => now()]);
+        } catch (\Throwable $e) {
+            $notification->update([
+                'status' => 'failed',
+                'error_message' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Route by channel: email, teams, or in_app (no-op for in_app when sending from job).
+     */
+    private function dispatchChannel(
+        string $channel,
+        string $subject,
+        string $body,
+        ?string $userId,
+        ?string $recipientEmail
+    ): void {
+        match ($channel) {
+            'email' => $this->sendEmail($recipientEmail, $subject, $body),
+            'teams' => $this->sendTeams($subject, $body),
+            default => \Illuminate\Support\Facades\Log::warning("Unknown or unhandled notification channel: {$channel}"),
+        };
+    }
+
+    private function sendEmail(?string $email, string $subject, string $body): void
+    {
+        if (! $email) {
+            return;
+        }
+        \Illuminate\Support\Facades\Mail::to($email)
+            ->send(new \App\Mail\NotificationMail((object) ['subject' => $subject, 'body' => $body]));
+    }
+
+    private function sendTeams(string $subject, string $body): void
+    {
+        app(TeamsNotificationService::class)->sendToChannel($subject, $body);
+    }
 }

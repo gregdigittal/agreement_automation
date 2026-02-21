@@ -19,5 +19,14 @@ return [
     ],
     'contracts_disk' => 's3',
     'tito_api_key' => env('TITO_API_KEY', ''),
+    'merchant_agreement_template_s3_key' => env('MA_TEMPLATE_S3_KEY', 'templates/merchant_agreement_master.docx'),
     'wiki_contracts_disk' => 's3',
+    'teams' => [
+        'team_id' => env('TEAMS_TEAM_ID', ''),
+        'channel_id' => env('TEAMS_CHANNEL_ID', ''),
+        'graph_scope' => 'https://graph.microsoft.com/.default',
+        'graph_base_url' => 'https://graph.microsoft.com/v1.0',
+        'token_endpoint' => 'https://login.microsoftonline.com/' . (env('AZURE_AD_TENANT_ID') ?? '') . '/oauth2/v2.0/token',
+    ],
+
 ];

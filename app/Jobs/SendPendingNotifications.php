@@ -2,11 +2,10 @@
 
 namespace App\Jobs;
 
-use App\Mail\NotificationMail;
 use App\Models\Notification;
+use App\Services\NotificationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Mail;
 
 class SendPendingNotifications implements ShouldQueue
 {
@@ -15,17 +14,17 @@ class SendPendingNotifications implements ShouldQueue
     public function handle(): void
     {
         $notifications = Notification::where('status', 'pending')
-            ->whereNotNull('recipient_email')
             ->limit(50)
             ->get();
 
+        $service = app(NotificationService::class);
+
         foreach ($notifications as $notification) {
             try {
-                Mail::to($notification->recipient_email)
-                    ->send(new NotificationMail($notification));
-                $notification->update(['status' => 'sent', 'sent_at' => now()]);
+                $service->sendNotification($notification);
             } catch (\Exception $e) {
-                $notification->update(['status' => 'failed', 'error_message' => $e->getMessage()]);
+                // sendNotification already updates status to failed and error_message
+                // Re-throw only if we want the job to fail; otherwise continue with next
             }
         }
     }
