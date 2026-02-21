@@ -1,74 +1,62 @@
 <?php
 
+use App\Models\BoldsignEnvelope;
+use App\Models\Contract;
 use App\Models\Counterparty;
-use App\Models\User;
+use Illuminate\Support\Str;
 
 beforeEach(function () {
-    config(['ccrs.tito_api_key' => 'test-tito-key-123']);
-    $this->user = User::create(['id' => 'test-user', 'email' => 'test@example.com', 'name' => 'Test']);
+    config(['ccrs.tito_api_key' => 'test-tito-key']);
 });
 
-it('rejects requests without API key', function () {
-    $this->getJson('/api/tito/validate?registration_number=REG001')
-        ->assertStatus(401)
-        ->assertJson(['error' => 'Unauthorized']);
+it('returns 401 without api key', function () {
+    $response = $this->getJson('/api/tito/validate?vendor_id=' . Str::uuid());
+    $response->assertStatus(401)->assertJson(['error' => 'Unauthorized']);
 });
 
-it('rejects requests with wrong API key', function () {
-    $this->getJson('/api/tito/validate?registration_number=REG001', [
-        'X-TiTo-API-Key' => 'wrong-key',
-    ])->assertStatus(401);
-});
+it('returns invalid when no signed agreement', function () {
+    $vendorId = Str::uuid()->toString();
 
-it('returns no match for unknown registration', function () {
-    $this->getJson('/api/tito/validate?registration_number=UNKNOWN999', [
-        'X-TiTo-API-Key' => 'test-tito-key-123',
-    ])
-        ->assertOk()
+    $response = $this->withHeader('X-TiTo-API-Key', 'test-tito-key')
+        ->getJson("/api/tito/validate?vendor_id={$vendorId}");
+
+    $response->assertStatus(200)
         ->assertJson([
-            'match' => false,
-            'source' => 'internal',
+            'valid'  => false,
+            'status' => 'no_signed_agreement',
         ]);
 });
 
-it('returns match for known counterparty', function () {
-    Counterparty::create([
-        'legal_name' => 'Acme Corp',
-        'registration_number' => 'ACN123456',
-        'status' => 'Active',
-        'jurisdiction' => 'AU',
+it('returns valid when signed agreement exists', function () {
+    $counterparty = Counterparty::factory()->create();
+    $contract = Contract::factory()->create([
+        'contract_type'    => 'Merchant',
+        'counterparty_id'  => $counterparty->id,
+    ]);
+    BoldsignEnvelope::factory()->create([
+        'contract_id' => $contract->id,
+        'status'      => 'completed',
     ]);
 
-    $this->getJson('/api/tito/validate?registration_number=ACN123456', [
-        'X-TiTo-API-Key' => 'test-tito-key-123',
-    ])
-        ->assertOk()
+    $response = $this->withHeader('X-TiTo-API-Key', 'test-tito-key')
+        ->getJson("/api/tito/validate?vendor_id={$counterparty->id}");
+
+    $response->assertStatus(200)
         ->assertJson([
-            'match' => true,
-            'source' => 'internal',
-            'counterparty' => [
-                'legal_name' => 'Acme Corp',
-                'status' => 'Active',
-            ],
+            'valid'       => true,
+            'status'      => 'signed',
+            'contract_id' => $contract->id,
         ]);
 });
 
-it('caches results for 5 minutes', function () {
-    Counterparty::create([
-        'legal_name' => 'Cache Corp',
-        'registration_number' => 'CACHE001',
-        'status' => 'Active',
-    ]);
+it('caches result for five minutes', function () {
+    $vendorId = Str::uuid()->toString();
 
-    $response1 = $this->getJson('/api/tito/validate?registration_number=CACHE001', [
-        'X-TiTo-API-Key' => 'test-tito-key-123',
-    ])->assertOk();
+    $r1 = $this->withHeader('X-TiTo-API-Key', 'test-tito-key')
+        ->getJson("/api/tito/validate?vendor_id={$vendorId}");
+    $r1->assertJson(['valid' => false]);
 
-    Counterparty::where('registration_number', 'CACHE001')->delete();
-
-    $response2 = $this->getJson('/api/tito/validate?registration_number=CACHE001', [
-        'X-TiTo-API-Key' => 'test-tito-key-123',
-    ])->assertOk();
-
-    expect($response2->json('match'))->toBeTrue();
+    $r2 = $this->withHeader('X-TiTo-API-Key', 'test-tito-key')
+        ->getJson("/api/tito/validate?vendor_id={$vendorId}");
+    $r2->assertJson(['valid' => false]);
 });

@@ -18,5 +18,6 @@ return [
         ],
     ],
     'contracts_disk' => 's3',
+    'tito_api_key' => env('TITO_API_KEY', ''),
     'wiki_contracts_disk' => 's3',
 ];

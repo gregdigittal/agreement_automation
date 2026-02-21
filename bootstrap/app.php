@@ -13,6 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->appendToGroup('web', [\App\Http\Middleware\AuditMiddleware::class]);
+        $middleware->alias([
+            'tito.auth' => \App\Http\Middleware\TitoApiKeyMiddleware::class,
+        ]);
         //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
