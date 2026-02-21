@@ -1,8 +1,18 @@
-<x-dynamic-component :component="$getFieldWrapperView()" :field="$field">
+<x-dynamic-component
+    :component="$getFieldWrapperView()"
+    :field="$field"
+>
+    @livewire('workflow-builder', [
+        'state' => $getState() ?: [],
+        'statePath' => $getStatePath(),
+    ])
+
     <div
-        x-data="{ stages: $wire.entangle('{{ $getStatePath() }}') }"
-        x-on:workflow-stages-updated.window="stages = $event.detail.stages"
-    >
-        @livewire('workflow-builder', ['stages' => $getState() ?? [], 'fieldName' => $getStatePath()], key($getStatePath()))
-    </div>
+        x-data="{}"
+        x-on:workflow-builder-updated.window="
+            if ($event.detail.statePath === '{{ $getStatePath() }}') {
+                $wire.set('{{ $getStatePath() }}', $event.detail.stages);
+            }
+        "
+    ></div>
 </x-dynamic-component>

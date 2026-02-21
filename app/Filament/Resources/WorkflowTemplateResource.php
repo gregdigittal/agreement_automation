@@ -27,7 +27,9 @@ class WorkflowTemplateResource extends Resource
             Forms\Components\Select::make('region_id')->relationship('region', 'name')->searchable(),
             Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->searchable(),
             Forms\Components\Select::make('project_id')->relationship('project', 'name')->searchable(),
-            WorkflowBuilderField::make('stages')->columnSpanFull(),
+            WorkflowBuilderField::make('stages')
+            ->label('Workflow Stages')
+            ->columnSpanFull(),
             Forms\Components\Select::make('status')->options(['active' => 'Active', 'draft' => 'Draft', 'archived' => 'Archived'])->default('draft'),
         ]);
     }

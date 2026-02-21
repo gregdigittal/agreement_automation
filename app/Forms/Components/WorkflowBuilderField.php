@@ -8,14 +8,8 @@ class WorkflowBuilderField extends Field
 {
     protected string $view = 'forms.components.workflow-builder-field';
 
-    protected function setUp(): void
+    public function getDefaultState(): mixed
     {
-        parent::setUp();
-
-        $this->default([]);
-
-        $this->dehydrateStateUsing(function ($state) {
-            return is_array($state) ? $state : [];
-        });
+        return [];
     }
 }

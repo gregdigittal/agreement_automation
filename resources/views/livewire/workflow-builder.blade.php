@@ -1,81 +1,120 @@
-<div>
-    <div class="space-y-3" x-data="{
-        dragging: null,
+<div
+    x-data="{
+        dragIndex: null,
         dragOver: null,
-        startDrag(index) { this.dragging = index; },
+        startDrag(index) { this.dragIndex = index; },
         onDragOver(index) { this.dragOver = index; },
         endDrag() {
-            if (this.dragging !== null && this.dragOver !== null && this.dragging !== this.dragOver) {
-                $wire.updateStageOrder(this.reorder(this.dragging, this.dragOver));
+            if (this.dragIndex !== null && this.dragOver !== null && this.dragIndex !== this.dragOver) {
+                const ids = Array.from(document.querySelectorAll('[data-stage-id]'))
+                    .map(el => el.dataset.stageId);
+                const moved = ids.splice(this.dragIndex, 1)[0];
+                ids.splice(this.dragOver, 0, moved);
+                $wire.reorderStages(ids);
             }
-            this.dragging = null;
+            this.dragIndex = null;
             this.dragOver = null;
-        },
-        reorder(from, to) {
-            let items = Array.from({length: $wire.stages.length}, (_, i) => i);
-            const [moved] = items.splice(from, 1);
-            items.splice(to, 0, moved);
-            return items;
         }
-    }">
-        @forelse($stages as $index => $stage)
-            <div
-                draggable="true"
-                x-on:dragstart="startDrag({{ $index }})"
-                x-on:dragover.prevent="onDragOver({{ $index }})"
-                x-on:drop.prevent="endDrag()"
-                class="rounded-lg border bg-white p-4 shadow-sm transition-all"
-                :class="{ 'border-primary-500 bg-primary-50': dragOver === {{ $index }} }"
+    }"
+    class="space-y-3"
+>
+    @foreach ($stages as $index => $stage)
+        <div
+            data-stage-id="{{ $stage['id'] }}"
+            draggable="true"
+            @dragstart="startDrag({{ $index }})"
+            @dragover.prevent="onDragOver({{ $index }})"
+            @dragend="endDrag()"
+            :class="dragOver === {{ $index }} ? 'ring-2 ring-primary-500' : ''"
+            class="flex items-start gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 cursor-grab"
+        >
+            <div class="mt-1 text-gray-400 cursor-grab">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M4 8h16M4 16h16"/>
+                </svg>
+            </div>
+
+            <div class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700 dark:bg-primary-900 dark:text-primary-300">
+                {{ $index + 1 }}
+            </div>
+
+            <div class="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
+                <div class="col-span-2 sm:col-span-1">
+                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Stage Name</label>
+                    <input
+                        type="text"
+                        value="{{ $stage['name'] ?? '' }}"
+                        wire:change="updateStage({{ $index }}, 'name', $event.target.value)"
+                        class="w-full rounded-md border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700"
+                    />
+                </div>
+
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Role</label>
+                    <select
+                        wire:change="updateStage({{ $index }}, 'role', $event.target.value)"
+                        class="w-full rounded-md border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700"
+                    >
+                        @foreach (['legal', 'commercial', 'finance', 'operations', 'system_admin'] as $role)
+                            <option value="{{ $role }}" {{ ($stage['role'] ?? '') === $role ? 'selected' : '' }}>
+                                {{ ucfirst(str_replace('_', ' ', $role)) }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Days</label>
+                    <input
+                        type="number"
+                        min="1"
+                        value="{{ $stage['duration_days'] ?? 5 }}"
+                        wire:change="updateStage({{ $index }}, 'duration_days', (int) $event.target.value)"
+                        class="w-full rounded-md border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700"
+                    />
+                </div>
+
+                <div class="flex items-center gap-2 pt-5">
+                    <input
+                        type="checkbox"
+                        id="approval_{{ $index }}"
+                        {{ ($stage['is_approval'] ?? false) ? 'checked' : '' }}
+                        wire:change="updateStage({{ $index }}, 'is_approval', $event.target.checked)"
+                        class="h-4 w-4 rounded"
+                    />
+                    <label for="approval_{{ $index }}" class="text-xs text-gray-600 dark:text-gray-400">Approval</label>
+                </div>
+            </div>
+
+            <button
+                type="button"
+                wire:click="removeStage({{ $index }})"
+                class="mt-1 text-red-400 hover:text-red-600"
+                title="Remove stage"
             >
-                <div class="flex items-center justify-between gap-3 mb-3">
-                    <div class="flex items-center gap-2">
-                        <span class="cursor-grab text-gray-400">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" /></svg>
-                        </span>
-                        <span class="rounded-full bg-primary-100 px-2.5 py-0.5 text-xs font-semibold text-primary-700">{{ $stage['order'] ?? $index + 1 }}</span>
-                    </div>
-                    <button type="button" wire:click="removeStage({{ $index }})" class="text-red-500 hover:text-red-700 text-sm">Remove</button>
-                </div>
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+    @endforeach
 
-                <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">Stage Name</label>
-                        <input type="text" value="{{ $stage['name'] ?? '' }}" wire:change="updateStageField({{ $index }}, 'name', $event.target.value)" class="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">Approver Role</label>
-                        <select wire:change="updateStageField({{ $index }}, 'approver_role', $event.target.value)" class="w-full rounded-md border-gray-300 text-sm shadow-sm">
-                            <option value="" @selected(empty($stage['approver_role']))>Select role</option>
-                            <option value="system_admin" @selected(($stage['approver_role'] ?? '') === 'system_admin')>System Admin</option>
-                            <option value="legal" @selected(($stage['approver_role'] ?? '') === 'legal')>Legal</option>
-                            <option value="commercial" @selected(($stage['approver_role'] ?? '') === 'commercial')>Commercial</option>
-                            <option value="finance" @selected(($stage['approver_role'] ?? '') === 'finance')>Finance</option>
-                            <option value="operations" @selected(($stage['approver_role'] ?? '') === 'operations')>Operations</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">SLA (hours)</label>
-                        <input type="number" value="{{ $stage['sla_hours'] ?? 24 }}" wire:change="updateStageField({{ $index }}, 'sla_hours', $event.target.value)" class="w-full rounded-md border-gray-300 text-sm shadow-sm" />
-                    </div>
-                    <div class="flex items-end">
-                        <label class="flex items-center gap-2">
-                            <input type="checkbox" @checked($stage['required'] ?? true) wire:change="updateStageField({{ $index }}, 'required', $event.target.checked)" class="rounded border-gray-300 text-primary-600" />
-                            <span class="text-sm text-gray-600">Required</span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-        @empty
-            <div class="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center text-gray-500">
-                No stages defined. Click "Add Stage" to begin.
-            </div>
-        @endforelse
-    </div>
+    @if(count($stages) > 1)
+        <div class="pl-10 text-xs text-gray-400 dark:text-gray-500 select-none">
+            {{ count($stages) }} stages · drag cards to reorder
+        </div>
+    @endif
 
-    <div class="mt-3">
-        <button type="button" wire:click="addStage" class="inline-flex items-center gap-1.5 rounded-md bg-primary-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
-            Add Stage
-        </button>
-    </div>
+    <button
+        type="button"
+        wire:click="addStage"
+        class="flex items-center gap-2 rounded-md border-2 border-dashed border-gray-300 px-4 py-2 text-sm text-gray-500 hover:border-primary-400 hover:text-primary-600 dark:border-gray-600"
+    >
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        Add Stage
+    </button>
 </div>

@@ -6,67 +6,69 @@ use Livewire\Component;
 
 class WorkflowBuilder extends Component
 {
+    /** @var array<int, array{id: string, name: string, role: string, duration_days: int, is_approval: bool, order: int}> */
     public array $stages = [];
-    public string $fieldName = 'stages';
 
-    public function mount(array $stages = [], string $fieldName = 'stages'): void
+    public string $statePath = '';
+
+    public function mount(array $state = [], string $statePath = ''): void
     {
-        $this->stages = $stages;
-        $this->fieldName = $fieldName;
+        
+        $normalized = array_values($state ?: []);
+        foreach ($normalized as $i => $s) {
+            if (empty($s['id'])) { $normalized[$i]['id'] = (string) \Illuminate\Support\Str::uuid(); }
+            if (!isset($s['order'])) { $normalized[$i]['order'] = $i; }
+        }
+        $this->stages = $normalized;
+        $this->statePath = $statePath;
     }
 
     public function addStage(): void
     {
         $this->stages[] = [
+            'id' => (string) \Illuminate\Support\Str::uuid(),
             'name' => 'New Stage',
-            'approver_role' => '',
-            'sla_hours' => 24,
-            'required' => true,
-            'order' => count($this->stages) + 1,
+            'role' => 'legal',
+            'duration_days' => 5,
+            'is_approval' => false,
+            'order' => count($this->stages),
         ];
-        $this->syncToParent();
+        $this->syncState();
     }
 
     public function removeStage(int $index): void
     {
-        unset($this->stages[$index]);
-        $this->stages = array_values($this->stages);
-        $this->reorderStages();
-        $this->syncToParent();
+        array_splice($this->stages, $index, 1);
+        $this->reorder();
+        $this->syncState();
     }
 
-    public function updateStageOrder(array $orderedIds): void
+    public function updateStage(int $index, string $field, mixed $value): void
     {
-        $reordered = [];
-        foreach ($orderedIds as $position => $index) {
-            if (isset($this->stages[$index])) {
-                $stage = $this->stages[$index];
-                $stage['order'] = $position + 1;
-                $reordered[] = $stage;
-            }
-        }
-        $this->stages = $reordered;
-        $this->syncToParent();
+        $this->stages[$index][$field] = $value;
+        $this->syncState();
     }
 
-    public function updateStageField(int $index, string $field, mixed $value): void
+    public function reorderStages(array $orderedIds): void
     {
-        if (isset($this->stages[$index])) {
-            $this->stages[$index][$field] = $value;
-            $this->syncToParent();
-        }
+        $stageMap = collect($this->stages)->keyBy('id');
+        $this->stages = collect($orderedIds)
+            ->map(fn ($id, $pos) => array_merge($stageMap[$id] ?? [], ['order' => $pos]))
+            ->values()
+            ->toArray();
+        $this->syncState();
     }
 
-    private function reorderStages(): void
+    private function reorder(): void
     {
-        foreach ($this->stages as $i => &$stage) {
-            $stage['order'] = $i + 1;
+        foreach ($this->stages as $i => $stage) {
+            $this->stages[$i]['order'] = $i;
         }
     }
 
-    private function syncToParent(): void
+    private function syncState(): void
     {
-        $this->dispatch('workflow-stages-updated', stages: $this->stages);
+        $this->dispatch('workflow-builder-updated', statePath: $this->statePath, stages: $this->stages);
     }
 
     public function render()
