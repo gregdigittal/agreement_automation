@@ -8,6 +8,8 @@ use Spatie\Permission\Models\Permission;
 
 class ShieldPermissionSeeder extends Seeder
 {
+    private const GUARD = 'web';
+
     public function run(): void
     {
         $rolePermissions = [
@@ -46,15 +48,33 @@ class ShieldPermissionSeeder extends Seeder
             ],
         ];
 
+        // Create all permissions first (idempotent).
+        $allPermissionNames = [];
+        foreach ($rolePermissions as $roleName => $permissions) {
+            if ($roleName === 'system_admin' || in_array('*', $permissions, true)) {
+                continue;
+            }
+            foreach ($permissions as $name) {
+                $allPermissionNames[$name] = true;
+            }
+        }
+        foreach (array_keys($allPermissionNames) as $name) {
+            Permission::firstOrCreate(
+                ['name' => $name, 'guard_name' => self::GUARD],
+                ['name' => $name, 'guard_name' => self::GUARD]
+            );
+        }
+
+        // Assign permissions to roles.
         foreach ($rolePermissions as $roleName => $permissions) {
             if ($roleName === 'system_admin') {
                 continue;
             }
-            $role = Role::findByName($roleName);
+            $role = Role::findByName($roleName, self::GUARD);
             if (!$role) {
                 continue;
             }
-            $permModels = Permission::whereIn('name', $permissions)->get();
+            $permModels = Permission::whereIn('name', $permissions)->where('guard_name', self::GUARD)->get();
             $role->syncPermissions($permModels);
         }
     }
