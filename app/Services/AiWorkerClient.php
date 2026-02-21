@@ -5,6 +5,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Client\RequestException;
+use App\Services\TelemetryService;
 
 class AiWorkerClient
 {
@@ -31,27 +32,35 @@ class AiWorkerClient
         string $fileName,
         array $context = []
     ): array {
-        $disk = config('ccrs.contracts_disk', 's3');
-        $fileContent = Storage::disk($disk)->get($storagePath);
-        if ($fileContent === null || $fileContent === false) {
-            throw new \RuntimeException("Could not download contract file from storage: {$storagePath}");
+        $span = TelemetryService::startSpan('ai_worker.analyze', [
+            'contract_id' => $contractId,
+            'analysis_type' => $analysisType,
+        ]);
+        try {
+            $disk = config('ccrs.contracts_disk', 's3');
+            $fileContent = Storage::disk($disk)->get($storagePath);
+            if ($fileContent === null || $fileContent === false) {
+                throw new \RuntimeException("Could not download contract file from storage: {$storagePath}");
+            }
+
+            $response = Http::withHeaders([
+                    'X-AI-Worker-Secret' => $this->secret,
+                    'Content-Type' => 'application/json',
+                ])
+                ->timeout($this->timeout)
+                ->post("{$this->baseUrl}/analyze", [
+                    'contract_id' => $contractId,
+                    'analysis_type' => $analysisType,
+                    'file_content_base64' => base64_encode($fileContent),
+                    'file_name' => $fileName,
+                    'context' => $context,
+                ]);
+
+            $response->throw();
+            return $response->json();
+        } finally {
+            $span->end();
         }
-
-        $response = Http::withHeaders([
-                'X-AI-Worker-Secret' => $this->secret,
-                'Content-Type' => 'application/json',
-            ])
-            ->timeout($this->timeout)
-            ->post("{$this->baseUrl}/analyze", [
-                'contract_id' => $contractId,
-                'analysis_type' => $analysisType,
-                'file_content_base64' => base64_encode($fileContent),
-                'file_name' => $fileName,
-                'context' => $context,
-            ]);
-
-        $response->throw();
-        return $response->json();
     }
 
     /**

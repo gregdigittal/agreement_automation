@@ -55,7 +55,7 @@ class WikiContractResource extends Resource
         return $record->name ?? $record->id;
     }
 
-    public static function getGlobalSearchResultDetails(\Illuminate\Database\Eloquent\Model $record): ?array
+    public static function getGlobalSearchResultDetails(\Illuminate\Database\Eloquent\Model $record): array
     {
         return [
             'Category' => $record->category,

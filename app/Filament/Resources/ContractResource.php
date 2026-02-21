@@ -221,7 +221,7 @@ class ContractResource extends Resource
         return $record->title ?? $record->id;
     }
 
-    public static function getGlobalSearchResultDetails(Model $record): ?array
+    public static function getGlobalSearchResultDetails(Model $record): array
     {
         return [
             'Type' => $record->contract_type,

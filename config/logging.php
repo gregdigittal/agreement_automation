@@ -127,6 +127,13 @@ return [
             'path' => storage_path('logs/laravel.log'),
         ],
 
+        'json' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/laravel.json.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'formatter' => \Monolog\Formatter\JsonFormatter::class,
+        ],
+
     ],
 
 ];

@@ -8,6 +8,7 @@ use App\Models\Contract;
 use App\Models\ObligationsRegister;
 use App\Services\AiWorkerClient;
 use App\Services\AuditService;
+use App\Services\TelemetryService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -32,7 +33,9 @@ class ProcessAiAnalysis implements ShouldQueue
 
     public function handle(AiWorkerClient $client): void
     {
-        $contract = Contract::find($this->contractId);
+        $span = TelemetryService::startSpan('job.process_ai_analysis', ['contract_id' => $this->contractId]);
+        try {
+            $contract = Contract::find($this->contractId);
         if (! $contract) {
             Log::error('ProcessAiAnalysis: contract not found', ['contract_id' => $this->contractId]);
             return;
@@ -136,6 +139,8 @@ class ProcessAiAnalysis implements ShouldQueue
                 'status' => 'failed',
                 'error_message' => $e->getMessage(),
             ]);
+        } finally {
+            $span->end();
         }
     }
 }

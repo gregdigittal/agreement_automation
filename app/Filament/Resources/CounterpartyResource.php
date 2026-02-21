@@ -140,7 +140,7 @@ class CounterpartyResource extends Resource
         return $record->legal_name ?? $record->id;
     }
 
-    public static function getGlobalSearchResultDetails(\Illuminate\Database\Eloquent\Model $record): ?array
+    public static function getGlobalSearchResultDetails(\Illuminate\Database\Eloquent\Model $record): array
     {
         return [
             'Registration' => $record->registration_number,

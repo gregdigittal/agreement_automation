@@ -75,6 +75,17 @@ services:
       - ccrs_net
 
 
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.98.0
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "16686:16686"
+    volumes:
+      - ./docker/otel/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml
+    networks:
+      - ccrs_net
+
   ai-worker:
     build:
       context: ./ai-worker

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Contract;
 use App\Services\AuditService;
+use App\Services\TelemetryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
@@ -24,7 +25,9 @@ class TitoController extends Controller
         $regionId   = $request->query('region_id');
         $projectId  = $request->query('project_id');
 
-        $cacheKey = 'tito:' . md5(implode('|', array_filter([
+        $span = TelemetryService::startSpan('tito.validate', ['vendor_id' => $vendorId]);
+        try {
+            $cacheKey = 'tito:' . md5(implode('|', array_filter([
             $vendorId, $entityId, $regionId, $projectId
         ])));
 
@@ -71,19 +74,22 @@ class TitoController extends Controller
             ];
         });
 
-        AuditService::log(
-            action: 'tito.validate',
-            resourceType: 'contract',
-            resourceId: $result['contract_id'],
-            details: [
-                'vendor_id'  => $vendorId,
-                'entity_id'  => $entityId,
-                'region_id'  => $regionId,
-                'project_id' => $projectId,
-                'valid'      => $result['valid'],
-            ]
-        );
+            AuditService::log(
+                action: 'tito.validate',
+                resourceType: 'contract',
+                resourceId: $result['contract_id'],
+                details: [
+                    'vendor_id'  => $vendorId,
+                    'entity_id'  => $entityId,
+                    'region_id'  => $regionId,
+                    'project_id' => $projectId,
+                    'valid'      => $result['valid'],
+                ]
+            );
 
-        return response()->json($result);
+            return response()->json($result);
+        } finally {
+            $span->end();
+        }
     }
 }
