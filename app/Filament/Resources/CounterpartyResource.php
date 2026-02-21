@@ -41,6 +41,15 @@ class CounterpartyResource extends Resource
                     'zh' => 'Chinese', 'pt' => 'Portuguese', 'de' => 'German',
                 ])
                 ->default('en'),
+            Forms\Components\Hidden::make('duplicate_acknowledged')->default(false),
+            Forms\Components\Actions::make([
+                Forms\Components\Actions\Action::make('check_duplicates')->label('Check for Duplicates')->color('warning')->icon('heroicon-o-magnifying-glass')->action(function (array $data, \Filament\Forms\Set $set) {
+                    $duplicates = app(\App\Services\CounterpartyService::class)->findDuplicates($data['legal_name'] ?? '', $data['registration_number'] ?? '', $data['id'] ?? null);
+                    if ($duplicates->isEmpty()) { \Filament\Notifications\Notification::make()->title('No duplicates found')->success()->send(); $set('duplicate_acknowledged', true); return; }
+                    $list = $duplicates->map(fn ($d) => "- " . $d->legal_name . " (" . $d->registration_number . ") - " . $d->status)->implode("\n");
+                    \Filament\Notifications\Notification::make()->title('Possible duplicates found')->body("The following may be duplicates:\n\n" . $list)->warning()->persistent()->actions([\Filament\Notifications\Actions\Action::make('acknowledge')->label('Proceed anyway')->button()->close()->action(fn () => $set('duplicate_acknowledged', true))])->send();
+                }),
+            ]),
         ]);
     }
 

@@ -17,28 +17,25 @@ class EditCounterparty extends EditRecord
         return [Actions\DeleteAction::make()];
     }
 
-    protected function beforeSave(): void
+    protected function mutateFormDataBeforeSave(array $data): array
     {
-        $service = app(CounterpartyService::class);
-        $duplicates = $service->findDuplicates(
-            $this->data['legal_name'] ?? '',
-            $this->data['registration_number'] ?? null,
+        $duplicates = app(CounterpartyService::class)->findDuplicates(
+            $data['legal_name'] ?? '',
+            $data['registration_number'] ?? '',
             $this->record->id,
         );
 
-        if ($duplicates->isNotEmpty() && !($this->data['_duplicate_acknowledged'] ?? false)) {
-            $names = $duplicates->pluck('legal_name')->implode(', ');
+        if ($duplicates->isNotEmpty() && ! ($data['duplicate_acknowledged'] ?? false)) {
             Notification::make()
-                ->title('Possible duplicates found')
-                ->body("Similar counterparties exist: {$names}. Save again to confirm.")
+                ->title('Duplicate check required')
+                ->body('Please use the "Check for Duplicates" button and acknowledge before saving.')
                 ->warning()
-                ->persistent()
                 ->send();
 
-            $this->data['_duplicate_acknowledged'] = true;
             $this->halt();
         }
 
-        unset($this->data['_duplicate_acknowledged']);
+        unset($data['duplicate_acknowledged']);
+        return $data;
     }
 }
