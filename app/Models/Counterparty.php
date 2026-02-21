@@ -5,9 +5,10 @@ use App\Traits\HasUuidPrimaryKey;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Laravel\Scout\Searchable;
 class Counterparty extends Model
 {
-    use HasFactory, HasUuidPrimaryKey;
+    use HasFactory, HasUuidPrimaryKey, Searchable;
     protected $fillable = ['legal_name', 'registration_number', 'address', 'jurisdiction', 'status', 'status_reason', 'status_changed_at', 'status_changed_by', 'preferred_language'];
 
     protected $casts = [
@@ -20,4 +21,20 @@ class Counterparty extends Model
     public function counterpartyMerges(): HasMany { return $this->hasMany(CounterpartyMerge::class, 'target_counterparty_id'); }
     public function vendorDocuments(): HasMany { return $this->hasMany(VendorDocument::class); }
     public function vendorUsers(): HasMany { return $this->hasMany(VendorUser::class); }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            "id" => $this->id,
+            "legal_name" => $this->legal_name,
+            "registration_number" => $this->registration_number,
+            "status" => $this->status,
+            "jurisdiction" => $this->jurisdiction,
+        ];
+    }
+
+    public function searchableAs(): string
+    {
+        return "counterparties";
+    }
 }

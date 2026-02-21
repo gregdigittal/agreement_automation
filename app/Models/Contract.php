@@ -6,9 +6,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Laravel\Scout\Searchable;
 class Contract extends Model
 {
-    use HasFactory, HasUuidPrimaryKey;
+    use HasFactory, HasUuidPrimaryKey, Searchable;
     protected $fillable = ['region_id', 'entity_id', 'project_id', 'counterparty_id', 'parent_contract_id', 'contract_type', 'title', 'workflow_state', 'signing_status', 'storage_path', 'file_name', 'file_version', 'sharepoint_url', 'sharepoint_version', 'created_by', 'updated_by'];
     protected $casts = ['file_version' => 'integer', 'workflow_state' => 'string', 'signing_status' => 'string'];
 
@@ -32,4 +33,23 @@ class Contract extends Model
     public function boldsignEnvelopes(): HasMany { return $this->hasMany(BoldsignEnvelope::class); }
     public function workflowInstances(): HasMany { return $this->hasMany(WorkflowInstance::class); }
     public function merchantAgreementInputs(): HasMany { return $this->hasMany(MerchantAgreementInput::class); }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'title' => $this->title,
+            'contract_type' => $this->contract_type,
+            'workflow_state' => $this->workflow_state,
+            'counterparty' => $this->counterparty?->legal_name,
+            'region' => $this->region?->name,
+            'entity' => $this->entity?->name,
+            'project' => $this->project?->name,
+        ];
+    }
+
+    public function searchableAs(): string
+    {
+        return 'contracts';
+    }
 }

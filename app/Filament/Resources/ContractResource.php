@@ -215,4 +215,22 @@ class ContractResource extends Resource
             'edit' => Pages\EditContract::route('/{record}/edit'),
         ];
     }
+
+    public static function getGlobalSearchResultTitle(Model $record): string
+    {
+        return $record->title ?? $record->id;
+    }
+
+    public static function getGlobalSearchResultDetails(Model $record): ?array
+    {
+        return [
+            'Type' => $record->contract_type,
+            'State' => $record->workflow_state,
+        ];
+    }
+
+    public static function getGlobalSearchResultUrl(Model $record): string
+    {
+        return ContractResource::getUrl('edit', ['record' => $record]);
+    }
 }

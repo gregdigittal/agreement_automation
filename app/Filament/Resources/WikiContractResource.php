@@ -49,4 +49,23 @@ class WikiContractResource extends Resource
             'edit' => Pages\EditWikiContract::route('/{record}/edit'),
         ];
     }
+
+    public static function getGlobalSearchResultTitle(\Illuminate\Database\Eloquent\Model $record): string
+    {
+        return $record->name ?? $record->id;
+    }
+
+    public static function getGlobalSearchResultDetails(\Illuminate\Database\Eloquent\Model $record): ?array
+    {
+        return [
+            'Category' => $record->category,
+            'Status' => $record->status,
+        ];
+    }
+
+    public static function getGlobalSearchResultUrl(\Illuminate\Database\Eloquent\Model $record): string
+    {
+        return \App\Filament\Resources\WikiContractResource::getUrl('edit', ['record' => $record]);
+    }
+
 }

@@ -134,4 +134,23 @@ class CounterpartyResource extends Resource
             'edit' => Pages\EditCounterparty::route('/{record}/edit'),
         ];
     }
+
+    public static function getGlobalSearchResultTitle(\Illuminate\Database\Eloquent\Model $record): string
+    {
+        return $record->legal_name ?? $record->id;
+    }
+
+    public static function getGlobalSearchResultDetails(\Illuminate\Database\Eloquent\Model $record): ?array
+    {
+        return [
+            'Registration' => $record->registration_number,
+            'Status' => $record->status,
+        ];
+    }
+
+    public static function getGlobalSearchResultUrl(\Illuminate\Database\Eloquent\Model $record): string
+    {
+        return \App\Filament\Resources\CounterpartyResource::getUrl('edit', ['record' => $record]);
+    }
+
 }

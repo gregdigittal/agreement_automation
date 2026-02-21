@@ -30,6 +30,8 @@ class AdminPanelProvider extends PanelProvider
             ->brandName('CCRS')
             ->authGuard('web')
             ->loginRouteSlug('login')
+            ->globalSearch(true)
+            ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
             ->colors([
                 'primary' => Color::Amber,
             ])
