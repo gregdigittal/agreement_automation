@@ -140,7 +140,7 @@ class ProcessAiAnalysis implements ShouldQueue
                 'error_message' => $e->getMessage(),
             ]);
         } finally {
-            $span->end();
+            $span?->end();
         }
     }
 }

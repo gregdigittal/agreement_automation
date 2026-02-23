@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\ContractResource\Pages;
+use App\Filament\Resources\ContractResource\RelationManagers;
 use App\Jobs\ProcessAiAnalysis;
 use App\Models\Contract;
 use App\Services\ContractLinkService;

@@ -91,7 +91,7 @@ class NotificationService
             return;
         }
         \Illuminate\Support\Facades\Mail::to($email)
-            ->send(new \App\Mail\NotificationMail((object) ['subject' => $subject, 'body' => $body]));
+            ->send(new \App\Mail\NotificationMail($subject, $body));
     }
 
     private function sendTeams(string $subject, string $body): void

@@ -30,14 +30,14 @@ class VendorAuthController extends Controller
 
         $loginUrl = route('vendor.auth.verify', ['token' => $rawToken]);
 
-        app(NotificationService::class)->create(
-            $vendor->email,
-            'CCRS Vendor Portal Login',
-            "Click this link to log in (expires in 15 minutes): {$loginUrl}",
-            'email',
-            'vendor_login',
-            $vendor->id,
-        );
+        app(NotificationService::class)->create([
+            'recipient_email' => $vendor->email,
+            'subject' => 'CCRS Vendor Portal Login',
+            'body' => "Click this link to log in (expires in 15 minutes): {$loginUrl}",
+            'channel' => 'email',
+            'related_resource_type' => 'vendor_login',
+            'related_resource_id' => $vendor->id,
+        ]);
 
         return back()->with('status', 'If an account exists, a login link has been sent.');
     }

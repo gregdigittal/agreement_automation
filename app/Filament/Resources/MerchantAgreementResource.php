@@ -84,16 +84,17 @@ class MerchantAgreementResource extends Resource
                         \Filament\Notifications\Notification::make()->title('No template linked')->danger()->send();
                         return;
                     }
-                    app(\App\Services\MerchantAgreementService::class)->generate([
-                        'region_id' => $record->region_id,
-                        'entity_id' => $record->entity_id,
-                        'project_id' => $record->project_id,
-                        'counterparty_id' => $record->counterparty_id,
+                    $actor = auth()->user();
+                    if (!$actor) {
+                        \Filament\Notifications\Notification::make()->title('Not authenticated')->danger()->send();
+                        return;
+                    }
+                    app(\App\Services\MerchantAgreementService::class)->generate($record, [
                         'template_id' => $input->template_id,
                         'vendor_name' => $input->vendor_name,
                         'merchant_fee' => $input->merchant_fee,
                         'region_terms' => $input->region_terms,
-                    ]);
+                    ], $actor);
                     \Filament\Notifications\Notification::make()->title('DOCX generated')->success()->send();
                 }),
         ]);

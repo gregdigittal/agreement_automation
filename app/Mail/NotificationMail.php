@@ -2,7 +2,6 @@
 
 namespace App\Mail;
 
-use App\Models\Notification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -13,12 +12,15 @@ class NotificationMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public Notification $notification) {}
+    public function __construct(
+        public string $subject,
+        public string $body,
+    ) {}
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: $this->notification->subject,
+            subject: $this->subject,
         );
     }
 
@@ -26,7 +28,7 @@ class NotificationMail extends Mailable
     {
         return new Content(
             view: 'emails.notification',
-            with: ['notification' => $this->notification],
+            with: ['subject' => $this->subject, 'body' => $this->body],
         );
     }
 }
