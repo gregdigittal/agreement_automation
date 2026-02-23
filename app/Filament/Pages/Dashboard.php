@@ -18,6 +18,7 @@ class Dashboard extends BaseDashboard
             ExpiryHorizonWidget::class,
             PendingWorkflowsWidget::class,
             ActiveEscalationsWidget::class,
+            \App\Filament\Widgets\AiCostWidget::class,
         ];
     }
 }

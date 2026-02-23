@@ -202,7 +202,7 @@ class ContractResource extends Resource
 
     public static function canDelete(Model $record): bool
     {
-        if (in_array($record->workflow_state, ['completed', 'executed'])) {
+        if (in_array($record->workflow_state, ['executed', 'archived'])) {
             return false;
         }
         return auth()->user()?->hasRole('system_admin') ?? false;
