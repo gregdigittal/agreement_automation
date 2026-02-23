@@ -1,35 +1,26 @@
 <?php
 
+namespace Tests\Feature;
+
 use App\Models\Contract;
-use App\Models\Counterparty;
-use App\Models\Entity;
-use App\Models\Project;
-use App\Models\Region;
-use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
-beforeEach(function () {
-    $this->user = User::create(['id' => 'test-user', 'email' => 'test@example.com', 'name' => 'Test']);
-    $this->actingAs($this->user);
-});
+class SharePointIntegrationTest extends TestCase
+{
+    use RefreshDatabase;
 
-it('stores sharepoint url and version on contract', function () {
-    $region = Region::create(['name' => 'R1']);
-    $entity = Entity::create(['region_id' => $region->id, 'name' => 'E1']);
-    $project = Project::create(['entity_id' => $entity->id, 'name' => 'P1']);
-    $cp = Counterparty::create(['legal_name' => 'CP1', 'status' => 'Active']);
+    public function test_contract_stores_sharepoint_url_and_version(): void
+    {
+        $contract = Contract::factory()->create();
 
-    $contract = Contract::create([
-        'region_id' => $region->id, 'entity_id' => $entity->id,
-        'project_id' => $project->id, 'counterparty_id' => $cp->id,
-        'contract_type' => 'Commercial', 'title' => 'SP Test',
-    ]);
+        $contract->update([
+            'sharepoint_url'     => 'https://digittalgroup.sharepoint.com/sites/legal/document.docx',
+            'sharepoint_version' => '3.1',
+        ]);
 
-    $contract->update([
-        'sharepoint_url' => 'https://digittalgroup.sharepoint.com/sites/legal/document.docx',
-        'sharepoint_version' => '3.1',
-    ]);
-
-    $contract->refresh();
-    expect($contract->sharepoint_url)->toContain('sharepoint.com');
-    expect($contract->sharepoint_version)->toBe('3.1');
-});
+        $contract->refresh();
+        $this->assertStringContainsString('sharepoint.com', $contract->sharepoint_url);
+        $this->assertEquals('3.1', $contract->sharepoint_version);
+    }
+}

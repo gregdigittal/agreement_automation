@@ -48,7 +48,7 @@ class ContractResource extends Resource
                 }),
             Forms\Components\Hidden::make('file_name'),
             Forms\Components\Section::make('SharePoint Collaboration')
-                ->description('Link the SharePoint document URL for collaborative review.')
+                ->description('Link the SharePoint document URL for collaborative review and track the version.')
                 ->collapsed()
                 ->schema([
                     Forms\Components\TextInput::make('sharepoint_url')
@@ -85,6 +85,7 @@ class ContractResource extends Resource
                 ->boolean()
                 ->trueIcon('heroicon-o-document-text')
                 ->falseIcon('heroicon-o-minus')
+                ->tooltip(fn (Contract $record) => $record->sharepoint_url)
                 ->toggleable(isToggledHiddenByDefault: true),
         ])
         ->filters([
@@ -205,6 +206,11 @@ class ContractResource extends Resource
         return auth()->user()?->hasAnyRole(['system_admin', 'legal']) ?? false;
     }
 
+    public static function canView(Model $record): bool
+    {
+        return auth()->user()?->hasAnyRole(['system_admin', 'legal', 'commercial']) ?? false;
+    }
+
     public static function canDelete(Model $record): bool
     {
         if (in_array($record->workflow_state, ['executed', 'archived'])) {
@@ -218,6 +224,7 @@ class ContractResource extends Resource
         return [
             'index' => Pages\ListContracts::route('/'),
             'create' => Pages\CreateContract::route('/create'),
+            'view' => Pages\ViewContract::route('/{record}'),
             'edit' => Pages\EditContract::route('/{record}/edit'),
         ];
     }
