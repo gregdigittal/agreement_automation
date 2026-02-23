@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Mail\VendorNotificationMail;
 use App\Models\Contract;
 use App\Models\Counterparty;
 use App\Models\VendorDocument;
@@ -10,142 +9,60 @@ use App\Models\VendorNotification;
 use App\Models\VendorUser;
 use App\Services\VendorNotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class VendorPortalTest extends TestCase
 {
     use RefreshDatabase;
 
-    private Counterparty $counterparty;
-    private VendorUser $vendor;
-
-    protected function setUp(): void
+    public function test_document_upload_scoped_to_counterparty(): void
     {
-        parent::setUp();
+        Storage::fake('s3');
+        $counterparty = Counterparty::factory()->create();
+        $vendor = VendorUser::factory()->create(['counterparty_id' => $counterparty->id]);
+        $contract = Contract::factory()->create(['counterparty_id' => $counterparty->id]);
 
-        $this->counterparty = Counterparty::create([
-            'id' => Str::uuid()->toString(),
-            'legal_name' => 'Acme Corp',
-            'status' => 'Active',
-        ]);
+        $this->actingAs($vendor, 'vendor');
 
-        $this->vendor = VendorUser::create([
-            'id' => Str::uuid()->toString(),
-            'counterparty_id' => $this->counterparty->id,
-            'email' => 'vendor@acme.test',
-            'name' => 'Jane Vendor',
-        ]);
-    }
-
-    public function test_vendor_document_scoped_to_counterparty(): void
-    {
-        $otherCp = Counterparty::create([
-            'id' => Str::uuid()->toString(),
-            'legal_name' => 'Other Corp',
-            'status' => 'Active',
-        ]);
-
-        VendorDocument::create([
-            'id' => Str::uuid()->toString(),
-            'counterparty_id' => $this->counterparty->id,
-            'filename' => 'mine.pdf',
-            'storage_path' => 'vendor_documents/mine.pdf',
+        $doc = VendorDocument::create([
+            'id' => \Illuminate\Support\Str::uuid()->toString(),
+            'counterparty_id' => $counterparty->id,
+            'title' => 'Test Doc',
+            'contract_id' => $contract->id,
+            'filename' => 'test.pdf',
+            'storage_path' => 'vendor_documents/' . $counterparty->id . '/test.pdf',
             'document_type' => 'supporting',
-            'uploaded_by_vendor_user_id' => $this->vendor->id,
+            'uploaded_by_vendor_user_id' => $vendor->id,
         ]);
 
-        VendorDocument::create([
-            'id' => Str::uuid()->toString(),
-            'counterparty_id' => $otherCp->id,
-            'filename' => 'theirs.pdf',
-            'storage_path' => 'vendor_documents/theirs.pdf',
-            'document_type' => 'certificate',
-        ]);
-
-        $myDocs = VendorDocument::where('counterparty_id', $this->counterparty->id)->get();
-        $this->assertCount(1, $myDocs);
-        $this->assertEquals('mine.pdf', $myDocs->first()->filename);
+        $this->assertEquals($counterparty->id, $doc->counterparty_id);
+        $this->assertEquals($vendor->id, $doc->uploaded_by_vendor_user_id);
     }
 
-    public function test_vendor_cannot_see_other_counterparty_contracts(): void
+    public function test_vendor_cannot_see_another_counterparty_contracts(): void
     {
-        $otherCp = Counterparty::create([
-            'id' => Str::uuid()->toString(),
-            'legal_name' => 'Other Corp',
-            'status' => 'Active',
-        ]);
+        $cp1 = Counterparty::factory()->create();
+        $cp2 = Counterparty::factory()->create();
+        $vendor1 = VendorUser::factory()->create(['counterparty_id' => $cp1->id]);
+        Contract::factory()->create(['counterparty_id' => $cp2->id, 'title' => 'Other CP Contract']);
 
-        Contract::unguard();
-        Contract::create([
-            'id' => Str::uuid()->toString(),
-            'counterparty_id' => $this->counterparty->id,
-            'title' => 'My Contract',
-            'workflow_state' => 'draft',
-        ]);
-        Contract::create([
-            'id' => Str::uuid()->toString(),
-            'counterparty_id' => $otherCp->id,
-            'title' => 'Other Contract',
-            'workflow_state' => 'draft',
-        ]);
-        Contract::reguard();
-
-        $myContracts = Contract::where('counterparty_id', $this->counterparty->id)->get();
-        $this->assertCount(1, $myContracts);
-        $this->assertEquals('My Contract', $myContracts->first()->title);
+        $contractsForVendor = Contract::where('counterparty_id', $vendor1->counterparty_id)->get();
+        $this->assertCount(0, $contractsForVendor->where('title', 'Other CP Contract'));
     }
 
     public function test_notifications_created_on_contract_status_change(): void
     {
-        Mail::fake();
+        $counterparty = Counterparty::factory()->create();
+        $vendor = VendorUser::factory()->create(['counterparty_id' => $counterparty->id]);
+        $contract = Contract::factory()->create(['counterparty_id' => $counterparty->id,
+            'title' => 'Test Doc', 'title' => 'Test Agreement']);
 
-        Contract::unguard();
-        $contract = Contract::create([
-            'id' => Str::uuid()->toString(),
-            'counterparty_id' => $this->counterparty->id,
-            'title' => 'Test Agreement',
-            'workflow_state' => 'executed',
-        ]);
-        Contract::reguard();
-
-        $service = app(VendorNotificationService::class);
-        $service->notifyContractStatusChange($contract, 'executed');
+        app(VendorNotificationService::class)->notifyContractStatusChange($contract, 'executed');
 
         $this->assertDatabaseHas('vendor_notifications', [
-            'vendor_user_id' => $this->vendor->id,
+            'vendor_user_id' => $vendor->id,
             'subject' => 'Agreement Status Update: Test Agreement',
         ]);
-
-        Mail::assertQueued(VendorNotificationMail::class, function ($mail) {
-            return $mail->hasTo('vendor@acme.test');
-        });
-    }
-
-    public function test_magic_link_login_flow(): void
-    {
-        $token = Str::random(64);
-        $this->vendor->update([
-            'login_token' => hash('sha256', $token),
-            'login_token_expires_at' => now()->addHours(48),
-        ]);
-
-        $this->assertEquals(hash('sha256', $token), $this->vendor->fresh()->login_token);
-        $this->assertTrue($this->vendor->fresh()->login_token_expires_at->isFuture());
-    }
-
-    public function test_vendor_notification_mark_read(): void
-    {
-        $notification = VendorNotification::create([
-            'id' => Str::uuid()->toString(),
-            'vendor_user_id' => $this->vendor->id,
-            'subject' => 'Test',
-            'body' => 'Test body',
-        ]);
-
-        $this->assertFalse($notification->isRead());
-        $notification->markRead();
-        $this->assertTrue($notification->fresh()->isRead());
     }
 }

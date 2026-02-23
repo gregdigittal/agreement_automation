@@ -10,8 +10,10 @@ class VendorDocument extends Model
 {
     use HasUuidPrimaryKey;
 
+    protected $table = 'vendor_documents';
+
     protected $fillable = [
-        'id', 'counterparty_id', 'contract_id', 'filename', 'storage_path',
+        'id', 'counterparty_id', 'title', 'contract_id', 'filename', 'storage_path',
         'document_type', 'uploaded_by_vendor_user_id',
     ];
 

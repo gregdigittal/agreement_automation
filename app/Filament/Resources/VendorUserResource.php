@@ -17,6 +17,11 @@ class VendorUserResource extends Resource
     protected static ?string $navigationLabel = 'Vendor Users';
     protected static ?int $navigationSort = 60;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->hasRole('system_admin');
+    }
+
     public static function form(Form $form): Form
     {
         return $form->schema([
@@ -36,6 +41,28 @@ class VendorUserResource extends Resource
             Tables\Columns\TextColumn::make('created_at')->since(),
         ])->actions([
             Tables\Actions\EditAction::make(),
+            Tables\Actions\Action::make('send_invite')
+                ->label('Send Login Link')
+                ->icon('heroicon-o-envelope')
+                ->color('success')
+                ->requiresConfirmation()
+                ->action(function (VendorUser $record) {
+                    $token = \Illuminate\Support\Str::random(64);
+                    \App\Models\VendorLoginToken::create([
+                        'id' => \Illuminate\Support\Str::uuid()->toString(),
+                        'vendor_user_id' => $record->id,
+                        'token_hash' => hash('sha256', $token),
+                        'expires_at' => now()->addHours(48),
+                        'created_at' => now(),
+                    ]);
+                    $link = route('vendor.auth.verify', ['token' => $token]);
+                    \Illuminate\Support\Facades\Mail::to($record->email)
+                        ->send(new \App\Mail\VendorMagicLink($record, $link));
+                    \Filament\Notifications\Notification::make()
+                        ->title('Login link sent to ' . $record->email)
+                        ->success()
+                        ->send();
+                }),
             Tables\Actions\DeleteAction::make(),
         ]);
     }
