@@ -24,8 +24,8 @@ class WikiContractResource extends Resource
             Forms\Components\TextInput::make('category')->maxLength(255),
             Forms\Components\Select::make('region_id')->relationship('region', 'name')->searchable(),
             Forms\Components\Textarea::make('description')->rows(4),
-            Forms\Components\Select::make('status')->options(['active' => 'Active', 'draft' => 'Draft', 'archived' => 'Archived'])->default('draft'),
-            Forms\Components\FileUpload::make('file_path')->label('Template File')->disk('s3')->directory('wiki-contracts')
+            Forms\Components\Select::make('status')->options(['draft' => 'Draft', 'review' => 'Review', 'published' => 'Published', 'deprecated' => 'Deprecated'])->default('draft'),
+            Forms\Components\FileUpload::make('storage_path')->label('Template File')->disk('s3')->directory('wiki-contracts')
                 ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']),
         ]);
     }
@@ -35,7 +35,7 @@ class WikiContractResource extends Resource
         return $table->columns([
             Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
             Tables\Columns\TextColumn::make('category')->sortable(),
-            Tables\Columns\BadgeColumn::make('status')->colors(['success' => 'active', 'gray' => 'draft', 'secondary' => 'archived']),
+            Tables\Columns\BadgeColumn::make('status')->colors(['gray' => 'draft', 'warning' => 'review', 'success' => 'published', 'danger' => 'deprecated']),
             Tables\Columns\TextColumn::make('version')->sortable(),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
         ])->actions([Tables\Actions\EditAction::make()]);

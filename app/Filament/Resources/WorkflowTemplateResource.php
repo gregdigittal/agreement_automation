@@ -30,7 +30,7 @@ class WorkflowTemplateResource extends Resource
             WorkflowBuilderField::make('stages')
             ->label('Workflow Stages')
             ->columnSpanFull(),
-            Forms\Components\Select::make('status')->options(['active' => 'Active', 'draft' => 'Draft', 'archived' => 'Archived'])->default('draft'),
+            Forms\Components\Select::make('status')->options(['draft' => 'Draft', 'published' => 'Published', 'deprecated' => 'Deprecated'])->default('draft'),
         ]);
     }
 
@@ -39,7 +39,7 @@ class WorkflowTemplateResource extends Resource
         return $table->columns([
             Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
             Tables\Columns\TextColumn::make('contract_type')->sortable(),
-            Tables\Columns\BadgeColumn::make('status')->colors(['success' => 'active', 'gray' => 'draft', 'secondary' => 'archived']),
+            Tables\Columns\BadgeColumn::make('status')->colors(['gray' => 'draft', 'success' => 'published', 'danger' => 'deprecated']),
             Tables\Columns\TextColumn::make('version')->sortable(),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
         ])

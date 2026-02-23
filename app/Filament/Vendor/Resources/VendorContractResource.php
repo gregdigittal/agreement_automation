@@ -34,8 +34,10 @@ class VendorContractResource extends Resource
             Tables\Columns\BadgeColumn::make('workflow_state')->colors([
                 'gray' => 'draft',
                 'warning' => 'review',
-                'success' => 'active',
-                'danger' => 'terminated',
+                'info' => 'approval',
+                'primary' => 'signing',
+                'success' => 'executed',
+                'secondary' => 'archived',
             ]),
             Tables\Columns\TextColumn::make('signing_status')->label('Signing status')->badge(),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),

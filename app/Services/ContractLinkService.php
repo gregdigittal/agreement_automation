@@ -19,9 +19,6 @@ class ContractLinkService
     ): Contract {
         return DB::transaction(function () use ($parent, $linkType, $title, $actor, $extra) {
             if ($linkType === 'renewal' && ($extra['renewal_type'] ?? null) === 'extension') {
-                if (!empty($extra['new_expiry_date'])) {
-                    $parent->update(['expiry_date' => $extra['new_expiry_date']]);
-                }
                 $title .= ' (Extension)';
             }
 

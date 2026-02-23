@@ -29,7 +29,7 @@ class AuditLogResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->columns([
-            Tables\Columns\TextColumn::make('created_at')->label('At')->dateTime()->sortable(),
+            Tables\Columns\TextColumn::make('at')->label('At')->dateTime()->sortable(),
             Tables\Columns\TextColumn::make('action')->searchable()->sortable(),
             Tables\Columns\TextColumn::make('resource_type')->searchable()->sortable(),
             Tables\Columns\TextColumn::make('resource_id')->sortable(),
@@ -46,7 +46,7 @@ class AuditLogResource extends Resource
                 'state_change' => 'State Change',
             ]),
         ])
-        ->defaultSort('created_at', 'desc')
+        ->defaultSort('at', 'desc')
         ->actions([]);
     }
 
