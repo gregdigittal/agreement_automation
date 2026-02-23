@@ -12,8 +12,9 @@ use Illuminate\Database\Eloquent\Builder;
 class VendorContractResource extends Resource
 {
     protected static ?string $model = Contract::class;
+    protected static ?string $navigationGroup = 'Agreements';
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
-    protected static ?string $navigationLabel = 'My Contracts';
+    protected static ?string $navigationLabel = 'My Agreements';
     protected static ?string $slug = 'contracts';
 
     public static function canCreate(): bool { return false; }
@@ -31,8 +32,12 @@ class VendorContractResource extends Resource
             Tables\Columns\TextColumn::make('title')->searchable()->sortable(),
             Tables\Columns\BadgeColumn::make('contract_type'),
             Tables\Columns\BadgeColumn::make('workflow_state')->colors([
-                'gray' => 'draft', 'success' => 'executed',
+                'gray' => 'draft',
+                'warning' => 'review',
+                'success' => 'active',
+                'danger' => 'terminated',
             ]),
+            Tables\Columns\TextColumn::make('signing_status')->label('Signing status')->badge(),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
         ])
         ->actions([
@@ -41,7 +46,8 @@ class VendorContractResource extends Resource
                 ->url(fn (Contract $record) => $record->storage_path
                     ? route('vendor.contract.download', $record)
                     : null)
-                ->visible(fn (Contract $record) => (bool) $record->storage_path),
+                ->visible(fn (Contract $record) => (bool) $record->storage_path)
+                ->openUrlInNewTab(),
         ]);
     }
 

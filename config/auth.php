@@ -43,7 +43,7 @@ return [
 
         'vendor' => [
             'driver' => 'session',
-            'provider' => 'vendor_users',
+            'provider' => 'vendors',
         ],
     ],
 
@@ -73,6 +73,11 @@ return [
         'vendor_users' => [
             'driver' => 'eloquent',
             'model' => \App\Models\VendorUser::class,
+        ],
+
+        'vendors' => [
+            'driver' => 'eloquent',
+            'model'  => App\Models\VendorUser::class,
         ],
 
         // 'users' => [

@@ -19,7 +19,7 @@
                 <div class="bg-red-100 text-red-700 rounded-md p-3 mb-4 text-sm">{{ $errors->first() }}</div>
             @endif
 
-            <form method="POST" action="{{ route('vendor.auth.request') }}">
+            <form method="POST" action="{{ route('vendor.magic-link.request') }}">
                 @csrf
                 <div class="mb-4">
                     <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>

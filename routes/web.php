@@ -27,6 +27,8 @@ Route::get('/contracts/{contract}/download', function (\App\Models\Contract $con
 Route::get('/vendor/login', fn () => view('vendor.login'))->name('vendor.login');
 Route::post('/vendor/auth/request', [\App\Http\Controllers\VendorAuthController::class, 'requestLink'])->name('vendor.auth.request');
 Route::get('/vendor/auth/verify/{token}', [\App\Http\Controllers\VendorAuthController::class, 'verify'])->name('vendor.auth.verify');
+Route::post('/vendor/magic-link', [\App\Http\Controllers\Vendor\MagicLinkController::class, 'request'])->name('vendor.magic-link.request');
+Route::get('/vendor/magic-link/{token}', [\App\Http\Controllers\Vendor\MagicLinkController::class, 'verify'])->name('vendor.magic-link.verify');
 Route::post('/vendor/logout', [\App\Http\Controllers\VendorAuthController::class, 'logout'])->name('vendor.logout');
 
 Route::get('/vendor/contracts/{contract}/download', function (\App\Models\Contract $contract) {
