@@ -34,7 +34,7 @@ class ContractExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
 
     public function headings(): array
     {
-        return ['ID', 'Title', 'Type', 'State', 'Counterparty', 'Region', 'Entity', 'Project', 'Signing Status', 'Created At'];
+        return ['ID', 'Title', 'Type', 'State', 'Counterparty', 'Region', 'Entity', 'Project', 'Signing Status', 'Created At', 'Expiry Date'];
     }
 
     public function map($contract): array
@@ -43,6 +43,7 @@ class ContractExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
             $contract->id, $contract->title, $contract->contract_type, $contract->workflow_state,
             $contract->counterparty?->legal_name, $contract->region?->name, $contract->entity?->name,
             $contract->project?->name, $contract->signing_status ?? 'N/A', $contract->created_at?->format('Y-m-d H:i'),
+            $contract->expiry_date ? $contract->expiry_date->format('Y-m-d') : '',
         ];
     }
 

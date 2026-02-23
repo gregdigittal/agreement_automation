@@ -1,5 +1,6 @@
 <x-filament-panels::page>
     @php $stats = $this->getSummaryStats() @endphp
+
     <div class="grid grid-cols-4 gap-4 mb-6">
         @foreach ([
             ['Total Cost (USD)', '$' . $stats['total_cost'], 'text-red-600'],
@@ -13,5 +14,6 @@
             </div>
         @endforeach
     </div>
+
     {{ $this->table }}
 </x-filament-panels::page>

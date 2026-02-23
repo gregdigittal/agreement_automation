@@ -10,25 +10,39 @@
         th { background: #1e3a5f; color: white; padding: 4px 6px; text-align: left; font-size: 8px; }
         td { padding: 3px 6px; border-bottom: 1px solid #e5e5e5; }
         tr:nth-child(even) { background: #f8f8f8; }
+        .badge { display: inline-block; padding: 1px 4px; border-radius: 3px; font-size: 7px; }
+        .badge-active { background: #d1fae5; color: #065f46; }
+        .badge-draft  { background: #f3f4f6; color: #374151; }
     </style>
 </head>
 <body>
     <h1>CCRS — Contracts Report</h1>
     <p class="meta">Generated: {{ $generatedAt }} &bull; Total: {{ $contracts->count() }}</p>
+
     <table>
         <thead>
-            <tr><th>Title</th><th>Type</th><th>State</th><th>Counterparty</th><th>Region</th><th>Entity</th><th>Created</th></tr>
+            <tr>
+                <th>Title</th>
+                <th>Type</th>
+                <th>State</th>
+                <th>Counterparty</th>
+                <th>Region</th>
+                <th>Entity</th>
+                <th>Created</th>
+                <th>Expiry</th>
+            </tr>
         </thead>
         <tbody>
             @foreach ($contracts as $c)
                 <tr>
                     <td>{{ Str::limit($c->title, 40) }}</td>
                     <td>{{ $c->contract_type }}</td>
-                    <td>{{ $c->workflow_state }}</td>
+                    <td><span class="badge badge-{{ $c->workflow_state }}">{{ $c->workflow_state }}</span></td>
                     <td>{{ Str::limit($c->counterparty?->legal_name ?? '—', 25) }}</td>
                     <td>{{ $c->region?->name ?? '—' }}</td>
                     <td>{{ $c->entity?->name ?? '—' }}</td>
                     <td>{{ $c->created_at?->format('Y-m-d') }}</td>
+                    <td>{{ $c->expiry_date ? $c->expiry_date->format('Y-m-d') : '—' }}</td>
                 </tr>
             @endforeach
         </tbody>
