@@ -2,12 +2,14 @@
 namespace App\Models;
 
 use App\Traits\HasUuidPrimaryKey;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ContractKeyDate extends Model
 {
+    use HasFactory;
     use HasUuidPrimaryKey;
 
     protected $fillable = ['contract_id', 'date_type', 'date_value', 'description', 'reminder_days', 'is_verified', 'verified_by', 'verified_at'];

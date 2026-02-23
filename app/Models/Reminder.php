@@ -2,11 +2,13 @@
 namespace App\Models;
 
 use App\Traits\HasUuidPrimaryKey;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Reminder extends Model
 {
+    use HasFactory;
     use HasUuidPrimaryKey;
 
     protected $fillable = ['contract_id', 'key_date_id', 'reminder_type', 'lead_days', 'channel', 'recipient_email', 'recipient_user_id', 'last_sent_at', 'next_due_at', 'is_active'];

@@ -1,4 +1,3 @@
-<x-mail::message>
 # Contract Reminder: {{ $contractTitle }}
 
 This is an automated reminder from CCRS.
@@ -11,4 +10,3 @@ A calendar invite (.ics) is attached to this email. Import it into your calendar
 
 ---
 *CCRS — Contract & Merchant Agreement Repository System*
-</x-mail::message>

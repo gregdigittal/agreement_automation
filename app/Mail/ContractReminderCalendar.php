@@ -29,23 +29,29 @@ class ContractReminderCalendar extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'Calendar Reminder: ' . $this->contract->title);
+        return new Envelope(
+            subject: 'Calendar Reminder: ' . $this->contract->title,
+        );
     }
 
     public function content(): Content
     {
-        return new Content(markdown: 'mail.contract-reminder-calendar', with: [
-            'contractTitle' => $this->contract->title,
-            'dateType' => $this->keyDate->date_type,
-            'dateValue' => $this->keyDate->date_value,
-            'leadDays' => $this->reminder->lead_days,
-        ]);
+        return new Content(
+            markdown: 'mail.contract-reminder-calendar',
+            with: [
+                'contractTitle' => $this->contract->title,
+                'dateType'      => $this->keyDate->date_type,
+                'dateValue'     => $this->keyDate->date_value,
+                'leadDays'      => $this->reminder->lead_days,
+            ],
+        );
     }
 
     public function attachments(): array
     {
         return [
-            Attachment::fromData(fn () => $this->icsContent, 'reminder.ics')->withMime('text/calendar'),
+            Attachment::fromData(fn () => $this->icsContent, 'reminder.ics')
+                ->withMime('text/calendar'),
         ];
     }
 }

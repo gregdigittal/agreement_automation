@@ -21,7 +21,7 @@ class RemindersRelationManager extends RelationManager
                 'sla' => 'SLA', 'obligation' => 'Obligation', 'custom' => 'Custom',
             ])->required(),
             Forms\Components\TextInput::make('lead_days')->numeric()->required(),
-            Forms\Components\Select::make('channel')->options(['email' => 'Email', 'teams' => 'Teams', 'calendar' => 'Calendar'])->default('email'),
+            Forms\Components\Select::make('channel')->options(['email' => 'Email', 'teams' => 'Teams', 'calendar' => 'Calendar Invite (.ics)'])->default('email'),
             Forms\Components\TextInput::make('recipient_email'),
             Forms\Components\Toggle::make('is_active')->default(true),
         ]);
