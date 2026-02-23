@@ -32,7 +32,7 @@ class AiCostReportPage extends Page implements HasTable
                 Tables\Columns\TextColumn::make('token_usage_output')->label('Output Tokens')->numeric(thousandsSeparator: ','),
                 Tables\Columns\TextColumn::make('cost_usd')->label('Cost (USD)')->money('USD'),
                 Tables\Columns\TextColumn::make('processing_time_ms')->label('Time (ms)')->numeric(thousandsSeparator: ','),
-                Tables\Columns\BadgeColumn::make('status')->colors(['success' => 'completed', 'danger' => 'failed', 'warning' => 'processing']),
+                Tables\Columns\TextColumn::make('status')->badge()->color(fn ($state) => match($state) { 'completed' => 'success', 'failed' => 'danger', 'processing' => 'warning', default => 'gray' }),
                 Tables\Columns\TextColumn::make('created_at')->since(),
             ])
             ->filters([

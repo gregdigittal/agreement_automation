@@ -39,7 +39,7 @@ class WorkflowTemplateResource extends Resource
         return $table->columns([
             Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
             Tables\Columns\TextColumn::make('contract_type')->sortable(),
-            Tables\Columns\BadgeColumn::make('status')->colors(['gray' => 'draft', 'success' => 'published', 'danger' => 'deprecated']),
+            Tables\Columns\TextColumn::make('status')->badge()->color(fn ($state) => match($state) { 'draft' => 'gray', 'published' => 'success', 'deprecated' => 'danger', default => 'gray' }),
             Tables\Columns\TextColumn::make('version')->sortable(),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
         ])

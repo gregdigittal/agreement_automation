@@ -59,7 +59,7 @@ class CounterpartyResource extends Resource
             Tables\Columns\TextColumn::make('legal_name')->searchable()->sortable(),
             Tables\Columns\TextColumn::make('registration_number')->searchable(),
             Tables\Columns\TextColumn::make('jurisdiction')->searchable(),
-            Tables\Columns\BadgeColumn::make('status')->colors(['success' => 'Active', 'warning' => 'Suspended', 'danger' => 'Blacklisted']),
+            Tables\Columns\TextColumn::make('status')->badge()->color(fn ($state) => match($state) { 'Active' => 'success', 'Suspended' => 'warning', 'Blacklisted' => 'danger', default => 'gray' }),
             Tables\Columns\TextColumn::make('preferred_language'),
             Tables\Columns\TextColumn::make('contracts_count')->counts('contracts')->label('Contracts')->toggleable(isToggledHiddenByDefault: true),
         ])

@@ -38,13 +38,8 @@ class ContractLinksRelationManager extends RelationManager
     {
         return $table
             ->columns([
-                Tables\Columns\BadgeColumn::make('link_type')
-                    ->colors([
-                        'warning' => 'amendment',
-                        'info' => 'renewal',
-                        'success' => 'side_letter',
-                        'gray' => 'addendum',
-                    ]),
+                Tables\Columns\TextColumn::make('link_type')->badge()
+                    ->color(fn ($state) => match($state) { 'amendment' => 'warning', 'renewal' => 'info', 'side_letter' => 'success', 'addendum' => 'gray', default => 'gray' }),
                 Tables\Columns\TextColumn::make('childContract.title')
                     ->label('Contract')
                     ->searchable(),

@@ -25,8 +25,8 @@ class ContractResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->reactive(),
-            Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->reactive(),
+            Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->live(),
+            Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->live(),
             Forms\Components\Select::make('project_id')->relationship('project', 'name')->required()->searchable(),
             Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable(),
             Forms\Components\Select::make('contract_type')->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant'])->required(),
@@ -61,18 +61,15 @@ class ContractResource extends Resource
     {
         return $table->columns([
             Tables\Columns\TextColumn::make('title')->searchable()->sortable()->limit(40),
-            Tables\Columns\BadgeColumn::make('contract_type'),
-            Tables\Columns\BadgeColumn::make('workflow_state')->colors([
-                'gray' => 'draft', 'warning' => 'review', 'info' => 'approval',
-                'primary' => 'signing', 'success' => 'executed', 'secondary' => 'archived',
-            ]),
+            Tables\Columns\TextColumn::make('contract_type')->badge(),
+            Tables\Columns\TextColumn::make('workflow_state')->badge()->color(fn ($state) => match($state) { 'draft' => 'gray', 'review' => 'warning', 'approval' => 'info', 'signing' => 'primary', 'executed' => 'success', 'archived' => 'secondary', default => 'gray' }),
             Tables\Columns\TextColumn::make('counterparty.legal_name')->sortable()->limit(30),
             Tables\Columns\TextColumn::make('region.name')->sortable(),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
-            Tables\Columns\TextColumn::make('languages_count')
+            Tables\Columns\TextColumn::make('languages_count')->badge()
                 ->label('Languages')
                 ->counts('languages')
-                ->badge()
+                
                 ->color('gray')
                 ->toggleable(isToggledHiddenByDefault: true),
             Tables\Columns\IconColumn::make('sharepoint_url')

@@ -30,15 +30,8 @@ class VendorContractResource extends Resource
     {
         return $table->columns([
             Tables\Columns\TextColumn::make('title')->searchable()->sortable(),
-            Tables\Columns\BadgeColumn::make('contract_type'),
-            Tables\Columns\BadgeColumn::make('workflow_state')->colors([
-                'gray' => 'draft',
-                'warning' => 'review',
-                'info' => 'approval',
-                'primary' => 'signing',
-                'success' => 'executed',
-                'secondary' => 'archived',
-            ]),
+            Tables\Columns\TextColumn::make('contract_type')->badge(),
+Tables\Columns\TextColumn::make('workflow_state')->badge()->color(fn ($state) => match($state) { 'draft' => 'gray', 'review' => 'warning', 'approval' => 'info', 'signing' => 'primary', 'executed' => 'success', 'archived' => 'secondary', default => 'gray' }),
             Tables\Columns\TextColumn::make('signing_status')->label('Signing status')->badge(),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
         ])

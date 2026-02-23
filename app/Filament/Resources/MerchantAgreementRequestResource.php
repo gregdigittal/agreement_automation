@@ -26,8 +26,8 @@ class MerchantAgreementRequestResource extends Resource
     {
         return $form->schema([
             Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable(),
-            Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->reactive(),
-            Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->reactive(),
+            Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->live(),
+            Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->live(),
             Forms\Components\Select::make('project_id')->relationship('project', 'name')->required()->searchable(),
             Forms\Components\TextInput::make('merchant_fee')->numeric()->prefix('$'),
             Forms\Components\Textarea::make('region_terms')->rows(3),

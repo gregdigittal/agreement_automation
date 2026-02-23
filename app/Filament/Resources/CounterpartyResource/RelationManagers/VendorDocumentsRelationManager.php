@@ -19,7 +19,7 @@ class VendorDocumentsRelationManager extends RelationManager
     {
         return $table->columns([
             Tables\Columns\TextColumn::make('filename'),
-            Tables\Columns\BadgeColumn::make('document_type'),
+            Tables\Columns\TextColumn::make('document_type'),
             Tables\Columns\TextColumn::make('contract.title')->label('Agreement')->limit(30)->default('—'),
             Tables\Columns\TextColumn::make('uploadedBy.name')->label('Uploaded By'),
             Tables\Columns\TextColumn::make('created_at')->since(),

@@ -139,6 +139,7 @@ class ProcessAiAnalysis implements ShouldQueue
                 'status' => 'failed',
                 'error_message' => $e->getMessage(),
             ]);
+        }
         } finally {
             $span?->end();
         }

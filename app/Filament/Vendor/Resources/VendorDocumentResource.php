@@ -48,8 +48,8 @@ class VendorDocumentResource extends Resource
     {
         return $table->columns([
             Tables\Columns\TextColumn::make('filename')->searchable(),
-            Tables\Columns\BadgeColumn::make('document_type'),
-            Tables\Columns\TextColumn::make('contract.title')->label('Agreement')->limit(35)->default('—'),
+            Tables\Columns\TextColumn::make('document_type')->badge(),
+            Tables\Columns\TextColumn::make('contract.title')->badge()->label('Agreement')->limit(35)->default('—'),
             Tables\Columns\TextColumn::make('created_at')->since()->label('Uploaded'),
         ])->defaultSort('created_at', 'desc')
         ->actions([

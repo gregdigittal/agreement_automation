@@ -46,7 +46,7 @@ class ContractLanguagesRelationManager extends RelationManager
     {
         return $table
             ->columns([
-                Tables\Columns\BadgeColumn::make('language_code')->label('Language')->formatStateUsing(fn ($state) => strtoupper($state)),
+                Tables\Columns\TextColumn::make('language_code')->label('Language')->formatStateUsing(fn ($state) => strtoupper($state)),
                 Tables\Columns\IconColumn::make('is_primary')->label('Primary')->boolean(),
                 Tables\Columns\TextColumn::make('file_name')->label('File')->limit(40),
                 Tables\Columns\TextColumn::make('created_at')->since(),

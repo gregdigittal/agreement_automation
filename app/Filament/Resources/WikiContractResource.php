@@ -35,7 +35,7 @@ class WikiContractResource extends Resource
         return $table->columns([
             Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
             Tables\Columns\TextColumn::make('category')->sortable(),
-            Tables\Columns\BadgeColumn::make('status')->colors(['gray' => 'draft', 'warning' => 'review', 'success' => 'published', 'danger' => 'deprecated']),
+            Tables\Columns\TextColumn::make('status')->badge()->color(fn ($state) => match($state) { 'draft' => 'gray', 'review' => 'warning', 'published' => 'success', 'deprecated' => 'danger', default => 'gray' }),
             Tables\Columns\TextColumn::make('version')->sortable(),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
         ])->actions([Tables\Actions\EditAction::make()]);

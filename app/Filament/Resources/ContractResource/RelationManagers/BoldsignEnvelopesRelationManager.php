@@ -15,7 +15,7 @@ class BoldsignEnvelopesRelationManager extends RelationManager
     {
         return $table->columns([
             Tables\Columns\TextColumn::make('boldsign_document_id')->limit(30),
-            Tables\Columns\BadgeColumn::make('status'),
+            Tables\Columns\TextColumn::make('status')->badge(),
             Tables\Columns\TextColumn::make('sent_at')->dateTime(),
             Tables\Columns\TextColumn::make('completed_at')->dateTime(),
         ])->headerActions([]);

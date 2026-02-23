@@ -31,8 +31,8 @@ class MerchantAgreementResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->reactive(),
-            Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->reactive(),
+            Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->live(),
+            Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->live(),
             Forms\Components\Select::make('project_id')->relationship('project', 'name')->required()->searchable(),
             Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable(),
             Forms\Components\Hidden::make('contract_type')->default('Merchant'),
@@ -52,10 +52,7 @@ class MerchantAgreementResource extends Resource
     {
         return $table->columns([
             Tables\Columns\TextColumn::make('title')->searchable()->sortable()->limit(40),
-            Tables\Columns\BadgeColumn::make('workflow_state')->colors([
-                'gray' => 'draft', 'warning' => 'review', 'info' => 'approval',
-                'primary' => 'signing', 'success' => 'executed', 'secondary' => 'archived',
-            ]),
+            Tables\Columns\TextColumn::make('workflow_state')->badge()->color(fn ($state) => match($state) { 'draft' => 'gray', 'review' => 'warning', 'approval' => 'info', 'signing' => 'primary', 'executed' => 'success', 'archived' => 'secondary', default => 'gray' }),
             Tables\Columns\TextColumn::make('counterparty.legal_name')->sortable()->limit(30),
             Tables\Columns\TextColumn::make('region.name')->sortable(),
             Tables\Columns\TextColumn::make('entity.name')->sortable(),

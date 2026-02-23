@@ -41,7 +41,7 @@ class OverrideRequestResource extends Resource
         return $table->columns([
             Tables\Columns\TextColumn::make('counterparty.legal_name')->searchable()->sortable(),
             Tables\Columns\TextColumn::make('contract_title')->searchable()->limit(30),
-            Tables\Columns\BadgeColumn::make('status')->colors(['warning' => 'pending', 'success' => 'approved', 'danger' => 'rejected']),
+            Tables\Columns\TextColumn::make('status')->badge()->color(fn ($state) => match($state) { 'pending' => 'warning', 'approved' => 'success', 'rejected' => 'danger', default => 'gray' }),
             Tables\Columns\TextColumn::make('requested_by_email')->searchable(),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
         ])
