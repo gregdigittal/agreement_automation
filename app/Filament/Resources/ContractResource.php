@@ -144,9 +144,13 @@ class ContractResource extends Resource
                 ->color('warning')
                 ->form([
                     \Filament\Forms\Components\TextInput::make('title')->required()->placeholder('e.g. Amendment No. 1'),
+                    \Filament\Forms\Components\Textarea::make('notes')->rows(3)->nullable(),
                 ])
                 ->action(function (Contract $record, array $data) {
-                    app(ContractLinkService::class)->createLinkedContract($record, 'amendment', $data['title'], auth()->user());
+                    $child = app(ContractLinkService::class)->createLinkedContract($record, 'amendment', $data['title'], auth()->user(), ['notes' => $data['notes'] ?? null]);
+                    if (! empty($data['notes'])) {
+                        \App\Services\AuditService::log('contract.amendment_notes', 'contract', $child->id, ['notes' => $data['notes']], auth()->user());
+                    }
                     \Filament\Notifications\Notification::make()->title('Amendment created')->success()->send();
                 }),
             Tables\Actions\Action::make('create_renewal')
@@ -159,9 +163,21 @@ class ContractResource extends Resource
                         ->options(['extension' => 'Extension', 'new_version' => 'New Version'])
                         ->required()
                         ->default('new_version'),
+                    \Filament\Forms\Components\DatePicker::make('new_expiry_date')
+                        ->label('New Expiry Date')
+                        ->visible(fn ($get) => $get('renewal_type') === 'extension'),
                 ])
                 ->action(function (Contract $record, array $data) {
-                    app(ContractLinkService::class)->createLinkedContract($record, 'renewal', $data['title'], auth()->user(), ['renewal_type' => $data['renewal_type']]);
+                    app(ContractLinkService::class)->createLinkedContract(
+                        $record,
+                        'renewal',
+                        $data['title'],
+                        auth()->user(),
+                        [
+                            'renewal_type' => $data['renewal_type'],
+                            'new_expiry_date' => $data['new_expiry_date'] ?? null,
+                        ],
+                    );
                     \Filament\Notifications\Notification::make()->title('Renewal created')->success()->send();
                 }),
             Tables\Actions\Action::make('add_side_letter')
