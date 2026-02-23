@@ -1,5 +1,9 @@
 version: "3.9"
 
+# Local development stack. Production (CTO K8s cluster) runs meilisearch and
+# otel-collector as separate deployments with persistent storage — not this compose file.
+
+
 services:
   app:
     build:
