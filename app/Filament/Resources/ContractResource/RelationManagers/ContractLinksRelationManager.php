@@ -11,7 +11,7 @@ use Filament\Tables\Table;
 
 class ContractLinksRelationManager extends RelationManager
 {
-    protected static string $relationship = 'parentLinks';
+    protected static string $relationship = 'childLinks';
     protected static ?string $title = 'Amendments, Renewals & Side Letters';
 
     public function form(Form $form): Form

@@ -25,7 +25,15 @@ class ContractResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->live(),
+            Forms\Components\Section::make('Linked From')
+                ->visible(fn (?Contract $record) => $record && $record->parentLinks()->exists())
+                ->schema([
+                    Forms\Components\Placeholder::make('parent_link_info')
+                        ->label('')
+                        ->content(fn (Contract $record) => $record->parentLinks->first() ? 'Link type: ' . $record->parentLinks->first()->link_type . ' | Parent: ' . ($record->parentLinks->first()->parentContract?->title ?? $record->parentLinks->first()->parent_contract_id) : ''),
+                ])
+                ->columns(1),
+                        Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->live(),
             Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->live(),
             Forms\Components\Select::make('project_id')->relationship('project', 'name')->required()->searchable(),
             Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable(),
@@ -130,7 +138,7 @@ class ContractResource extends Resource
                 })
                 ->visible(fn (Contract $record) => $record->storage_path !== null),
             Tables\Actions\Action::make('create_amendment')
-                ->label('Amendment')
+                ->label('Create Amendment')
                 ->icon('heroicon-o-document-plus')
                 ->color('warning')
                 ->form([
@@ -141,7 +149,7 @@ class ContractResource extends Resource
                     \Filament\Notifications\Notification::make()->title('Amendment created')->success()->send();
                 }),
             Tables\Actions\Action::make('create_renewal')
-                ->label('Renewal')
+                ->label('Create Renewal')
                 ->icon('heroicon-o-arrow-path')
                 ->color('info')
                 ->form([
@@ -156,7 +164,7 @@ class ContractResource extends Resource
                     \Filament\Notifications\Notification::make()->title('Renewal created')->success()->send();
                 }),
             Tables\Actions\Action::make('add_side_letter')
-                ->label('Side Letter')
+                ->label('Add Side Letter')
                 ->icon('heroicon-o-paper-clip')
                 ->color('success')
                 ->form([

@@ -10,7 +10,7 @@ class ContractLink extends Model
     use HasUuidPrimaryKey;
 
     public $timestamps = false;
-    protected $fillable = ['parent_contract_id', 'child_contract_id', 'link_type', 'created_at'];
+    protected $fillable = ['id', 'parent_contract_id', 'child_contract_id', 'link_type'];
     protected $casts = ['created_at' => 'datetime'];
 
     public function parentContract(): BelongsTo { return $this->belongsTo(Contract::class, 'parent_contract_id'); }
