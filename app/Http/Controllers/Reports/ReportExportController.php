@@ -11,11 +11,6 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ReportExportController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware(['auth', 'verified']);
-    }
-
     /** Export contracts as XLSX */
     public function contractsExcel(Request $request)
     {

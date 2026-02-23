@@ -19,7 +19,7 @@ class CalendarService
         $dtstart = gmdate('Ymd', strtotime($keyDate->date_value));
         $summary = 'CCRS Reminder: ' . $contract->title;
         $description = sprintf(
-            'Contract: %s\nKey Date: %s (%s)\nReminder: %d days notice',
+            'Contract: %s\\nKey Date: %s (%s)\\nReminder: %d days notice',
             $contract->title,
             $keyDate->date_type,
             $keyDate->date_value,

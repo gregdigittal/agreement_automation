@@ -31,7 +31,9 @@ class ReminderService
             }
 
             if ($reminder->channel === 'calendar') {
-                $this->sendCalendarInvite($reminder, $contract);
+                if (! $this->sendCalendarInvite($reminder, $contract)) {
+                    continue;
+                }
             } else {
                 $recipient = $reminder->recipient_email ?? $contract->created_by ?? null;
                 if ($recipient) {
@@ -57,7 +59,7 @@ class ReminderService
         return $count;
     }
 
-    private function sendCalendarInvite(Reminder $reminder, \App\Models\Contract $contract): void
+    private function sendCalendarInvite(Reminder $reminder, \App\Models\Contract $contract): bool
     {
         $keyDate = $reminder->key_date_id
             ? ContractKeyDate::find($reminder->key_date_id)
@@ -65,15 +67,16 @@ class ReminderService
 
         if (! $keyDate) {
             Log::warning('Calendar reminder skipped — no key_date_id', ['reminder_id' => $reminder->id]);
-            return;
+            return false;
         }
 
         $recipient = $reminder->recipient_email;
         if (! $recipient) {
             Log::warning('Calendar reminder skipped — no recipient_email', ['reminder_id' => $reminder->id]);
-            return;
+            return false;
         }
 
         Mail::to($recipient)->send(new ContractReminderCalendar($reminder, $contract, $keyDate));
+        return true;
     }
 }
