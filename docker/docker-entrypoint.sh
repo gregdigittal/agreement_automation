@@ -45,6 +45,7 @@ fi
 # Run migrations
 echo "Running migrations..."
 php artisan migrate --force
+php artisan db:seed --force
 
 # Publish Filament assets (if Filament is installed)
 if php artisan list 2>/dev/null | grep -q "filament:assets"; then
