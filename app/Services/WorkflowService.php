@@ -55,6 +55,10 @@ class WorkflowService
 
         $template = $instance->template;
         $stages = $template->stages ?? [];
+        $currentStageConfig = collect($stages)->firstWhere('name', $stageName);
+        if ($currentStageConfig && ($currentStageConfig['type'] ?? null) === 'signing') {
+            $this->checkSigningAuthority($instance->contract, $actor, $stageName);
+        }
         $currentIndex = collect($stages)->search(fn ($s) => ($s['name'] ?? '') === $instance->current_stage);
 
         $stageAction = WorkflowStageAction::create([
@@ -95,6 +99,45 @@ class WorkflowService
     public function getHistory(string $instanceId): Collection
     {
         return WorkflowStageAction::where('instance_id', $instanceId)->orderBy('created_at')->get();
+    }
+
+
+    /**
+     * Verify that the actor has signing authority for this contract.
+     * Called when advancing through a signing-type workflow stage.
+     *
+     * @throws \RuntimeException if no matching signing authority exists
+     */
+    private function checkSigningAuthority(Contract $contract, User $actor, string $stageName): void
+    {
+        $query = \App\Models\SigningAuthority::query()
+            ->where('entity_id', $contract->entity_id)
+            ->where(function ($q) use ($contract) {
+                $q->whereNull('project_id')
+                  ->orWhere('project_id', $contract->project_id);
+            })
+            ->where('user_id', $actor->id);
+
+        $authority = $query->first();
+
+        if (!$authority) {
+            throw new \RuntimeException(
+                "No signing authority for user {$actor->email} on entity {$contract->entity_id}" .
+                ($contract->project_id ? " / project {$contract->project_id}" : '') .
+                ". A signing authority record must exist before contracts can be signed at stage '{$stageName}'."
+            );
+        }
+
+        if ($authority->contract_type_pattern) {
+            $pattern = strtolower($authority->contract_type_pattern);
+            $type = strtolower($contract->contract_type ?? '');
+            if ($pattern !== '*' && $pattern !== $type) {
+                throw new \RuntimeException(
+                    "Signing authority for {$actor->email} is restricted to '{$authority->contract_type_pattern}' " .
+                    "contracts, but this contract is '{$contract->contract_type}'."
+                );
+            }
+        }
     }
 
     private function resolveNextStage(array $stages, int|false $currentIndex, string $action): ?string

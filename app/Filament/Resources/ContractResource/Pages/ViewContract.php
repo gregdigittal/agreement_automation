@@ -17,6 +17,19 @@ class ViewContract extends ViewRecord
     {
         return $infolist
             ->schema([
+                Components\Section::make('Contract Status')
+                    ->schema([
+                        Components\TextEntry::make('workflow_state')
+                            ->badge()
+                            ->color(fn (string $state): string => match ($state) {
+                                'executed' => 'success',
+                                'completed' => 'success',
+                                'cancelled' => 'danger',
+                                default => 'warning',
+                            }),
+                    ])
+                    ->visible(fn (Contract $record): bool => in_array($record->workflow_state, ['executed', 'completed']))
+                    ->columnSpanFull(),
                 Components\Section::make("Linked From")
                     ->visible(fn (Contract $record) => $record->parentContract !== null)
                     ->schema([

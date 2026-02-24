@@ -69,7 +69,9 @@ class ContractResource extends Resource
                         ->placeholder('e.g. 2.3'),
                 ])
                 ->columns(2),
-        ]);
+        ])->disabled(fn (?Contract $record): bool =>
+        $record !== null && in_array($record->workflow_state, ['executed', 'completed'])
+    );
     }
 
     public static function table(Table $table): Table
@@ -104,7 +106,8 @@ class ContractResource extends Resource
             Tables\Filters\SelectFilter::make('region_id')->relationship('region', 'name'),
         ])
         ->actions([
-            Tables\Actions\EditAction::make(),
+            Tables\Actions\EditAction::make()
+            ->visible(fn (Contract $record): bool => !in_array($record->workflow_state, ['executed', 'completed'])),
             Tables\Actions\Action::make('download')->icon('heroicon-o-arrow-down-tray')
                 ->url(fn (Contract $record) => $record->storage_path ? app(\App\Services\ContractFileService::class)->getSignedUrl($record->storage_path, 60) : null)
                 ->openUrlInNewTab()

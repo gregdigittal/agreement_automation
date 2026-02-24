@@ -76,7 +76,11 @@ class BoldsignService
         ]);
 
         if ($newStatus === 'completed') {
-            $envelope->contract->update(['signing_status' => 'completed']);
+            $contract = $envelope->contract;
+            $contract->update([
+                'signing_status' => 'completed',
+                'workflow_state' => 'executed',
+            ]);
         }
 
         AuditService::log('boldsign_webhook', 'boldsign_envelope', $envelope->id, ['status' => $newStatus]);

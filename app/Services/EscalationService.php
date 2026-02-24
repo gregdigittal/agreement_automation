@@ -80,6 +80,7 @@ class EscalationService
                 'body' => "Contract {$contract->title} stage {$instance->current_stage} has breached SLA.",
                 'related_resource_type' => 'escalation_event',
                 'related_resource_id' => null,
+                'notification_category' => 'escalations',
                 'status' => 'pending',
             ]);
         }

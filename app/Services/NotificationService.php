@@ -50,6 +50,12 @@ class NotificationService
      */
     public function sendNotification(Notification $notification): void
     {
+        $user = $notification->recipient_user_id ? User::find($notification->recipient_user_id) : null;
+        $category = $notification->notification_category ?? 'workflow_actions';
+        if ($user && !$user->wantsNotification($category, $notification->channel)) {
+            $notification->update(['status' => 'sent', 'sent_at' => now()]);
+            return;
+        }
         try {
             $this->dispatchChannel(
                 $notification->channel,

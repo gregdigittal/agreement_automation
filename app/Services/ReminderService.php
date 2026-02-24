@@ -45,6 +45,7 @@ class ReminderService
                         'body' => "Contract: " . ($contract->title ?? $contract->id) . ". Type: {$reminder->reminder_type}. Lead days: {$reminder->lead_days}.",
                         'related_resource_type' => 'contract',
                         'related_resource_id' => $reminder->contract_id,
+                        'notification_category' => 'reminders',
                         'status' => 'pending',
                     ]);
                 }
