@@ -69,7 +69,7 @@ pipeline {
                         sh """
                             kubectl delete deployment ccrs-app ccrs-queue-worker ccrs-ai-worker -n ${NAMESPACE} --ignore-not-found=true
                             kubectl delete service ccrs-app -n ${NAMESPACE} --ignore-not-found=true
-                            kubectl delete hpa ccrs-app -n ${NAMESPACE} --ignore-not-found=true
+                            kubectl delete hpa ccrs-app ccrs-app-hpa -n ${NAMESPACE} --ignore-not-found=true
                             kubectl delete pdb ccrs-app -n ${NAMESPACE} --ignore-not-found=true
                             kubectl delete ingress ccrs-ingress -n ${NAMESPACE} --ignore-not-found=true
                         """
