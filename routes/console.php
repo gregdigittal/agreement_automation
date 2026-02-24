@@ -11,3 +11,4 @@ Artisan::command('inspire', function () {
 Schedule::job(new \App\Jobs\SendReminders)->dailyAt('08:00');
 Schedule::job(new \App\Jobs\CheckSlaBreaches)->hourly();
 Schedule::job(new \App\Jobs\SendPendingNotifications)->everyFiveMinutes();
+Schedule::job(new \App\Jobs\GenerateWeeklyReport)->weekly()->mondays()->at('07:00')->name('ccrs-weekly-report');

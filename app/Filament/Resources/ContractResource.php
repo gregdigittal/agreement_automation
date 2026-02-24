@@ -356,6 +356,7 @@ class ContractResource extends Resource
             RelationManagers\AiAnalysisRelationManager::class,
             RelationManagers\BoldsignEnvelopesRelationManager::class,
             RelationManagers\RedlineSessionsRelationManager::class,
+            RelationManagers\ComplianceFindingsRelationManager::class,
         ];
     }
 

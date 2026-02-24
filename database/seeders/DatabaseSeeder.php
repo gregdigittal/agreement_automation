@@ -11,6 +11,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RoleSeeder::class,              // Creates 6 roles (firstOrCreate — idempotent)
             ShieldPermissionSeeder::class,   // Syncs permissions per role (idempotent)
+            RegulatoryFrameworkSeeder::class, // Seeds 3 regulatory frameworks (idempotent)
         ]);
     }
 }

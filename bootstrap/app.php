@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->appendToGroup('web', [\App\Http\Middleware\AuditMiddleware::class]);
         $middleware->alias([
             'tito.auth' => \App\Http\Middleware\TitoApiKeyMiddleware::class,
+            'feature' => \App\Http\Middleware\FeatureGate::class,
         ]);
         //
     })

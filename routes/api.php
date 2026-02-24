@@ -9,3 +9,14 @@ Route::post('/webhooks/boldsign', [BoldsignWebhookController::class, 'handle'])-
 Route::middleware(['tito.auth', 'throttle:tito'])->group(function () {
     Route::get('/tito/validate', [TitoController::class, 'validate'])->name('tito.validate');
 });
+
+use App\Http\Controllers\Api\AnalyticsController;
+
+Route::middleware(['auth:sanctum', 'feature:advanced_analytics'])->prefix('analytics')->group(function () {
+    Route::get('/pipeline', [AnalyticsController::class, 'pipeline']);
+    Route::get('/risk-distribution', [AnalyticsController::class, 'riskDistribution']);
+    Route::get('/compliance-overview', [AnalyticsController::class, 'complianceOverview']);
+    Route::get('/obligations-timeline', [AnalyticsController::class, 'obligationsTimeline']);
+    Route::get('/ai-costs', [AnalyticsController::class, 'aiCosts']);
+    Route::get('/workflow-performance', [AnalyticsController::class, 'workflowPerformance']);
+});
