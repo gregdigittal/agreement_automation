@@ -33,6 +33,22 @@ class AgreementTree extends Component
         }
     }
 
+    public function updatedStatusFilter(string $value): void
+    {
+        $allowed = ['', 'draft', 'in_review', 'approved', 'executed', 'archived'];
+        if (! in_array($value, $allowed)) {
+            $this->statusFilter = '';
+        }
+    }
+
+    /**
+     * Escape LIKE metacharacters in a search string.
+     */
+    protected function escapeLike(string $value): string
+    {
+        return str_replace(['%', '_'], ['\\%', '\\_'], $value);
+    }
+
     public function toggleNode(string $nodeId): void
     {
         if (isset($this->expanded[$nodeId])) {
@@ -54,7 +70,8 @@ class AgreementTree extends Component
         }
 
         if ($this->search) {
-            $query->where('title', 'like', '%' . $this->search . '%');
+            $escapedSearch = $this->escapeLike($this->search);
+            $query->where('title', 'like', "%{$escapedSearch}%");
         }
 
         switch ($type) {
@@ -75,13 +92,20 @@ class AgreementTree extends Component
                 break;
         }
 
-        $this->loadedContracts[$nodeKey] = $query->orderBy('title')->limit(50)->get()->map(fn (Contract $c) => [
+        $total = (clone $query)->count();
+        $contracts = $query->orderBy('title')->limit(50)->get()->map(fn (Contract $c) => [
             'id' => $c->id,
             'title' => $c->title,
             'workflow_state' => $c->workflow_state,
             'contract_type' => $c->contract_type,
             'expiry_date' => $c->expiry_date?->format('Y-m-d'),
         ])->toArray();
+
+        $this->loadedContracts[$nodeKey] = [
+            'contracts' => $contracts,
+            'total' => $total,
+            'showing' => min(50, $total),
+        ];
     }
 
     #[Computed]
@@ -101,9 +125,10 @@ class AgreementTree extends Component
         $query = Entity::query();
 
         if ($this->search) {
-            $query->where(function ($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhereHas('contracts', fn ($cq) => $cq->where('title', 'like', '%' . $this->search . '%'));
+            $escapedSearch = $this->escapeLike($this->search);
+            $query->where(function ($q) use ($escapedSearch) {
+                $q->where('name', 'like', "%{$escapedSearch}%")
+                  ->orWhereHas('contracts', fn ($cq) => $cq->where('title', 'like', "%{$escapedSearch}%"));
             });
         }
 
@@ -126,9 +151,10 @@ class AgreementTree extends Component
         $query = Counterparty::query();
 
         if ($this->search) {
-            $query->where(function ($q) {
-                $q->where('legal_name', 'like', '%' . $this->search . '%')
-                  ->orWhereHas('contracts', fn ($cq) => $cq->where('title', 'like', '%' . $this->search . '%'));
+            $escapedSearch = $this->escapeLike($this->search);
+            $query->where(function ($q) use ($escapedSearch) {
+                $q->where('legal_name', 'like', "%{$escapedSearch}%")
+                  ->orWhereHas('contracts', fn ($cq) => $cq->where('title', 'like', "%{$escapedSearch}%"));
             });
         }
 
@@ -153,9 +179,10 @@ class AgreementTree extends Component
         ]);
 
         if ($this->search) {
-            $query->where(function ($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhereHas('entities', fn ($eq) => $eq->where('name', 'like', '%' . $this->search . '%'));
+            $escapedSearch = $this->escapeLike($this->search);
+            $query->where(function ($q) use ($escapedSearch) {
+                $q->where('name', 'like', "%{$escapedSearch}%")
+                  ->orWhereHas('entities', fn ($eq) => $eq->where('name', 'like', "%{$escapedSearch}%"));
             });
         }
 
@@ -186,10 +213,11 @@ class AgreementTree extends Component
         $query = Project::query()->with('entity');
 
         if ($this->search) {
-            $query->where(function ($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhereHas('entity', fn ($eq) => $eq->where('name', 'like', '%' . $this->search . '%'))
-                  ->orWhereHas('contracts', fn ($cq) => $cq->where('title', 'like', '%' . $this->search . '%'));
+            $escapedSearch = $this->escapeLike($this->search);
+            $query->where(function ($q) use ($escapedSearch) {
+                $q->where('name', 'like', "%{$escapedSearch}%")
+                  ->orWhereHas('entity', fn ($eq) => $eq->where('name', 'like', "%{$escapedSearch}%"))
+                  ->orWhereHas('contracts', fn ($cq) => $cq->where('title', 'like', "%{$escapedSearch}%"));
             });
         }
 
@@ -210,6 +238,9 @@ class AgreementTree extends Component
 
     /**
      * Get the withCount scopes for contracts broken down by workflow state.
+     *
+     * Per-state counts are always unfiltered so badges show real distribution.
+     * The total count respects the active statusFilter.
      */
     protected function contractCountScopes(): array
     {
@@ -217,16 +248,12 @@ class AgreementTree extends Component
             'contracts as draft_contracts_count' => fn ($q) => $q->where('workflow_state', 'draft'),
             'contracts as active_contracts_count' => fn ($q) => $q->where('workflow_state', 'in_review'),
             'contracts as executed_contracts_count' => fn ($q) => $q->where('workflow_state', 'executed'),
-            'contracts as total_contracts_count' => fn ($q) => $q,
         ];
 
         if ($this->statusFilter) {
-            $scopes = [
-                'contracts as draft_contracts_count' => fn ($q) => $q->where('workflow_state', 'draft')->where('workflow_state', $this->statusFilter),
-                'contracts as active_contracts_count' => fn ($q) => $q->where('workflow_state', 'in_review')->where('workflow_state', $this->statusFilter),
-                'contracts as executed_contracts_count' => fn ($q) => $q->where('workflow_state', 'executed')->where('workflow_state', $this->statusFilter),
-                'contracts as total_contracts_count' => fn ($q) => $q->where('workflow_state', $this->statusFilter),
-            ];
+            $scopes['contracts as total_contracts_count'] = fn ($q) => $q->where('workflow_state', $this->statusFilter);
+        } else {
+            $scopes['contracts as total_contracts_count'] = fn ($q) => $q;
         }
 
         return $scopes;
