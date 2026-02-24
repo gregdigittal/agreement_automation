@@ -23,6 +23,7 @@ class ProcessAiAnalysis implements ShouldQueue
 
     public int $timeout = 180;
     public int $tries = 2;
+    public array $backoff = [10, 60];
 
     public function __construct(
         public readonly string $contractId,
@@ -139,6 +140,7 @@ class ProcessAiAnalysis implements ShouldQueue
                 'status' => 'failed',
                 'error_message' => $e->getMessage(),
             ]);
+            throw $e;
         }
         } finally {
             $span?->end();

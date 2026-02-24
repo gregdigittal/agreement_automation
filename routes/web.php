@@ -36,6 +36,9 @@ Route::post('/logout', function () {
 })->name('logout');
 
 Route::get('/contracts/{contract}/download', function (\App\Models\Contract $contract) {
+    if (!auth()->user()?->hasAnyRole(['system_admin', 'legal', 'commercial', 'finance', 'audit'])) {
+        abort(403);
+    }
     $service = app(\App\Services\ContractFileService::class);
     $url = $service->getSignedUrl($contract->storage_path);
     return $url ? redirect($url) : abort(404);

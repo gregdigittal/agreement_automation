@@ -21,6 +21,7 @@ class ProcessComplianceCheck implements ShouldQueue
 
     public int $tries = 2;
     public int $timeout = 300;
+    public array $backoff = [10, 60];
 
     public function __construct(
         public Contract $contract,

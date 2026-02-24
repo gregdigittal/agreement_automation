@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\BoldsignEnvelope;
 use App\Models\Contract;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
@@ -23,23 +24,26 @@ class BoldsignService
         }
 
         $documentId = $response->json('documentId');
-        $envelope = BoldsignEnvelope::create([
-            'contract_id' => $contract->id,
-            'boldsign_document_id' => $documentId,
-            'status' => 'sent',
-            'signing_order' => $signingOrder,
-            'signers' => $signers,
-            'sent_at' => now(),
-        ]);
 
-        $contract->update(['signing_status' => 'sent']);
+        return DB::transaction(function () use ($contract, $documentId, $signingOrder, $signers) {
+            $envelope = BoldsignEnvelope::create([
+                'contract_id' => $contract->id,
+                'boldsign_document_id' => $documentId,
+                'status' => 'sent',
+                'signing_order' => $signingOrder,
+                'signers' => $signers,
+                'sent_at' => now(),
+            ]);
 
-        AuditService::log('contract_sent_to_sign', 'contract', $contract->id, [
-            'envelope_id' => $envelope->id,
-            'document_id' => $documentId,
-        ]);
+            $contract->update(['signing_status' => 'sent']);
 
-        return $envelope;
+            AuditService::log('contract_sent_to_sign', 'contract', $contract->id, [
+                'envelope_id' => $envelope->id,
+                'document_id' => $documentId,
+            ]);
+
+            return $envelope;
+        });
     }
 
     public function getSigningStatus(string $documentId): array

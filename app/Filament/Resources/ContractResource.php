@@ -372,7 +372,7 @@ class ContractResource extends Resource
 
     public static function canView(Model $record): bool
     {
-        return auth()->user()?->hasAnyRole(['system_admin', 'legal', 'commercial']) ?? false;
+        return auth()->user()?->hasAnyRole(['system_admin', 'legal', 'commercial', 'finance', 'audit']) ?? false;
     }
 
     public static function canDelete(Model $record): bool

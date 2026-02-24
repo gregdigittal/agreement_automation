@@ -31,9 +31,14 @@ class OverrideRequestResource extends Resource
             Forms\Components\Select::make('status')
                 ->options(['pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected'])
                 ->default('pending')
-                ->required(),
-            Forms\Components\TextInput::make('decided_by')->maxLength(255),
-            Forms\Components\Textarea::make('comment')->rows(3),
+                ->required()
+                ->disabled(fn (string $operation): bool => $operation === 'create')
+                ->dehydrated(),
+            Forms\Components\TextInput::make('decided_by')->maxLength(255)
+                ->disabled()
+                ->dehydrated(false),
+            Forms\Components\Textarea::make('comment')->rows(3)
+                ->disabled(fn (string $operation): bool => $operation === 'create'),
         ]);
     }
 

@@ -10,6 +10,15 @@ class EditOverrideRequest extends EditRecord
 {
     protected static string $resource = OverrideRequestResource::class;
 
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        if (isset($data['status']) && $data['status'] !== 'pending') {
+            $data['decided_by'] = auth()->user()?->email;
+        }
+
+        return $data;
+    }
+
     protected function getHeaderActions(): array
     {
         return [Actions\DeleteAction::make()];

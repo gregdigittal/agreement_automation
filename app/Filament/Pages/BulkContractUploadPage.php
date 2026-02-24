@@ -23,6 +23,11 @@ class BulkContractUploadPage extends Page implements HasForms
     protected static ?string $navigationGroup = 'Administration';
     protected static ?int $navigationSort = 90;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->hasRole('system_admin') ?? false;
+    }
+
     public ?array $data = [];
     public ?string $currentBulkUploadId = null;
 

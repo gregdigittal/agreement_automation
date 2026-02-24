@@ -12,4 +12,9 @@ class OrgVisualizationPage extends Page
     protected static ?string $navigationGroup = 'Administration';
     protected static ?int $navigationSort = 35;
     protected static string $view = 'filament.pages.org-visualization';
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->hasAnyRole(['system_admin', 'legal']) ?? false;
+    }
 }

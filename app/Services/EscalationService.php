@@ -12,46 +12,48 @@ class EscalationService
 {
     public function checkSlaBreaches(): int
     {
-        $activeInstances = WorkflowInstance::where('state', 'active')
-            ->with(['template.escalationRules', 'stageActions'])
-            ->get();
-
         $escalated = 0;
-        foreach ($activeInstances as $instance) {
-            $rules = $instance->template->escalationRules
-                ->where('stage_name', $instance->current_stage);
 
-            foreach ($rules as $rule) {
-                $lastAction = $instance->stageActions()
-                    ->where('stage_name', $instance->current_stage)
-                    ->latest('created_at')
-                    ->first();
+        WorkflowInstance::where('state', 'active')
+            ->with(['template.escalationRules'])
+            ->chunkById(100, function ($instances) use (&$escalated) {
+                foreach ($instances as $instance) {
+                    $rules = $instance->template->escalationRules
+                        ->where('stage_name', $instance->current_stage);
 
-                $stageEnteredAt = $lastAction?->created_at ?? $instance->started_at;
-                $hoursInStage = (int) now()->diffInHours($stageEnteredAt);
+                    foreach ($rules as $rule) {
+                        $lastAction = $instance->stageActions()
+                            ->where('stage_name', $instance->current_stage)
+                            ->latest('created_at')
+                            ->first();
 
-                if ($hoursInStage >= $rule->sla_breach_hours) {
-                    $existing = EscalationEvent::where('workflow_instance_id', $instance->id)
-                        ->where('rule_id', $rule->id)
-                        ->whereNull('resolved_at')
-                        ->exists();
+                        $stageEnteredAt = $lastAction?->created_at ?? $instance->started_at;
+                        $hoursInStage = (int) now()->diffInHours($stageEnteredAt);
 
-                    if (!$existing) {
-                        EscalationEvent::create([
-                            'workflow_instance_id' => $instance->id,
-                            'rule_id' => $rule->id,
-                            'contract_id' => $instance->contract_id,
-                            'stage_name' => $instance->current_stage,
-                            'tier' => $rule->tier ?? 1,
-                            'escalated_at' => now(),
-                            'created_at' => now(),
-                        ]);
-                        $this->notifyEscalation($rule, $instance);
-                        $escalated++;
+                        if ($hoursInStage >= $rule->sla_breach_hours) {
+                            $existing = EscalationEvent::where('workflow_instance_id', $instance->id)
+                                ->where('rule_id', $rule->id)
+                                ->whereNull('resolved_at')
+                                ->exists();
+
+                            if (!$existing) {
+                                EscalationEvent::create([
+                                    'workflow_instance_id' => $instance->id,
+                                    'rule_id' => $rule->id,
+                                    'contract_id' => $instance->contract_id,
+                                    'stage_name' => $instance->current_stage,
+                                    'tier' => $rule->tier ?? 1,
+                                    'escalated_at' => now(),
+                                    'created_at' => now(),
+                                ]);
+                                $this->notifyEscalation($rule, $instance);
+                                $escalated++;
+                            }
+                        }
                     }
                 }
-            }
-        }
+            });
+
         return $escalated;
     }
 

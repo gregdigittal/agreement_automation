@@ -12,7 +12,7 @@ Route::middleware(['tito.auth', 'throttle:tito'])->group(function () {
 
 use App\Http\Controllers\Api\AnalyticsController;
 
-Route::middleware(['auth:sanctum', 'feature:advanced_analytics'])->prefix('analytics')->group(function () {
+Route::middleware(['auth:sanctum', 'feature:advanced_analytics', 'role:system_admin|legal|finance|audit'])->prefix('analytics')->group(function () {
     Route::get('/pipeline', [AnalyticsController::class, 'pipeline']);
     Route::get('/risk-distribution', [AnalyticsController::class, 'riskDistribution']);
     Route::get('/compliance-overview', [AnalyticsController::class, 'complianceOverview']);

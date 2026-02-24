@@ -20,6 +20,11 @@ class AiCostReportPage extends Page implements HasTable
     protected static ?string $navigationLabel = 'AI Cost Analytics';
     protected static ?int $navigationSort = 50;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->hasAnyRole(['system_admin', 'finance']) ?? false;
+    }
+
     public string $periodFilter = '30days';
 
     public function table(Table $table): Table
