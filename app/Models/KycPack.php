@@ -29,7 +29,7 @@ class KycPack extends Model
     {
         return $this->items()
             ->where('is_required', true)
-            ->where('status', '!=', 'completed')
+            ->whereNotIn('status', ['completed', 'not_applicable'])
             ->doesntExist();
     }
 }

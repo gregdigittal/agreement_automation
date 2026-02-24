@@ -8,6 +8,7 @@ use App\Models\KycPack;
 use App\Models\KycPackItem;
 use App\Models\KycTemplate;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class KycService
 {
@@ -91,45 +92,47 @@ class KycService
             return null;
         }
 
-        $pack = KycPack::create([
-            'contract_id' => $contract->id,
-            'kyc_template_id' => $template->id,
-            'template_version' => $template->version ?? 1,
-            'status' => 'incomplete',
-        ]);
-
-        // Copy all template items as immutable pack items (snapshot)
-        foreach ($template->items as $templateItem) {
-            KycPackItem::create([
-                'kyc_pack_id' => $pack->id,
-                'kyc_template_item_id' => $templateItem->id,
-                'sort_order' => $templateItem->sort_order,
-                'label' => $templateItem->label,
-                'description' => $templateItem->description,
-                'field_type' => $templateItem->field_type,
-                'is_required' => $templateItem->is_required,
-                'options' => $templateItem->options,
-                'validation_rules' => $templateItem->validation_rules,
-                'status' => 'pending',
-            ]);
-        }
-
-        // Reload items relationship
-        $pack->load('items');
-
-        AuditService::log(
-            'kyc_pack.created',
-            'kyc_pack',
-            $pack->id,
-            [
+        return DB::transaction(function () use ($contract, $template) {
+            $pack = KycPack::create([
                 'contract_id' => $contract->id,
-                'template_id' => $template->id,
-                'template_name' => $template->name,
-                'items_count' => $pack->items->count(),
-            ]
-        );
+                'kyc_template_id' => $template->id,
+                'template_version' => $template->version ?? 1,
+                'status' => 'incomplete',
+            ]);
 
-        return $pack;
+            // Copy all template items as immutable pack items (snapshot)
+            foreach ($template->items as $templateItem) {
+                KycPackItem::create([
+                    'kyc_pack_id' => $pack->id,
+                    'kyc_template_item_id' => $templateItem->id,
+                    'sort_order' => $templateItem->sort_order,
+                    'label' => $templateItem->label,
+                    'description' => $templateItem->description,
+                    'field_type' => $templateItem->field_type,
+                    'is_required' => $templateItem->is_required,
+                    'options' => $templateItem->options,
+                    'validation_rules' => $templateItem->validation_rules,
+                    'status' => 'pending',
+                ]);
+            }
+
+            // Reload items relationship
+            $pack->load('items');
+
+            AuditService::log(
+                'kyc_pack.created',
+                'kyc_pack',
+                $pack->id,
+                [
+                    'contract_id' => $contract->id,
+                    'template_id' => $template->id,
+                    'template_name' => $template->name,
+                    'items_count' => $pack->items->count(),
+                ]
+            );
+
+            return $pack;
+        });
     }
 
     /**
