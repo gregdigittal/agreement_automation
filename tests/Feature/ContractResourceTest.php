@@ -8,7 +8,8 @@ use App\Models\Region;
 use App\Models\User;
 
 beforeEach(function () {
-    $this->user = User::create(['id' => 'test-user', 'email' => 'test@example.com', 'name' => 'Test']);
+    $this->user = User::factory()->create();
+    $this->user->assignRole('system_admin');
     $this->actingAs($this->user);
     $this->region = Region::create(['name' => 'Test Region', 'code' => 'TR']);
     $this->entity = Entity::create(['region_id' => $this->region->id, 'name' => 'Test Entity', 'code' => 'TE']);

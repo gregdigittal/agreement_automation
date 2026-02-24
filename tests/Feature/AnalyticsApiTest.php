@@ -25,7 +25,7 @@ class AnalyticsApiTest extends TestCase
         Contract::factory()->count(3)->create(['workflow_state' => 'draft']);
         Contract::factory()->count(2)->create(['workflow_state' => 'executed']);
 
-        $response = $this->actingAs($user, 'sanctum')
+        $response = $this->actingAs($user)
             ->getJson('/api/analytics/pipeline');
 
         $response->assertOk()
@@ -39,7 +39,7 @@ class AnalyticsApiTest extends TestCase
         $user = User::factory()->create();
         $user->assignRole('system_admin');
 
-        $response = $this->actingAs($user, 'sanctum')
+        $response = $this->actingAs($user)
             ->getJson('/api/analytics/pipeline');
 
         $response->assertNotFound();
@@ -50,7 +50,7 @@ class AnalyticsApiTest extends TestCase
         $user = User::factory()->create();
         $user->assignRole('system_admin');
 
-        $response = $this->actingAs($user, 'sanctum')
+        $response = $this->actingAs($user)
             ->getJson('/api/analytics/ai-costs');
 
         $response->assertOk()
@@ -62,7 +62,7 @@ class AnalyticsApiTest extends TestCase
         $user = User::factory()->create();
         $user->assignRole('system_admin');
 
-        $response = $this->actingAs($user, 'sanctum')
+        $response = $this->actingAs($user)
             ->getJson('/api/analytics/obligations-timeline?status=pending');
 
         $response->assertOk()
@@ -74,7 +74,7 @@ class AnalyticsApiTest extends TestCase
         $user = User::factory()->create();
         $user->assignRole('system_admin');
 
-        $response = $this->actingAs($user, 'sanctum')
+        $response = $this->actingAs($user)
             ->getJson('/api/analytics/risk-distribution');
 
         $response->assertOk()
@@ -86,7 +86,7 @@ class AnalyticsApiTest extends TestCase
         $user = User::factory()->create();
         $user->assignRole('system_admin');
 
-        $response = $this->actingAs($user, 'sanctum')
+        $response = $this->actingAs($user)
             ->getJson('/api/analytics/workflow-performance');
 
         $response->assertOk()

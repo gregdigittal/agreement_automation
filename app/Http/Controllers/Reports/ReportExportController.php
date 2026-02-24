@@ -71,7 +71,7 @@ class ReportExportController extends Controller
             })
             ->select(
                 'regions.name as region_name',
-                DB::raw("COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ai_analysis_results.result, '$.risk_level')), 'unscored') as risk_level"),
+                DB::raw("COALESCE(ai_analysis_results.result->>'$.risk_level', 'unscored') as risk_level"),
                 DB::raw('COUNT(*) as count')
             )
             ->whereNotIn('contracts.workflow_state', ['cancelled'])

@@ -2,11 +2,13 @@
 namespace App\Models;
 
 use App\Traits\HasUuidPrimaryKey;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     use HasUuidPrimaryKey, HasRoles, HasFactory;
 
@@ -19,6 +21,12 @@ class User extends Authenticatable
     protected $casts = [
         'notification_preferences' => 'array',
     ];
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        // Any authenticated user with at least one CCRS role can access the admin panel
+        return $this->roles()->exists();
+    }
 
     /**
      * Check if user wants notifications on a given channel for a given category.

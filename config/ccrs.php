@@ -8,14 +8,14 @@ return [
     'boldsign_api_url' => env('BOLDSIGN_API_URL', 'https://api.boldsign.com'),
     'boldsign_webhook_secret' => env('BOLDSIGN_WEBHOOK_SECRET', ''),
     'azure_ad' => [
-        'group_map' => [
-            env('AZURE_AD_GROUP_SYSTEM_ADMIN') => 'system_admin',
-            env('AZURE_AD_GROUP_LEGAL') => 'legal',
-            env('AZURE_AD_GROUP_COMMERCIAL') => 'commercial',
-            env('AZURE_AD_GROUP_FINANCE') => 'finance',
-            env('AZURE_AD_GROUP_OPERATIONS') => 'operations',
-            env('AZURE_AD_GROUP_AUDIT') => 'audit',
-        ],
+        'group_map' => array_filter([
+            env('AZURE_AD_GROUP_SYSTEM_ADMIN', '') => 'system_admin',
+            env('AZURE_AD_GROUP_LEGAL', '') => 'legal',
+            env('AZURE_AD_GROUP_COMMERCIAL', '') => 'commercial',
+            env('AZURE_AD_GROUP_FINANCE', '') => 'finance',
+            env('AZURE_AD_GROUP_OPERATIONS', '') => 'operations',
+            env('AZURE_AD_GROUP_AUDIT', '') => 'audit',
+        ], fn ($v, $k) => $k !== '', ARRAY_FILTER_USE_BOTH),
     ],
     'contracts_disk' => 's3',
     'tito_api_key' => env('TITO_API_KEY', ''),

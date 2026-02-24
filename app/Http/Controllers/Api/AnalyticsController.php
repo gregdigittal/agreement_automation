@@ -41,7 +41,7 @@ class AnalyticsController extends Controller
 
         $pipeline = $query->select('workflow_state', DB::raw('COUNT(*) as count'))
             ->groupBy('workflow_state')
-            ->orderByRaw("FIELD(workflow_state, 'draft', 'review', 'approval', 'signing', 'countersign', 'executed', 'archived')")
+            ->orderByRaw("CASE workflow_state WHEN 'draft' THEN 0 WHEN 'review' THEN 1 WHEN 'approval' THEN 2 WHEN 'signing' THEN 3 WHEN 'countersign' THEN 4 WHEN 'executed' THEN 5 WHEN 'archived' THEN 6 ELSE 7 END")
             ->get();
 
         return response()->json(['data' => $pipeline]);
@@ -57,7 +57,7 @@ class AnalyticsController extends Controller
             })
             ->select(
                 'regions.name as region_name',
-                DB::raw("COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ai_analysis_results.result, '$.risk_level')), 'unscored') as risk_level"),
+                DB::raw("COALESCE(ai_analysis_results.result->>'$.risk_level', 'unscored') as risk_level"),
                 DB::raw('COUNT(*) as count')
             )
             ->whereNotIn('contracts.workflow_state', ['cancelled'])

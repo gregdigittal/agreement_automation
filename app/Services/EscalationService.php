@@ -28,7 +28,7 @@ class EscalationService
                             ->first();
 
                         $stageEnteredAt = $lastAction?->created_at ?? $instance->started_at;
-                        $hoursInStage = (int) now()->diffInHours($stageEnteredAt);
+                        $hoursInStage = (int) abs(now()->diffInHours($stageEnteredAt));
 
                         if ($hoursInStage >= $rule->sla_breach_hours) {
                             $existing = EscalationEvent::where('workflow_instance_id', $instance->id)

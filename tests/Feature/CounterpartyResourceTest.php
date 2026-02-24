@@ -4,7 +4,8 @@ use App\Models\Counterparty;
 use App\Models\User;
 
 beforeEach(function () {
-    $this->user = User::create(['id' => 'test-user', 'email' => 'test@example.com', 'name' => 'Test']);
+    $this->user = User::factory()->create();
+    $this->user->assignRole('system_admin');
     $this->actingAs($this->user);
 });
 

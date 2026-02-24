@@ -51,7 +51,12 @@ it('sets status failed and error_message on failure', function () {
             ->andThrow(new \RuntimeException('AI worker unavailable'));
     });
 
-    ProcessAiAnalysis::dispatchSync($this->contractId, 'extraction');
+    // The job re-throws after recording the failure, so catch the exception
+    try {
+        ProcessAiAnalysis::dispatchSync($this->contractId, 'extraction');
+    } catch (\RuntimeException $e) {
+        // Expected — job re-throws for queue retry logic
+    }
 
     $analysis = AiAnalysisResult::where('contract_id', $this->contractId)->first();
     expect($analysis)->not->toBeNull();

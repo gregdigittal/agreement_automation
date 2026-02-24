@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 class SigningAuthorityResource extends Resource
 {
     protected static ?string $model = SigningAuthority::class;
-    protected static ?string $navigationIcon = 'heroicon-o-pen-nib';
+    protected static ?string $navigationIcon = 'heroicon-o-pencil-square';
     protected static ?string $navigationGroup = 'Org Structure';
     protected static ?int $navigationSort = 13;
 

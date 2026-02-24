@@ -217,7 +217,7 @@ class ReminderServiceTest extends TestCase
             'is_active'       => true,
             'next_due_at'     => now()->subMinutes(5),
             'last_sent_at'    => null,
-            'reminder_type'   => 'renewal',
+            'reminder_type'   => 'renewal_notice',
             'lead_days'       => 30,
             'recipient_email' => 'vendor@example.com',
         ]);
@@ -227,9 +227,9 @@ class ReminderServiceTest extends TestCase
         $notification = Notification::where('recipient_email', 'vendor@example.com')->first();
 
         $this->assertNotNull($notification);
-        $this->assertStringContainsString('renewal', $notification->subject);
+        $this->assertStringContainsString('renewal_notice', $notification->subject);
         $this->assertStringContainsString('Beta Contract', $notification->body);
-        $this->assertStringContainsString('renewal', $notification->body);
+        $this->assertStringContainsString('renewal_notice', $notification->body);
         $this->assertStringContainsString('30', $notification->body);
     }
 

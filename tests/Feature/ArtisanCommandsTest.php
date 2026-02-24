@@ -12,12 +12,7 @@ class ArtisanCommandsTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        Role::create(['name' => 'system_admin']);
-    }
+    // Roles are seeded by TestCase::setUp()
 
     // -------------------------------------------------------------------------
     // ccrs:create-admin

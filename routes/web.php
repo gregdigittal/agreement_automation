@@ -26,6 +26,7 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::get('/login', fn () => redirect(route('azure.redirect')))->name('login');
 Route::get('/auth/azure/redirect', [AzureAdController::class, 'redirect'])->name('azure.redirect');
 Route::get('/auth/azure/callback', [AzureAdController::class, 'callback'])->name('azure.callback');
 Route::post('/logout', function () {

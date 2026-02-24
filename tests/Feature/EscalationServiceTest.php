@@ -248,7 +248,7 @@ class EscalationServiceTest extends TestCase
         WorkflowStageAction::create([
             'instance_id' => $instance->id,
             'stage_name'  => 'Legal Review',
-            'action'      => 'reassign',
+            'action'      => 'approve',
             'created_at'  => now()->subHours(4), // 4 h < 24 h SLA → no breach
         ]);
 
