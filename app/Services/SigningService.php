@@ -41,7 +41,7 @@ class SigningService
                     'signing_session_id' => $session->id,
                     'signer_name' => $signerData['name'],
                     'signer_email' => $signerData['email'],
-                    'signer_type' => $signerData['type'] ?? 'signer',
+                    'signer_type' => $signerData['type'] ?? 'external',
                     'signing_order' => $signerData['order'] ?? ($index + 1),
                     'status' => 'pending',
                 ]);
@@ -217,12 +217,74 @@ class SigningService
 
     /**
      * Complete a signing session.
+     *
+     * Overlays all captured signatures onto the contract PDF, generates an
+     * audit certificate, computes the final document hash, and stores the
+     * sealed PDF before marking the session as completed.
      */
     public function completeSession(SigningSession $session): void
     {
+        $session->load('signers.fields', 'contract');
+
+        $pdfService = app(PdfService::class);
+
+        // --- 1. Overlay signatures onto the contract PDF ----------------------
+        $signatures = [];
+        foreach ($session->signers as $signer) {
+            if (!$signer->signature_image_path) {
+                continue;
+            }
+
+            // Collect positioned signature fields for this signer
+            $signatureFields = $signer->fields
+                ->whereIn('field_type', ['signature', 'initials'])
+                ->values();
+
+            if ($signatureFields->isNotEmpty()) {
+                // Place signature at each designated field position
+                foreach ($signatureFields as $field) {
+                    $signatures[] = [
+                        'page' => $field->page_number,
+                        'image_path' => $signer->signature_image_path,
+                        'x' => (float) $field->x_position,
+                        'y' => (float) $field->y_position,
+                        'width' => (float) $field->width,
+                        'height' => (float) $field->height,
+                    ];
+                }
+            } else {
+                // No positioned fields — overlay on last page with sensible defaults
+                $pageCount = $pdfService->getPageCount($session->contract->storage_path);
+                $signatures[] = [
+                    'page' => $pageCount,
+                    'image_path' => $signer->signature_image_path,
+                    'x' => 20,
+                    'y' => 240 - (30 * ($signer->signing_order ?? 0)),
+                    'width' => 60,
+                    'height' => 20,
+                ];
+            }
+        }
+
+        $finalStoragePath = $pdfService->overlaySignatures(
+            $session->contract->storage_path,
+            $signatures,
+        );
+
+        // --- 2. Generate the audit certificate --------------------------------
+        $pdfService->generateAuditCertificate($session);
+
+        // --- 3. Compute final document hash -----------------------------------
+        $finalContent = Storage::disk(config('ccrs.contracts_disk', 's3'))
+            ->get($finalStoragePath);
+        $finalHash = $pdfService->computeHash($finalContent);
+
+        // --- 4. Update session with final artefacts ---------------------------
         $session->update([
             'status' => 'completed',
             'completed_at' => now(),
+            'final_storage_path' => $finalStoragePath,
+            'final_document_hash' => $finalHash,
         ]);
 
         // Update contract signing status
@@ -233,7 +295,9 @@ class SigningService
             'event' => 'completed',
             'details' => [
                 'contract_id' => $session->contract_id,
-                'signer_count' => $session->signers()->count(),
+                'signer_count' => $session->signers->count(),
+                'final_storage_path' => $finalStoragePath,
+                'final_document_hash' => $finalHash,
             ],
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),
@@ -241,7 +305,7 @@ class SigningService
         ]);
 
         // Send completion email to all signers and initiator
-        $session->load('signers', 'contract', 'initiator');
+        $session->load('initiator');
 
         foreach ($session->signers as $signer) {
             Mail::to($signer->signer_email)->send(new SigningComplete($session));

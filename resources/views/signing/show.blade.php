@@ -243,6 +243,13 @@
 @endsection
 
 @push('scripts')
+{{--
+    pdf.js is loaded from CDN rather than the npm package because bundling its
+    Web Worker via Vite requires non-trivial configuration. The signing page is
+    a standalone view outside Filament, so a CDN script tag is acceptable here.
+    signature_pad was also removed from npm — signing.js includes a built-in
+    canvas fallback that provides equivalent draw functionality.
+--}}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
     // Set pdf.js worker
