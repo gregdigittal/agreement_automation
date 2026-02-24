@@ -19,4 +19,13 @@ class EntityFactory extends Factory
             'code' => strtoupper(fake()->unique()->lexify('??')),
         ];
     }
+
+    public function withLegalDetails(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'legal_name' => fake()->company() . ' ' . fake()->companySuffix(),
+            'registration_number' => fake()->numerify('REG-####-###'),
+            'registered_address' => fake()->address(),
+        ]);
+    }
 }
