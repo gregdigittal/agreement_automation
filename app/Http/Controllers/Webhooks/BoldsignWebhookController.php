@@ -7,6 +7,16 @@ use App\Services\BoldsignService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * @deprecated This webhook controller is deprecated in favour of in-house signing.
+ *
+ * The webhook route is only registered when FEATURE_IN_HOUSE_SIGNING=false.
+ * Once all deployments have migrated to in-house signing, this controller
+ * and its route can be safely removed.
+ *
+ * @see \App\Services\SigningService
+ * @see \App\Helpers\Feature::inHouseSigning()
+ */
 class BoldsignWebhookController extends Controller
 {
     public function handle(Request $request): JsonResponse

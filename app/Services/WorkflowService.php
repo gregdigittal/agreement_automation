@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Helpers\Feature;
 use App\Models\Contract;
 use App\Models\User;
 use App\Models\WorkflowInstance;
@@ -56,6 +57,13 @@ class WorkflowService
         $template = $instance->template;
         $stages = $template->stages ?? [];
         $currentStageConfig = collect($stages)->firstWhere('name', $stageName);
+
+        // Signing/countersign stage validation.
+        // Note: The actual e-signing is handled externally:
+        //   - In-house signing (default): via SigningService + Filament "Send for Signing" action
+        //   - BoldSign (legacy): via BoldsignService + Filament "Send for Countersigning" action
+        // This method only validates signing authority and KYC readiness; it does NOT
+        // auto-trigger any signing service. See Feature::inHouseSigning().
         if ($currentStageConfig && in_array($currentStageConfig['type'] ?? null, ['signing', 'countersign'])) {
             $this->checkSigningAuthority($instance->contract, $actor, $stageName);
         }

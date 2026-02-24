@@ -21,7 +21,7 @@ return [
     'tito_api_key' => env('TITO_API_KEY', ''),
     'merchant_agreement_template_s3_key' => env('MA_TEMPLATE_S3_KEY', 'templates/merchant_agreement_master.docx'),
     'wiki_contracts_disk' => 's3',
-    'in_house_signing' => env('FEATURE_IN_HOUSE_SIGNING', false),
+    'in_house_signing' => env('FEATURE_IN_HOUSE_SIGNING', true),
     'teams' => [
         'team_id' => env('TEAMS_TEAM_ID', ''),
         'channel_id' => env('TEAMS_CHANNEL_ID', ''),
