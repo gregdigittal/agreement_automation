@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import analysis, health
+from app.routers import analysis, health, redline
 
 structlog.configure(
     wrapper_class=structlog.make_filtering_bound_logger(
@@ -29,3 +29,5 @@ app.add_middleware(
 app.include_router(health.router, tags=["health"])
 app.include_router(analysis.router, prefix="/api/v1", tags=["analysis"])
 app.include_router(analysis.router, tags=["analysis-root"])
+app.include_router(redline.router, prefix="/api/v1", tags=["redline"])
+app.include_router(redline.router, tags=["redline-root"])

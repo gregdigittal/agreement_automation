@@ -82,6 +82,40 @@ class AiWorkerClient
     }
 
     /**
+     * Run redline analysis — compare contract text against template text.
+     * The AI Worker stores clause results directly in MySQL.
+     */
+    public function redlineAnalyze(
+        string $contractText,
+        string $templateText,
+        string $contractId,
+        string $sessionId,
+    ): array {
+        $span = TelemetryService::startSpan('ai_worker.redline_analyze', [
+            'contract_id' => $contractId,
+            'session_id' => $sessionId,
+        ]);
+        try {
+            $response = Http::withHeaders([
+                    'X-AI-Worker-Secret' => $this->secret,
+                    'Content-Type' => 'application/json',
+                ])
+                ->timeout(600) // Redline analysis can take longer for large contracts
+                ->post("{$this->baseUrl}/analyze-redline", [
+                    'contract_text' => $contractText,
+                    'template_text' => $templateText,
+                    'contract_id' => $contractId,
+                    'session_id' => $sessionId,
+                ]);
+
+            $response->throw();
+            return $response->json();
+        } finally {
+            $span?->end();
+        }
+    }
+
+    /**
      * Health check.
      */
     public function health(): array

@@ -40,30 +40,36 @@ class OrgHierarchyViewer extends Component
             'contracts as active_contracts_count' => fn ($cq) => $cq->whereNotIn('workflow_state', ['cancelled', 'expired']),
         ])->get();
 
+        // Batch-load active workflow counts to avoid N+1 queries
+        $workflowCounts = $this->batchActiveWorkflowCounts($regions);
+
+        // Batch-load counterparty highlights to avoid N+1 queries
+        $highlights = $this->batchHighlights($regions);
+
         return $regions->map(fn (Region $region) => [
             'id' => $region->id,
             'type' => 'region',
             'name' => $region->name,
             'code' => $region->code ?? '',
             'active_contracts' => $region->active_contracts_count,
-            'active_workflows' => $this->countActiveWorkflows('region', $region->id),
-            'highlighted' => $this->isHighlighted('region', $region->id),
+            'active_workflows' => $workflowCounts['region'][$region->id] ?? 0,
+            'highlighted' => $highlights['region'][$region->id] ?? false,
             'children' => $region->entities->map(fn (Entity $entity) => [
                 'id' => $entity->id,
                 'type' => 'entity',
                 'name' => $entity->name,
                 'code' => $entity->code ?? '',
                 'active_contracts' => $entity->active_contracts_count,
-                'active_workflows' => $this->countActiveWorkflows('entity', $entity->id),
-                'highlighted' => $this->isHighlighted('entity', $entity->id),
+                'active_workflows' => $workflowCounts['entity'][$entity->id] ?? 0,
+                'highlighted' => $highlights['entity'][$entity->id] ?? false,
                 'children' => $entity->projects->map(fn (Project $project) => [
                     'id' => $project->id,
                     'type' => 'project',
                     'name' => $project->name,
                     'code' => $project->code ?? '',
                     'active_contracts' => $project->active_contracts_count,
-                    'active_workflows' => $this->countActiveWorkflows('project', $project->id),
-                    'highlighted' => $this->isHighlighted('project', $project->id),
+                    'active_workflows' => $workflowCounts['project'][$project->id] ?? 0,
+                    'highlighted' => $highlights['project'][$project->id] ?? false,
                     'children' => [],
                 ])->toArray(),
             ])->toArray(),
@@ -76,6 +82,10 @@ class OrgHierarchyViewer extends Component
         $this->selectedNodeId = $id;
 
         $authQuery = SigningAuthority::with('user');
+        $project = null;
+        $region = null;
+        $entityIds = [];
+
         if ($type === 'entity') {
             $authQuery->where('entity_id', $id);
             $entity = Entity::find($id);
@@ -111,15 +121,16 @@ class OrgHierarchyViewer extends Component
                 $q->where('entity_id', $id)->orWhereNull('entity_id');
             });
         } elseif ($type === 'project') {
-            $project = Project::find($id);
             $templateQuery->where(function ($q) use ($id, $project) {
                 $q->where('project_id', $id)
                   ->orWhere('entity_id', $project?->entity_id)
                   ->orWhereNull('entity_id');
             });
         } elseif ($type === 'region') {
-            $region = Region::with('entities')->find($id);
-            $entityIds = $region?->entities->pluck('id')->toArray() ?? [];
+            if (empty($entityIds) && $region === null) {
+                $region = Region::with('entities')->find($id);
+                $entityIds = $region?->entities->pluck('id')->toArray() ?? [];
+            }
             $templateQuery->where(function ($q) use ($entityIds) {
                 $q->whereIn('entity_id', $entityIds)->orWhereNull('entity_id');
             });
@@ -139,40 +150,85 @@ class OrgHierarchyViewer extends Component
         ])->toArray();
     }
 
-    private function countActiveWorkflows(string $nodeType, string $nodeId): int
+    private function batchActiveWorkflowCounts($regions): array
     {
-        return WorkflowInstance::where('state', 'active')
-            ->whereHas('contract', function ($q) use ($nodeType, $nodeId) {
-                if ($nodeType === 'region') {
-                    $q->whereHas('entity', fn ($eq) => $eq->where('region_id', $nodeId));
-                } elseif ($nodeType === 'entity') {
-                    $q->where('entity_id', $nodeId);
-                } elseif ($nodeType === 'project') {
-                    $q->where('project_id', $nodeId);
-                }
-            })
-            ->count();
-    }
+        $counts = ['region' => [], 'entity' => [], 'project' => []];
 
-    private function isHighlighted(string $nodeType, string $nodeId): bool
-    {
-        if (!$this->counterpartyId) {
-            return false;
+        // Get all active workflow instances with their contract's entity_id and project_id
+        $activeWorkflows = WorkflowInstance::where('state', 'active')
+            ->with('contract:id,entity_id,project_id')
+            ->get();
+
+        // Build entity→region map
+        $entityRegionMap = [];
+        foreach ($regions as $region) {
+            foreach ($region->entities as $entity) {
+                $entityRegionMap[$entity->id] = $region->id;
+            }
         }
 
-        return Contract::query()
-            ->where('counterparty_id', $this->counterpartyId)
+        foreach ($activeWorkflows as $wi) {
+            $contract = $wi->contract;
+            if (!$contract) {
+                continue;
+            }
+
+            // Count by project
+            if ($contract->project_id) {
+                $counts['project'][$contract->project_id] = ($counts['project'][$contract->project_id] ?? 0) + 1;
+            }
+
+            // Count by entity
+            if ($contract->entity_id) {
+                $counts['entity'][$contract->entity_id] = ($counts['entity'][$contract->entity_id] ?? 0) + 1;
+
+                // Count by region (via entity)
+                $regionId = $entityRegionMap[$contract->entity_id] ?? null;
+                if ($regionId) {
+                    $counts['region'][$regionId] = ($counts['region'][$regionId] ?? 0) + 1;
+                }
+            }
+        }
+
+        return $counts;
+    }
+
+    private function batchHighlights($regions): array
+    {
+        $highlights = ['region' => [], 'entity' => [], 'project' => []];
+
+        if (!$this->counterpartyId) {
+            return $highlights;
+        }
+
+        // Single query: get all active contracts for this counterparty
+        $contracts = Contract::where('counterparty_id', $this->counterpartyId)
             ->whereNotIn('workflow_state', ['cancelled', 'expired'])
-            ->when($nodeType === 'region', fn ($q) =>
-                $q->whereHas('entity', fn ($eq) => $eq->where('region_id', $nodeId))
-            )
-            ->when($nodeType === 'entity', fn ($q) =>
-                $q->where('entity_id', $nodeId)
-            )
-            ->when($nodeType === 'project', fn ($q) =>
-                $q->where('project_id', $nodeId)
-            )
-            ->exists();
+            ->select('entity_id', 'project_id')
+            ->get();
+
+        // Build entity→region map
+        $entityRegionMap = [];
+        foreach ($regions as $region) {
+            foreach ($region->entities as $entity) {
+                $entityRegionMap[$entity->id] = $region->id;
+            }
+        }
+
+        foreach ($contracts as $contract) {
+            if ($contract->project_id) {
+                $highlights['project'][$contract->project_id] = true;
+            }
+            if ($contract->entity_id) {
+                $highlights['entity'][$contract->entity_id] = true;
+                $regionId = $entityRegionMap[$contract->entity_id] ?? null;
+                if ($regionId) {
+                    $highlights['region'][$regionId] = true;
+                }
+            }
+        }
+
+        return $highlights;
     }
 
     public function render()

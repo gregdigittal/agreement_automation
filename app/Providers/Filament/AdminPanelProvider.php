@@ -46,7 +46,7 @@ class AdminPanelProvider extends PanelProvider
             )
             ->renderHook(
                 \Filament\View\PanelsRenderHook::CONTENT_START,
-                fn (): string => '<div id="main-content"></div>'
+                fn (): string => '<div id="main-content" tabindex="-1"></div>'
             )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')

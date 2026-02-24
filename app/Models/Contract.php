@@ -34,6 +34,7 @@ class Contract extends Model
     public function workflowInstances(): HasMany { return $this->hasMany(WorkflowInstance::class); }
     public function activeWorkflowInstance(): \Illuminate\Database\Eloquent\Relations\HasOne { return $this->hasOne(WorkflowInstance::class)->where('state', 'active'); }
     public function merchantAgreementInputs(): HasMany { return $this->hasMany(MerchantAgreementInput::class); }
+    public function redlineSessions(): HasMany { return $this->hasMany(RedlineSession::class); }
 
     public function toSearchableArray(): array
     {

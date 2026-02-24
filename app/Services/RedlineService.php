@@ -2,42 +2,192 @@
 
 namespace App\Services;
 
+use App\Jobs\ProcessRedlineAnalysis;
 use App\Models\Contract;
+use App\Models\RedlineClause;
+use App\Models\RedlineSession;
+use App\Models\User;
 use App\Models\WikiContract;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpWord\PhpWord;
+use PhpOffice\PhpWord\IOFactory;
 
-/**
- * RedlineService — Phase 2: AI-assisted clause negotiation and redlining.
- *
- * ARCHITECTURE:
- * This service will use the AI Worker microservice (ai-worker/) to:
- * 1. Parse a DOCX contract into clauses using python-docx
- * 2. Compare each clause against the matching WikiContract template
- * 3. Generate AI-suggested redline changes using Claude (structured diff output)
- * 4. Store redline suggestions in a new redline_suggestions table
- * 5. Allow legal users to accept/reject/modify suggestions in Filament
- *
- * PHASE 2 TABLES NEEDED:
- *   redline_sessions:  id, contract_id, wiki_contract_id, status, created_by, created_at
- *   redline_clauses:   id, session_id, clause_number, original_text, suggested_text,
- *                      change_type (addition/deletion/modification), ai_rationale,
- *                      status (pending/accepted/rejected/modified), reviewed_by
- *
- * PHASE 2 FILAMENT ADDITIONS NEEDED:
- *   - ContractResource: "Redline" action -> opens RedlineSessionPage
- *   - RedlineSessionPage: side-by-side diff view with accept/reject per clause
- *
- * NOT IMPLEMENTED IN THIS PHASE — stub only.
- */
 class RedlineService
 {
     /**
-     * @throws \RuntimeException Phase 2 feature not yet implemented.
+     * Start a new redline session for a contract.
+     *
+     * If no template is provided, auto-selects the most recent published
+     * WikiContract matching the contract's region.
      */
-    public function startRedlineSession(Contract $contract, WikiContract $template): never
+    public function startSession(Contract $contract, ?WikiContract $template, User $actor): RedlineSession
     {
-        throw new \RuntimeException(
-            'Clause redlining is a Phase 2 feature. ' .
-            'See docs/Cursor-Prompt-Laravel-K.md Task 4.1 for the implementation architecture.'
-        );
+        if (!$template) {
+            $template = WikiContract::where('status', 'published')
+                ->where('region_id', $contract->region_id)
+                ->latest('version')
+                ->first();
+        }
+
+        if (!$template) {
+            throw new \RuntimeException(
+                'No published WikiContract template found for region ' .
+                ($contract->region?->name ?? $contract->region_id) .
+                '. Upload a template before starting a redline review.'
+            );
+        }
+
+        $session = RedlineSession::create([
+            'contract_id' => $contract->id,
+            'wiki_contract_id' => $template->id,
+            'status' => 'pending',
+            'created_by' => $actor->id,
+        ]);
+
+        ProcessRedlineAnalysis::dispatch($session->id);
+
+        AuditService::log('redline_session.start', 'redline_session', $session->id, [
+            'contract_id' => $contract->id,
+            'template_id' => $template->id,
+            'template_name' => $template->name,
+        ], $actor);
+
+        Log::info("Redline session {$session->id} started for contract {$contract->id}", [
+            'template_id' => $template->id,
+            'actor' => $actor->email,
+        ]);
+
+        return $session;
+    }
+
+    /**
+     * Review a single clause — accept, reject, or modify.
+     */
+    public function reviewClause(
+        RedlineClause $clause,
+        string $status,
+        ?string $finalText,
+        User $actor,
+    ): RedlineClause {
+        if (!in_array($status, ['accepted', 'rejected', 'modified'])) {
+            throw new \InvalidArgumentException("Invalid review status: {$status}");
+        }
+
+        if ($status === 'modified' && empty($finalText)) {
+            throw new \InvalidArgumentException(
+                'Final text is required when status is "modified".'
+            );
+        }
+
+        $resolvedFinalText = match ($status) {
+            'accepted' => $clause->suggested_text ?? $clause->original_text,
+            'rejected' => $clause->original_text,
+            'modified' => $finalText,
+        };
+
+        $clause->update([
+            'status' => $status,
+            'final_text' => $resolvedFinalText,
+            'reviewed_by' => $actor->id,
+            'reviewed_at' => now(),
+        ]);
+
+        $session = $clause->session;
+        $reviewedCount = $session->clauses()->whereNotNull('reviewed_at')->count();
+        $session->update([
+            'reviewed_clauses' => $reviewedCount,
+        ]);
+
+        AuditService::log('redline_clause.review', 'redline_clause', $clause->id, [
+            'session_id' => $session->id,
+            'clause_number' => $clause->clause_number,
+            'status' => $status,
+        ], $actor);
+
+        return $clause->fresh();
+    }
+
+    /**
+     * Generate a final DOCX document from all reviewed clauses.
+     *
+     * @return string The S3 storage path of the generated DOCX.
+     * @throws \RuntimeException if not all clauses have been reviewed.
+     */
+    public function generateFinalDocument(RedlineSession $session): string
+    {
+        $session->loadMissing(['clauses', 'contract']);
+
+        $unreviewedCount = $session->clauses()
+            ->whereNull('reviewed_at')
+            ->count();
+
+        if ($unreviewedCount > 0) {
+            throw new \RuntimeException(
+                "{$unreviewedCount} clause(s) have not been reviewed. " .
+                'All clauses must be accepted, rejected, or modified before generating the final document.'
+            );
+        }
+
+        $phpWord = new PhpWord();
+
+        $properties = $phpWord->getDocInfo();
+        $properties->setCreator('CCRS — Redline Engine');
+        $properties->setTitle("Redlined: {$session->contract->title}");
+        $properties->setDescription('Generated by CCRS clause redlining engine.');
+
+        $section = $phpWord->addSection();
+
+        $section->addTitle("Redlined Contract: {$session->contract->title}", 1);
+        $section->addTextBreak();
+
+        $clauses = $session->clauses()
+            ->orderBy('clause_number')
+            ->get();
+
+        foreach ($clauses as $clause) {
+            if ($clause->clause_heading) {
+                $section->addTitle(
+                    "Clause {$clause->clause_number}: {$clause->clause_heading}",
+                    2
+                );
+            } else {
+                $section->addTitle("Clause {$clause->clause_number}", 2);
+            }
+
+            $section->addText($clause->final_text ?? $clause->original_text);
+
+            $statusLabel = match ($clause->status) {
+                'accepted' => 'Accepted from template',
+                'rejected' => 'Original retained',
+                'modified' => 'Manually modified',
+                default => 'Pending',
+            };
+            $section->addText(
+                "[{$statusLabel}]",
+                ['size' => 8, 'italic' => true, 'color' => '888888']
+            );
+
+            $section->addTextBreak();
+        }
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'redline_final_') . '.docx';
+        $writer = IOFactory::createWriter($phpWord, 'Word2007');
+        $writer->save($tempPath);
+
+        $contractId = $session->contract_id;
+        $s3Path = "contracts/{$contractId}/redline-final-{$session->id}.docx";
+
+        $disk = config('ccrs.contracts_disk', 's3');
+        Storage::disk($disk)->put($s3Path, file_get_contents($tempPath));
+        @unlink($tempPath);
+
+        Log::info("Redline final document generated: {$s3Path}", [
+            'session_id' => $session->id,
+            'contract_id' => $contractId,
+            'total_clauses' => $clauses->count(),
+        ]);
+
+        return $s3Path;
     }
 }

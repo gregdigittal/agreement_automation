@@ -4,12 +4,16 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\ContractResource\Pages;
 use App\Filament\Resources\ContractResource\RelationManagers;
+use App\Helpers\Feature;
 use App\Jobs\ProcessAiAnalysis;
 use App\Models\Contract;
+use App\Models\WikiContract;
 use App\Services\ContractLinkService;
+use App\Services\RedlineService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Set;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -88,7 +92,7 @@ class ContractResource extends Resource
         return $table->columns([
             Tables\Columns\TextColumn::make('title')->searchable()->sortable()->limit(40),
             Tables\Columns\TextColumn::make('contract_type')->badge(),
-            Tables\Columns\TextColumn::make('workflow_state')->badge()->description('Current lifecycle stage')->color(fn ($state) => match($state) { 'draft' => 'gray', 'review' => 'warning', 'approval' => 'info', 'signing' => 'primary', 'countersign' => 'warning', 'executed' => 'success', 'archived' => 'secondary', default => 'gray' }),
+            Tables\Columns\TextColumn::make('workflow_state')->badge()->description('Current lifecycle stage')->color(fn ($state) => match($state) { 'draft' => 'gray', 'review' => 'warning', 'approval' => 'info', 'signing' => 'primary', 'countersign' => 'warning', 'executed' => 'success', 'archived' => 'gray', default => 'gray' }),
             Tables\Columns\TextColumn::make('counterparty.legal_name')->sortable()->limit(30),
             Tables\Columns\TextColumn::make('region.name')->sortable(),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
@@ -282,11 +286,61 @@ class ContractResource extends Resource
                 ->action(function (Contract $record, array $data): void {
                     $service = app(\App\Services\BoldsignService::class);
                     $envelope = $service->createCountersignEnvelope($record, $data['signers']);
-                    \Filament\Notifications\Notification::make()
+                    Notification::make()
                         ->title('Countersign envelope sent')
                         ->body("BoldSign document ID: {$envelope->boldsign_document_id}")
                         ->success()
                         ->send();
+                }),
+            Tables\Actions\Action::make('startRedlineReview')
+                ->label('Start Redline Review')
+                ->icon('heroicon-o-scale')
+                ->color('info')
+                ->visible(function (Contract $record): bool {
+                    return Feature::enabled('redlining')
+                        && !empty($record->storage_path);
+                })
+                ->form(function (Contract $record) {
+                    return [
+                        Forms\Components\Select::make('wiki_contract_id')
+                            ->label('WikiContract Template')
+                            ->options(function () use ($record) {
+                                return WikiContract::where('status', 'published')
+                                    ->where('region_id', $record->region_id)
+                                    ->orderByDesc('version')
+                                    ->pluck('name', 'id')
+                                    ->toArray();
+                            })
+                            ->placeholder('Auto-select (latest for this region)')
+                            ->helperText('Choose a template to compare against, or leave blank to auto-select the latest published template for this contract\'s region.')
+                            ->searchable(),
+                    ];
+                })
+                ->requiresConfirmation()
+                ->modalHeading('Start Redline Review')
+                ->modalDescription('This will send the contract to the AI engine for clause-by-clause comparison against the selected WikiContract template. The analysis may take a few minutes for long contracts.')
+                ->action(function (Contract $record, array $data): void {
+                    $template = null;
+                    if (!empty($data['wiki_contract_id'])) {
+                        $template = WikiContract::find($data['wiki_contract_id']);
+                    }
+
+                    $session = app(RedlineService::class)->startSession(
+                        $record,
+                        $template,
+                        auth()->user(),
+                    );
+
+                    Notification::make()
+                        ->title('Redline review started')
+                        ->body('AI analysis is processing. You will be redirected to the review page.')
+                        ->success()
+                        ->send();
+
+                    redirect(ContractResource::getUrl('redline-session', [
+                        'record' => $record->id,
+                        'session' => $session->id,
+                    ]));
                 }),
         ]);
     }
@@ -301,6 +355,7 @@ class ContractResource extends Resource
             RelationManagers\ContractLinksRelationManager::class,
             RelationManagers\AiAnalysisRelationManager::class,
             RelationManagers\BoldsignEnvelopesRelationManager::class,
+            RelationManagers\RedlineSessionsRelationManager::class,
         ];
     }
 
@@ -334,6 +389,7 @@ class ContractResource extends Resource
             'create' => Pages\CreateContract::route('/create'),
             'view' => Pages\ViewContract::route('/{record}'),
             'edit' => Pages\EditContract::route('/{record}/edit'),
+            'redline-session' => Pages\RedlineSessionPage::route('/{record}/redline/{session}'),
         ];
     }
 

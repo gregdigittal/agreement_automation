@@ -13,6 +13,7 @@
                     x-on:click="open = !open"
                     wire:click="selectNode('region', '{{ $region['id'] }}')"
                     aria-label="Region: {{ $region['name'] }}"
+                    :aria-expanded="open.toString()"
                 >
                     <svg class="w-4 h-4 transition-transform" :class="open ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     <x-heroicon-o-globe-alt class="w-5 h-5 text-blue-600" />
@@ -34,6 +35,7 @@
                                 x-on:click="entityOpen = !entityOpen"
                                 wire:click="selectNode('entity', '{{ $entity['id'] }}')"
                                 aria-label="Entity: {{ $entity['name'] }}"
+                                :aria-expanded="entityOpen.toString()"
                             >
                                 <svg class="w-3 h-3 transition-transform" :class="entityOpen ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                                 <x-heroicon-o-building-office class="w-4 h-4 text-indigo-600" />
