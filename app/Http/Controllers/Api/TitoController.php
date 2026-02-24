@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\Feature;
 use App\Http\Controllers\Controller;
 use App\Models\Contract;
 use App\Services\AuditService;
@@ -37,9 +38,11 @@ class TitoController extends Controller
             $query = Contract::query()
                 ->where('contract_type', 'Merchant')
                 ->where('counterparty_id', $vendorId)
-                ->whereHas('boldsignEnvelopes', fn ($q) =>
-                    $q->where('status', 'completed')
-                );
+                ->where(function ($q) {
+                    // Support both in-house signing sessions and legacy BoldSign envelopes
+                    $q->whereHas('signingSessions', fn ($sq) => $sq->where('status', 'completed'))
+                      ->orWhereHas('boldsignEnvelopes', fn ($sq) => $sq->where('status', 'completed'));
+                });
 
             if ($entityId)  $query->where('entity_id', $entityId);
             if ($regionId)  $query->where('region_id', $regionId);
@@ -48,10 +51,15 @@ class TitoController extends Controller
             $contract = $query
                 ->orderByDesc('created_at')
                 ->select(['id', 'workflow_state', 'created_at'])
-                ->with(['boldsignEnvelopes' => fn ($q) =>
-                    $q->where('status', 'completed')
-                      ->orderByDesc('updated_at')
-                      ->select(['id', 'contract_id', 'status', 'updated_at'])
+                ->with([
+                    'signingSessions' => fn ($q) =>
+                        $q->where('status', 'completed')
+                          ->orderByDesc('completed_at')
+                          ->select(['id', 'contract_id', 'status', 'completed_at']),
+                    'boldsignEnvelopes' => fn ($q) =>
+                        $q->where('status', 'completed')
+                          ->orderByDesc('updated_at')
+                          ->select(['id', 'contract_id', 'status', 'updated_at']),
                 ])
                 ->first();
 
@@ -64,13 +72,16 @@ class TitoController extends Controller
                 ];
             }
 
+            // Prefer in-house signing session timestamp, fall back to BoldSign envelope
+            $signingSession = $contract->signingSessions->first();
             $envelope = $contract->boldsignEnvelopes->first();
+            $signedAt = $signingSession?->completed_at ?? $envelope?->updated_at;
 
             return [
                 'valid'       => true,
                 'status'      => 'signed',
                 'contract_id' => $contract->id,
-                'signed_at'   => $envelope?->updated_at?->toIso8601String(),
+                'signed_at'   => $signedAt?->toIso8601String(),
             ];
         });
 

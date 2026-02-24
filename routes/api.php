@@ -1,11 +1,12 @@
 <?php
 
+use App\Helpers\Feature;
 use App\Http\Controllers\Api\TitoController;
 use App\Http\Controllers\Webhooks\BoldsignWebhookController;
 use Illuminate\Support\Facades\Route;
 
 // BoldSign webhook — only registered when in-house signing is disabled (deprecated path)
-if (!config('ccrs.in_house_signing')) {
+if (!Feature::inHouseSigning()) {
     Route::post('/webhooks/boldsign', [BoldsignWebhookController::class, 'handle'])->name('webhooks.boldsign');
 }
 
