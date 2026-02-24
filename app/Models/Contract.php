@@ -37,6 +37,8 @@ class Contract extends Model
     public function redlineSessions(): HasMany { return $this->hasMany(RedlineSession::class); }
     public function complianceFindings(): HasMany { return $this->hasMany(ComplianceFinding::class); }
     public function kycPack(): \Illuminate\Database\Eloquent\Relations\HasOne { return $this->hasOne(KycPack::class); }
+    public function signingSessions(): HasMany { return $this->hasMany(SigningSession::class); }
+    public function activeSigningSession() { return $this->hasOne(SigningSession::class)->where('status', 'active'); }
 
     public function toSearchableArray(): array
     {
