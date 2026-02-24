@@ -24,7 +24,7 @@ pipeline {
 
     options {
         buildDiscarder(logRotator(numToKeepStr: '10'))
-        timeout(time: 15, unit: 'MINUTES')
+        timeout(time: 25, unit: 'MINUTES')
         disableConcurrentBuilds()
     }
 
@@ -63,21 +63,6 @@ pipeline {
                             kubectl create secret generic app-secrets \
                                 --from-literal=APP_KEY='base64:PCtuu05VVFmJFB11V8GhcxccRHw4268l9hv61XwTMo8=' \
                                 -n ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
-                        """
-
-                        // Clean up orphaned production-style resources from previous deploys
-                        sh """
-                            kubectl delete deployment ccrs-app ccrs-queue-worker ccrs-ai-worker -n ${NAMESPACE} --ignore-not-found=true
-                            kubectl delete service ccrs-app -n ${NAMESPACE} --ignore-not-found=true
-                            kubectl delete hpa ccrs-app ccrs-app-hpa -n ${NAMESPACE} --ignore-not-found=true
-                            kubectl delete pdb ccrs-app -n ${NAMESPACE} --ignore-not-found=true
-                            kubectl delete ingress ccrs-ingress -n ${NAMESPACE} --ignore-not-found=true
-                        """
-
-                        // Reset MySQL data (delete PVC) so migrations run fresh
-                        // This is needed because Greg rewrote the schema with new migrations
-                        sh """
-                            kubectl delete pvc ${APP_NAME}-mysql-data -n ${NAMESPACE} --ignore-not-found=true
                         """
 
                         // Apply k8s manifests from the repo (deploy/k8s/ directory)
