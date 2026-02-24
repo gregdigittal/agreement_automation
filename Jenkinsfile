@@ -65,6 +65,11 @@ pipeline {
                                 -n ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
                         """
 
+                        // Reset MySQL data for clean migration (one-time — remove after success)
+                        sh """
+                            kubectl delete pvc ${APP_NAME}-mysql-data -n ${NAMESPACE} --ignore-not-found=true
+                        """
+
                         // Apply k8s manifests from the repo (deploy/k8s/ directory)
                         sh """
                             export APP_NAME="${APP_NAME}"
