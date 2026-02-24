@@ -53,6 +53,10 @@ ai-worker/.env
 ai-worker/__pycache__/
 ai-worker/**/__pycache__/
 
+# Backup files
+*.bak
+*.old
+
 # Docker local dev
 docker-compose.override.yml
 
