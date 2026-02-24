@@ -65,12 +65,13 @@ pipeline {
                                 -n ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
                         """
 
-                        // Clean up any orphaned production-style resources from previous deploys
+                        // Clean up orphaned production-style resources from previous deploys
                         sh """
-                            kubectl delete deployment ccrs-app -n ${NAMESPACE} --ignore-not-found=true
+                            kubectl delete deployment ccrs-app ccrs-queue-worker ccrs-ai-worker -n ${NAMESPACE} --ignore-not-found=true
                             kubectl delete service ccrs-app -n ${NAMESPACE} --ignore-not-found=true
                             kubectl delete hpa ccrs-app -n ${NAMESPACE} --ignore-not-found=true
                             kubectl delete pdb ccrs-app -n ${NAMESPACE} --ignore-not-found=true
+                            kubectl delete ingress ccrs-ingress -n ${NAMESPACE} --ignore-not-found=true
                         """
 
                         // Apply k8s manifests from the repo (deploy/k8s/ directory)
