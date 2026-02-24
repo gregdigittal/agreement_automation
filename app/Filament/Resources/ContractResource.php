@@ -358,6 +358,7 @@ class ContractResource extends Resource
             RelationManagers\RedlineSessionsRelationManager::class,
             RelationManagers\ComplianceFindingsRelationManager::class,
             RelationManagers\KycPackRelationManager::class,
+            RelationManagers\SigningSessionsRelationManager::class,
         ];
     }
 
