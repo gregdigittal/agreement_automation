@@ -35,7 +35,7 @@
         <div id="pdf-viewer"
              class="border border-gray-300 rounded-lg bg-gray-50 overflow-auto"
              style="max-height: 600px;"
-             data-pdf-url="{{ route('contract.download', $contract) }}"
+             data-pdf-url="{{ route('signing.document', $rawToken) }}"
              role="document"
              aria-label="Contract PDF viewer">
             <div id="pdf-loading" class="flex items-center justify-center py-20 text-gray-500">
@@ -52,7 +52,7 @@
     {{-- Signing Form --}}
     <form id="signing-form"
           method="POST"
-          action="{{ route('signing.submit', $signer->token) }}">
+          action="{{ route('signing.submit', $rawToken) }}">
         @csrf
 
         {{-- Form Fields --}}
@@ -212,7 +212,7 @@
             <p class="text-sm text-gray-600 mb-4">
                 Are you sure you want to decline? This will cancel the signing session for all parties.
             </p>
-            <form method="POST" action="{{ route('signing.decline', $signer->token) }}">
+            <form method="POST" action="{{ route('signing.decline', $rawToken) }}">
                 @csrf
                 <div class="mb-4">
                     <label for="decline-reason" class="block text-sm font-medium text-gray-700 mb-1">
@@ -250,7 +250,10 @@
     signature_pad was also removed from npm — signing.js includes a built-in
     canvas fallback that provides equivalent draw functionality.
 --}}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+{{-- I6: crossorigin + referrerpolicy added; TODO: verify SRI integrity hashes before production --}}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"></script>
 <script>
     // Set pdf.js worker
     if (typeof pdfjsLib !== 'undefined') {

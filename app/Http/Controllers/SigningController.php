@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\SigningAuditLog;
 use App\Services\SigningService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 class SigningController extends Controller
 {
@@ -20,8 +22,10 @@ class SigningController extends Controller
 
         $session = $signer->session()->with(['fields' => fn ($q) => $q->where('assigned_to_signer_id', $signer->id)])->first();
         $contract = $session->contract;
+        // Pass the raw token (from URL) so views can build signing URLs without exposing the hash
+        $rawToken = $token;
 
-        return view('signing.show', compact('signer', 'session', 'contract'));
+        return view('signing.show', compact('signer', 'session', 'contract', 'rawToken'));
     }
 
     public function submit(Request $request, string $token)
@@ -33,7 +37,7 @@ class SigningController extends Controller
         }
 
         $request->validate([
-            'signature_image' => 'required|string',
+            'signature_image' => 'required|string|max:500000', // C4: ~375KB decoded limit
             'signature_method' => 'required|in:draw,type,upload',
             'fields' => 'array',
             'fields.*.id' => 'required|string',
@@ -49,6 +53,30 @@ class SigningController extends Controller
         $this->signingService->advanceSession($signer->session);
 
         return view('signing.complete', ['signer' => $signer]);
+    }
+
+    /**
+     * C3: Serve the contract PDF to external signers (no auth required, token-based).
+     */
+    public function document(string $token)
+    {
+        try {
+            $signer = $this->signingService->validateToken($token);
+        } catch (\RuntimeException $e) {
+            abort(403, $e->getMessage());
+        }
+
+        $contract = $signer->session->contract;
+        $storagePath = $contract->storage_path;
+        $disk = config('ccrs.contracts_disk', 's3');
+
+        if (!$storagePath || !Storage::disk($disk)->exists($storagePath)) {
+            abort(404, 'Document not found');
+        }
+
+        return Storage::disk($disk)->response($storagePath, $contract->title . '.pdf', [
+            'Content-Type' => 'application/pdf',
+        ]);
     }
 
     public function decline(Request $request, string $token)
@@ -74,6 +102,15 @@ class SigningController extends Controller
         ]);
 
         $signer->session->update(['status' => 'cancelled']);
+
+        // I4: Notify the initiator that a signer declined
+        $initiator = $signer->session->initiator;
+        if ($initiator?->email) {
+            Mail::raw(
+                "Signer {$signer->signer_name} ({$signer->signer_email}) has declined to sign: {$signer->session->contract->title}. Reason: " . ($request->input('reason') ?? 'No reason provided.'),
+                fn ($msg) => $msg->to($initiator->email)->subject('Signing Declined: ' . $signer->session->contract->title)
+            );
+        }
 
         return view('signing.declined');
     }

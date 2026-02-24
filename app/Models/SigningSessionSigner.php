@@ -19,6 +19,9 @@ class SigningSessionSigner extends Model
         'ip_address', 'user_agent', 'signed_at', 'sent_at', 'viewed_at',
     ];
 
+    // M3: Prevent token hash from leaking in JSON/array serialization
+    protected $hidden = ['token'];
+
     protected $casts = [
         'signing_order' => 'integer',
         'token_expires_at' => 'datetime',

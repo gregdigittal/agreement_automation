@@ -13,7 +13,13 @@ class SigningInvitation extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public SigningSessionSigner $signer) {}
+    /**
+     * @param  string  $rawToken  The unhashed token for URL construction (DB stores only the hash)
+     */
+    public function __construct(
+        public SigningSessionSigner $signer,
+        public string $rawToken = '',
+    ) {}
 
     public function envelope(): Envelope
     {
@@ -24,6 +30,9 @@ class SigningInvitation extends Mailable
 
     public function content(): Content
     {
-        return new Content(view: 'emails.signing-invitation');
+        return new Content(
+            view: 'emails.signing-invitation',
+            with: ['signingToken' => $this->rawToken],
+        );
     }
 }

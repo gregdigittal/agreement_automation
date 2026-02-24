@@ -67,10 +67,14 @@ it('generates unique tokens when sending to signer', function () {
     ], 'sequential');
 
     $signer = $session->signers->first();
-    $this->service->sendToSigner($signer);
+    $rawToken = $this->service->sendToSigner($signer);
 
+    // Raw token is 64 hex chars (32 bytes); DB stores SHA-256 hash (also 64 hex chars)
+    expect($rawToken)->toHaveLength(64);
     $signer->refresh();
     expect($signer->token)->toHaveLength(64);
+    // The stored token must be the hash of the raw token
+    expect($signer->token)->toBe(hash('sha256', $rawToken));
     expect($signer->token_expires_at)->not->toBeNull();
     expect((int) abs($signer->token_expires_at->diffInDays(now())))->toBeGreaterThanOrEqual(6);
     expect($signer->status)->toBe('sent');
@@ -84,10 +88,11 @@ it('validates a valid token', function () {
     ], 'sequential');
 
     $signer = $session->signers->first();
-    $this->service->sendToSigner($signer);
+    $rawToken = $this->service->sendToSigner($signer);
     $signer->refresh();
 
-    $validatedSigner = $this->service->validateToken($signer->token);
+    // Validate using the raw token (service hashes it internally)
+    $validatedSigner = $this->service->validateToken($rawToken);
 
     expect($validatedSigner->id)->toBe($signer->id);
     expect($validatedSigner->fresh()->viewed_at)->not->toBeNull();
@@ -99,13 +104,51 @@ it('rejects expired tokens', function () {
     ], 'sequential');
 
     $signer = $session->signers->first();
-    $this->service->sendToSigner($signer);
+    $rawToken = $this->service->sendToSigner($signer);
 
     // Manually expire the token
     $signer->update(['token_expires_at' => now()->subDay()]);
 
-    $this->service->validateToken($signer->token);
+    $this->service->validateToken($rawToken);
 })->throws(\RuntimeException::class, 'This signing link has expired.');
+
+it('rejects re-signing after already signed', function () {
+    $session = $this->service->createSession($this->contract, [
+        ['name' => 'Alice', 'email' => 'alice@example.com', 'type' => 'external', 'order' => 0],
+    ], 'sequential');
+
+    $signer = $session->signers->first();
+    $rawToken = $this->service->sendToSigner($signer);
+    $signer->update(['status' => 'signed']);
+
+    $this->service->validateToken($rawToken);
+})->throws(\RuntimeException::class, 'You have already signed this document.');
+
+it('rejects token after signer declined', function () {
+    $session = $this->service->createSession($this->contract, [
+        ['name' => 'Alice', 'email' => 'alice@example.com', 'type' => 'external', 'order' => 0],
+    ], 'sequential');
+
+    $signer = $session->signers->first();
+    $rawToken = $this->service->sendToSigner($signer);
+    $signer->update(['status' => 'declined']);
+
+    $this->service->validateToken($rawToken);
+})->throws(\RuntimeException::class, 'You have declined to sign this document.');
+
+it('enforces session expiry', function () {
+    $session = $this->service->createSession($this->contract, [
+        ['name' => 'Alice', 'email' => 'alice@example.com', 'type' => 'external', 'order' => 0],
+    ], 'sequential');
+
+    $signer = $session->signers->first();
+    $rawToken = $this->service->sendToSigner($signer);
+
+    // Manually expire the session
+    $session->update(['expires_at' => now()->subDay()]);
+
+    $this->service->validateToken($rawToken);
+})->throws(\RuntimeException::class, 'This signing session has expired.');
 
 it('captures signature and updates signer', function () {
     $session = $this->service->createSession($this->contract, [
@@ -113,11 +156,11 @@ it('captures signature and updates signer', function () {
     ], 'sequential');
 
     $signer = $session->signers->first();
-    $this->service->sendToSigner($signer);
+    $rawToken = $this->service->sendToSigner($signer);
     $signer->refresh();
 
     // Validate token first (sets viewed_at)
-    $this->service->validateToken($signer->token);
+    $this->service->validateToken($rawToken);
 
     $base64Png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
     $this->service->captureSignature($signer, [], $base64Png);
@@ -130,6 +173,19 @@ it('captures signature and updates signer', function () {
     // Verify signature image was stored
     Storage::disk('s3')->assertExists($signer->signature_image_path);
 });
+
+it('rejects invalid base64 signature data', function () {
+    $session = $this->service->createSession($this->contract, [
+        ['name' => 'Alice', 'email' => 'alice@example.com', 'type' => 'external', 'order' => 0],
+    ], 'sequential');
+
+    $signer = $session->signers->first();
+    $this->service->sendToSigner($signer);
+    $signer->refresh();
+
+    // Pass invalid base64 that is not a valid image
+    $this->service->captureSignature($signer, [], 'dGhpcyBpcyBub3QgYW4gaW1hZ2U=');
+})->throws(\InvalidArgumentException::class, 'Signature must be a valid PNG or JPEG image.');
 
 it('completes session when all signers done', function () {
     // Mock PdfService so FPDI does not attempt to parse the fake PDF
@@ -148,7 +204,7 @@ it('completes session when all signers done', function () {
     ], 'sequential');
 
     $signer = $session->signers->first();
-    $this->service->sendToSigner($signer);
+    $rawToken = $this->service->sendToSigner($signer);
     $signer->refresh();
 
     $base64Png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
@@ -172,7 +228,7 @@ it('sends to next signer in sequential mode', function () {
 
     // Send to first signer and have them sign
     $signer1 = $session->signers->sortBy('signing_order')->first();
-    $this->service->sendToSigner($signer1);
+    $rawToken1 = $this->service->sendToSigner($signer1);
     $signer1->refresh();
 
     $base64Png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
@@ -233,7 +289,7 @@ it('creates audit log entries for each action', function () {
 
     // 2. Send to signer — should log 'sent'
     $signer = $session->signers->first();
-    $this->service->sendToSigner($signer);
+    $rawToken = $this->service->sendToSigner($signer);
     $signer->refresh();
 
     $sentLog = SigningAuditLog::where('signing_session_id', $session->id)
@@ -243,7 +299,7 @@ it('creates audit log entries for each action', function () {
     expect($sentLog->signer_id)->toBe($signer->id);
 
     // 3. Validate token / view — should log 'viewed'
-    $this->service->validateToken($signer->token);
+    $this->service->validateToken($rawToken);
 
     $viewedLog = SigningAuditLog::where('signing_session_id', $session->id)
         ->where('event', 'viewed')

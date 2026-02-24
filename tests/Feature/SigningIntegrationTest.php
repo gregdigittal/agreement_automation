@@ -61,13 +61,13 @@ it('completes full signing flow with sequential signers', function () {
     expect($session->status)->toBe('active');
     expect($session->signers)->toHaveCount(2);
 
-    // 2. Send to first signer
-    $service->sendToSigner($session->signers->first());
+    // 2. Send to first signer — capture raw token
+    $rawToken1 = $service->sendToSigner($session->signers->first());
     Mail::assertSent(SigningInvitation::class);
 
-    // 3. First signer views and signs
+    // 3. First signer views and signs (using raw token, not the stored hash)
     $signer1 = $session->signers->first()->fresh();
-    $validatedSigner = $service->validateToken($signer1->token);
+    $validatedSigner = $service->validateToken($rawToken1);
     expect($validatedSigner->viewed_at)->not->toBeNull();
 
     $base64Png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
@@ -77,13 +77,24 @@ it('completes full signing flow with sequential signers', function () {
     // 4. Advance sends to second signer
     $service->advanceSession($session->fresh());
 
-    // 5. Second signer signs
+    // 5. Second signer signs — the raw token for signer2 was generated internally by advanceSession,
+    //    so we retrieve it from the SigningInvitation mailable
     $signer2 = $session->signers->skip(1)->first()->fresh();
     expect($signer2->token)->not->toBeNull();
     expect($signer2->status)->toBe('sent');
 
+    // Extract raw token from the mailable sent to signer2
+    $rawToken2 = null;
+    Mail::assertSent(SigningInvitation::class, function (SigningInvitation $mail) use (&$rawToken2) {
+        if ($mail->signer->signer_email === 'two@example.com') {
+            $rawToken2 = $mail->rawToken;
+            return true;
+        }
+        return false;
+    });
+
     // Validate and capture second signer
-    $service->validateToken($signer2->token);
+    $service->validateToken($rawToken2);
     $service->captureSignature($signer2, [], $base64Png);
     expect($signer2->fresh()->status)->toBe('signed');
 
