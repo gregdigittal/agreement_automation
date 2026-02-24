@@ -74,6 +74,12 @@ pipeline {
                             kubectl delete ingress ccrs-ingress -n ${NAMESPACE} --ignore-not-found=true
                         """
 
+                        // Reset MySQL data (delete PVC) so migrations run fresh
+                        // This is needed because Greg rewrote the schema with new migrations
+                        sh """
+                            kubectl delete pvc ${APP_NAME}-mysql-data -n ${NAMESPACE} --ignore-not-found=true
+                        """
+
                         // Apply k8s manifests from the repo (deploy/k8s/ directory)
                         sh """
                             export APP_NAME="${APP_NAME}"
