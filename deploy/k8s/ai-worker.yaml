@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ccrs-ai-worker
+  labels:
+    app: ccrs
+    component: ai-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ccrs
+      component: ai-worker
+  template:
+    metadata:
+      labels:
+        app: ccrs
+        component: ai-worker
+    spec:
+      containers:
+        - name: ai-worker
+          image: ${REGISTRY}/ccrs-ai-worker:${IMAGE_TAG}
+          ports:
+            - containerPort: 8001
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          envFrom:
+            - secretRef:
+                name: ccrs-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ccrs-ai-worker
+spec:
+  selector:
+    app: ccrs
+    component: ai-worker
+  ports:
+    - port: 8001
+      targetPort: 8001
+  clusterIP: None

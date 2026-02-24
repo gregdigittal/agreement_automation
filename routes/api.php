@@ -6,6 +6,6 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/webhooks/boldsign', [BoldsignWebhookController::class, 'handle'])->name('webhooks.boldsign');
 
-Route::middleware('tito.auth')->group(function () {
+Route::middleware(['tito.auth', 'throttle:tito'])->group(function () {
     Route::get('/tito/validate', [TitoController::class, 'validate'])->name('tito.validate');
 });

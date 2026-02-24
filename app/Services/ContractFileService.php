@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Helpers\StorageHelper;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -30,10 +31,7 @@ class ContractFileService
 
     public function getSignedUrl(string $storagePath, int $minutes = 60): string
     {
-        return Storage::disk(config('ccrs.contracts_disk', 's3'))->temporaryUrl(
-            $storagePath,
-            now()->addMinutes($minutes)
-        );
+        return StorageHelper::temporaryUrl($storagePath, 'download');
     }
 
     public function download(string $storagePath): string

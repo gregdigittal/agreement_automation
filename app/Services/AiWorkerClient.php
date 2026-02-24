@@ -59,7 +59,7 @@ class AiWorkerClient
             $response->throw();
             return $response->json();
         } finally {
-            $span->end();
+            $span?->end();
         }
     }
 

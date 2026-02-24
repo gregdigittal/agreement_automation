@@ -89,7 +89,7 @@ class TitoController extends Controller
 
             return response()->json($result);
         } finally {
-            $span->end();
+            $span?->end();
         }
     }
 }

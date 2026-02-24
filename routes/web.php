@@ -4,6 +4,23 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Auth\AzureAdController;
 
+
+// Kubernetes liveness probe — returns 200 if app is running
+Route::get('/health', function () {
+    return response()->json(['status' => 'ok', 'timestamp' => now()->toIso8601String()]);
+})->name('health');
+
+// Kubernetes readiness probe — returns 200 only if DB and Redis are reachable
+Route::get('/health/ready', function () {
+    try {
+        \Illuminate\Support\Facades\DB::connection()->getPdo();
+        \Illuminate\Support\Facades\Redis::connection()->ping();
+        return response()->json(['status' => 'ready']);
+    } catch (\Throwable $e) {
+        return response()->json(['status' => 'not_ready', 'error' => $e->getMessage()], 503);
+    }
+})->name('health.ready');
+
 Route::get('/', function () {
     return view('welcome');
 });
@@ -25,7 +42,7 @@ Route::get('/contracts/{contract}/download', function (\App\Models\Contract $con
 
 // Vendor Portal Auth
 Route::get('/vendor/login', fn () => view('vendor.login'))->name('vendor.login');
-Route::post('/vendor/auth/request', [\App\Http\Controllers\VendorAuthController::class, 'requestLink'])->name('vendor.auth.request')->middleware('throttle:5,1');
+Route::post('/vendor/auth/request', [\App\Http\Controllers\VendorAuthController::class, 'requestLink'])->name('vendor.auth.request')->middleware('throttle:magic-link');
 Route::get('/vendor/auth/verify/{token}', [\App\Http\Controllers\VendorAuthController::class, 'verify'])->name('vendor.auth.verify');
 Route::post('/vendor/logout', [\App\Http\Controllers\VendorAuthController::class, 'logout'])->name('vendor.logout');
 

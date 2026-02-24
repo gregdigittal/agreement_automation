@@ -6,7 +6,7 @@ use App\Models\VendorDocument;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Storage;
+use App\Helpers\StorageHelper;
 
 class VendorDocumentsRelationManager extends RelationManager
 {
@@ -25,7 +25,7 @@ class VendorDocumentsRelationManager extends RelationManager
             Tables\Columns\TextColumn::make('created_at')->since(),
         ])->actions([
             Tables\Actions\Action::make('download')->icon('heroicon-o-arrow-down-tray')
-                ->url(fn (VendorDocument $record) => Storage::disk('s3')->temporaryUrl($record->storage_path, now()->addMinutes(10)))->openUrlInNewTab(),
+                ->url(fn (VendorDocument $record) => StorageHelper::temporaryUrl($record->storage_path, 'download'))->openUrlInNewTab(),
         ]);
     }
 }

@@ -10,7 +10,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Storage;
+use App\Helpers\StorageHelper;
 
 class VendorDocumentResource extends Resource
 {
@@ -54,7 +54,7 @@ class VendorDocumentResource extends Resource
         ])->defaultSort('created_at', 'desc')
         ->actions([
             Tables\Actions\Action::make('download')->icon('heroicon-o-arrow-down-tray')
-                ->url(fn (VendorDocument $record) => Storage::disk('s3')->temporaryUrl($record->storage_path, now()->addMinutes(10)))->openUrlInNewTab(),
+                ->url(fn (VendorDocument $record) => StorageHelper::temporaryUrl($record->storage_path, 'download'))->openUrlInNewTab(),
             Tables\Actions\DeleteAction::make()->requiresConfirmation(),
         ]);
     }

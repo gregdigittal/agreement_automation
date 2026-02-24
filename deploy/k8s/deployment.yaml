@@ -1,146 +1,65 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ${APP_NAME}
-  namespace: ${NAMESPACE}
+  name: ccrs-app
   labels:
-    app: ${APP_NAME}
-    project: cco-sandbox
+    app: ccrs
+    component: app
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
-      app: ${APP_NAME}
+      app: ccrs
+      component: app
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   template:
     metadata:
       labels:
-        app: ${APP_NAME}
-        project: cco-sandbox
+        app: ccrs
+        component: app
     spec:
-      imagePullSecrets:
-        - name: dockerreg
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 82
-        runAsGroup: 82
-        fsGroup: 82
+      terminationGracePeriodSeconds: 60
       containers:
-        - name: ${APP_NAME}
-          image: ${IMAGE_TAG}
+        - name: app
+          image: ${REGISTRY}/ccrs-app:${IMAGE_TAG}
           ports:
             - containerPort: 8080
-              name: http
-          env:
-            - name: APP_NAME
-              value: "CCRS"
-            - name: APP_ENV
-              value: "production"
-            - name: APP_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: ccrs-secrets
-                  key: APP_KEY
-            - name: APP_DEBUG
-              value: "false"
-            - name: APP_URL
-              value: "https://ccrs-sandbox.digittal.mobi"
-            - name: DB_CONNECTION
-              value: "mysql"
-            - name: DB_HOST
-              valueFrom:
-                secretKeyRef:
-                  name: ccrs-secrets
-                  key: DB_HOST
-            - name: DB_PORT
-              value: "3306"
-            - name: DB_DATABASE
-              value: "ccrs"
-            - name: DB_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: ccrs-secrets
-                  key: DB_USERNAME
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: ccrs-secrets
-                  key: DB_PASSWORD
-            - name: CACHE_STORE
-              value: "redis"
-            - name: QUEUE_CONNECTION
-              value: "redis"
-            - name: SESSION_DRIVER
-              value: "redis"
-            - name: REDIS_HOST
-              valueFrom:
-                secretKeyRef:
-                  name: ccrs-secrets
-                  key: REDIS_HOST
-            - name: REDIS_PORT
-              value: "6379"
-            - name: AI_WORKER_URL
-              value: "http://ccrs-ai-worker:8001"
-            - name: AI_WORKER_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: ccrs-secrets
-                  key: AI_WORKER_SECRET
-            - name: ANTHROPIC_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: ccrs-secrets
-                  key: ANTHROPIC_API_KEY
-            - name: AZURE_AD_CLIENT_ID
-              valueFrom:
-                secretKeyRef:
-                  name: ccrs-secrets
-                  key: AZURE_AD_CLIENT_ID
-            - name: AZURE_AD_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: ccrs-secrets
-                  key: AZURE_AD_CLIENT_SECRET
-            - name: AZURE_AD_TENANT_ID
-              valueFrom:
-                secretKeyRef:
-                  name: ccrs-secrets
-                  key: AZURE_AD_TENANT_ID
-            - name: BOLDSIGN_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: ccrs-secrets
-                  key: BOLDSIGN_API_KEY
-            - name: BOLDSIGN_WEBHOOK_SECRET
-              valueFrom:
-                secretKeyRef:
-        name: ccrs-secrets
-        key: BOLDSIGN_WEBHOOK_SECRET
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: false
-            capabilities:
-              drop:
-                - ALL
           resources:
             requests:
-              cpu: 100m
-              memory: 128Mi
+              cpu: "250m"
+              memory: "256Mi"
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: "1000m"
+              memory: "512Mi"
           livenessProbe:
             httpGet:
               path: /health
               port: 8080
-            initialDelaySeconds: 10
-            periodSeconds: 30
-            timeoutSeconds: 5
+            initialDelaySeconds: 30
+            periodSeconds: 10
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /health
+              path: /health/ready
               port: 8080
-            initialDelaySeconds: 5
-            periodSeconds: 10
-            timeoutSeconds: 3
+            initialDelaySeconds: 10
+            periodSeconds: 5
             failureThreshold: 3
+          envFrom:
+            - secretRef:
+                name: ccrs-secrets
+          env:
+            - name: APP_ENV
+              value: production
+            - name: LOG_CHANNEL
+              value: json
+            - name: CACHE_DRIVER
+              value: redis
+            - name: SESSION_DRIVER
+              value: redis
+            - name: QUEUE_CONNECTION
+              value: redis

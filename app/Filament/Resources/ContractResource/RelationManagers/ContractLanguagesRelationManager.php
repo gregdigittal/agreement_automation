@@ -8,7 +8,7 @@ use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Storage;
+use App\Helpers\StorageHelper;
 
 class ContractLanguagesRelationManager extends RelationManager
 {
@@ -67,7 +67,7 @@ class ContractLanguagesRelationManager extends RelationManager
             ])
             ->actions([
                 Tables\Actions\Action::make('download')->icon('heroicon-o-arrow-down-tray')
-                    ->url(fn (ContractLanguage $record) => Storage::disk('s3')->temporaryUrl($record->storage_path, now()->addMinutes(15)))
+                    ->url(fn (ContractLanguage $record) => StorageHelper::temporaryUrl($record->storage_path, 'preview'))
                     ->openUrlInNewTab(),
                 Tables\Actions\Action::make('set_primary')->label('Set Primary')->icon('heroicon-o-star')->color('warning')
                     ->visible(fn (ContractLanguage $record) => !$record->is_primary)

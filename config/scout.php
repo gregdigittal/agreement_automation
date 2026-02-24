@@ -16,7 +16,7 @@ return [
     |
     */
 
-    'driver' => env('SCOUT_DRIVER', 'collection'),
+    'driver' => \App\Helpers\Feature::enabled('meilisearch') ? env('SCOUT_DRIVER', 'meilisearch') : 'null',
 
     /*
     |--------------------------------------------------------------------------

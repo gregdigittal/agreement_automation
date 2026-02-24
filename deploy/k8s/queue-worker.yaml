@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ccrs-queue-worker
+  labels:
+    app: ccrs
+    component: queue-worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ccrs
+      component: queue-worker
+  template:
+    metadata:
+      labels:
+        app: ccrs
+        component: queue-worker
+    spec:
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: queue-worker
+          image: ${REGISTRY}/ccrs-app:${IMAGE_TAG}
+          command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--max-time=3600", "--memory=256"]
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          envFrom:
+            - secretRef:
+                name: ccrs-secrets
+          env:
+            - name: APP_ENV
+              value: production

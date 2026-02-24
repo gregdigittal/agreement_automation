@@ -11,6 +11,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class WorkflowTemplateResource extends Resource
 {
@@ -18,6 +19,11 @@ class WorkflowTemplateResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-arrow-path';
     protected static ?int $navigationSort = 20;
     protected static ?string $navigationGroup = 'Workflows';
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with(['region', 'entity', 'project']);
+    }
 
     public static function form(Form $form): Form
     {

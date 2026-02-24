@@ -20,6 +20,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        \Illuminate\Support\Facades\RateLimiter::for('tito', function ($request) {
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(200)->by($request->ip());
+        });
+        \Illuminate\Support\Facades\RateLimiter::for('magic-link', function ($request) {
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(5)->by($request->ip());
+        });
     }
 }

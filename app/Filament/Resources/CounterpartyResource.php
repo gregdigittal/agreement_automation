@@ -22,6 +22,11 @@ class CounterpartyResource extends Resource
     protected static ?int $navigationSort = 3;
     protected static ?string $navigationGroup = 'Counterparties';
 
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with(['contacts']);
+    }
+
     public static function form(Form $form): Form
     {
         return $form->schema([
