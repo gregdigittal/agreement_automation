@@ -40,12 +40,21 @@ class ContractResource extends Resource
                         ->content(fn (Contract $record) => $record->parentLinks->first() ? 'Link type: ' . $record->parentLinks->first()->link_type . ' | Parent: ' . ($record->parentLinks->first()->parentContract?->title ?? $record->parentLinks->first()->parent_contract_id) : ''),
                 ])
                 ->columns(1),
-                        Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->live(),
-            Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->live(),
-            Forms\Components\Select::make('project_id')->relationship('project', 'name')->required()->searchable(),
-            Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable(),
-            Forms\Components\Select::make('contract_type')->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant'])->required(),
-            Forms\Components\TextInput::make('title')->maxLength(255),
+                        Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->live()
+                ->placeholder('Select region...'),
+            Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->live()
+                ->placeholder('Select entity...'),
+            Forms\Components\Select::make('project_id')->relationship('project', 'name')->required()->searchable()
+                ->placeholder('Select project...'),
+            Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable()
+                ->placeholder('Search for a counterparty...')
+                ->helperText('The external party entering into this agreement.'),
+            Forms\Components\Select::make('contract_type')->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant'])->required()
+                ->placeholder('Select contract type')
+                ->helperText('Determines which workflow template will be applied.'),
+            Forms\Components\TextInput::make('title')->maxLength(255)
+                ->placeholder('e.g. Master Services Agreement — Acme Corp')
+                ->helperText('A descriptive title for this contract.'),
             Forms\Components\FileUpload::make('storage_path')->label('Contract File')->disk('s3')->directory('contracts')
                 ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
                 ->afterStateUpdated(function ($state, Set $set) {
@@ -79,7 +88,7 @@ class ContractResource extends Resource
         return $table->columns([
             Tables\Columns\TextColumn::make('title')->searchable()->sortable()->limit(40),
             Tables\Columns\TextColumn::make('contract_type')->badge(),
-            Tables\Columns\TextColumn::make('workflow_state')->badge()->color(fn ($state) => match($state) { 'draft' => 'gray', 'review' => 'warning', 'approval' => 'info', 'signing' => 'primary', 'executed' => 'success', 'archived' => 'secondary', default => 'gray' }),
+            Tables\Columns\TextColumn::make('workflow_state')->badge()->description('Current lifecycle stage')->color(fn ($state) => match($state) { 'draft' => 'gray', 'review' => 'warning', 'approval' => 'info', 'signing' => 'primary', 'countersign' => 'warning', 'executed' => 'success', 'archived' => 'secondary', default => 'gray' }),
             Tables\Columns\TextColumn::make('counterparty.legal_name')->sortable()->limit(30),
             Tables\Columns\TextColumn::make('region.name')->sortable(),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
@@ -101,7 +110,7 @@ class ContractResource extends Resource
             Tables\Filters\SelectFilter::make('contract_type')->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant']),
             Tables\Filters\SelectFilter::make('workflow_state')->options([
                 'draft' => 'Draft', 'review' => 'Review', 'approval' => 'Approval',
-                'signing' => 'Signing', 'executed' => 'Executed', 'archived' => 'Archived',
+                'signing' => 'Signing', 'countersign' => 'Countersign', 'executed' => 'Executed', 'archived' => 'Archived',
             ]),
             Tables\Filters\SelectFilter::make('region_id')->relationship('region', 'name'),
         ])
@@ -205,6 +214,79 @@ class ContractResource extends Resource
                 ->action(function (Contract $record, array $data) {
                     app(ContractLinkService::class)->createLinkedContract($record, 'side_letter', $data['title'], auth()->user(), ['storage_path' => $data['file'] ?? null]);
                     \Filament\Notifications\Notification::make()->title('Side letter linked')->success()->send();
+                }),
+            Tables\Actions\Action::make('sendForCountersigning')
+                ->label('Send for Countersigning')
+                ->icon('heroicon-o-pencil-square')
+                ->color('warning')
+                ->visible(function (Contract $record): bool {
+                    $instance = $record->activeWorkflowInstance;
+                    if (!$instance || !$instance->template) {
+                        return false;
+                    }
+                    $stages = collect($instance->template->stages);
+                    $currentStage = $stages->firstWhere('name', $instance->current_stage);
+                    return ($currentStage['type'] ?? null) === 'countersign';
+                })
+                ->form(function (Contract $record): array {
+                    $authorities = \App\Models\SigningAuthority::query()
+                        ->where('entity_id', $record->entity_id)
+                        ->where(function ($q) use ($record) {
+                            $q->whereNull('project_id')
+                              ->orWhere('project_id', $record->project_id);
+                        })
+                        ->with('user')
+                        ->get();
+
+                    $defaultSigners = $authorities->map(fn ($auth, $index) => [
+                        'user_id' => $auth->user_id,
+                        'name' => $auth->user->name ?? '',
+                        'email' => $auth->user->email ?? '',
+                        'order' => $index + 1,
+                    ])->toArray();
+
+                    return [
+                        \Filament\Forms\Components\Repeater::make('signers')
+                            ->label('Internal Digittal Signers')
+                            ->schema([
+                                \Filament\Forms\Components\Select::make('user_id')
+                                    ->label('User')
+                                    ->options(\App\Models\User::pluck('name', 'id'))
+                                    ->searchable()
+                                    ->preload()
+                                    ->required()
+                                    ->live()
+                                    ->afterStateUpdated(function ($state, \Filament\Forms\Set $set) {
+                                        if ($state) {
+                                            $user = \App\Models\User::find($state);
+                                            $set('name', $user?->name ?? '');
+                                            $set('email', $user?->email ?? '');
+                                        }
+                                    }),
+                                \Filament\Forms\Components\TextInput::make('name')->required(),
+                                \Filament\Forms\Components\TextInput::make('email')->email()->required(),
+                                \Filament\Forms\Components\TextInput::make('order')
+                                    ->label('Signing Order')
+                                    ->numeric()
+                                    ->default(1)
+                                    ->required(),
+                            ])
+                            ->default($defaultSigners)
+                            ->minItems(1)
+                            ->columns(4),
+                    ];
+                })
+                ->requiresConfirmation()
+                ->modalHeading('Send for Countersigning')
+                ->modalDescription('This will create a BoldSign envelope with only the internal Digittal signers. The counterparty has already signed this document externally.')
+                ->action(function (Contract $record, array $data): void {
+                    $service = app(\App\Services\BoldsignService::class);
+                    $envelope = $service->createCountersignEnvelope($record, $data['signers']);
+                    \Filament\Notifications\Notification::make()
+                        ->title('Countersign envelope sent')
+                        ->body("BoldSign document ID: {$envelope->boldsign_document_id}")
+                        ->success()
+                        ->send();
                 }),
         ]);
     }

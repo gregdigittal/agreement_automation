@@ -30,10 +30,16 @@ class CounterpartyResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\TextInput::make('legal_name')->required()->maxLength(255),
-            Forms\Components\TextInput::make('registration_number')->maxLength(255),
-            Forms\Components\Textarea::make('address'),
-            Forms\Components\TextInput::make('jurisdiction')->maxLength(255),
+            Forms\Components\TextInput::make('legal_name')->required()->maxLength(255)
+                ->placeholder('e.g. Acme Corporation Ltd')
+                ->helperText('Legal name as it appears on contracts.'),
+            Forms\Components\TextInput::make('registration_number')->maxLength(255)
+                ->placeholder('e.g. TL-2024-12345')
+                ->helperText('TiTo-validated trade license number.'),
+            Forms\Components\Textarea::make('address')
+                ->placeholder('Registered business address...'),
+            Forms\Components\TextInput::make('jurisdiction')->maxLength(255)
+                ->placeholder('e.g. UAE, UK, USA'),
             Forms\Components\Select::make('status')
                 ->options(['Active' => 'Active', 'Suspended' => 'Suspended', 'Blacklisted' => 'Blacklisted'])
                 ->required()

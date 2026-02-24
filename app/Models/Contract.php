@@ -32,6 +32,7 @@ class Contract extends Model
     public function aiAnalyses(): HasMany { return $this->hasMany(AiAnalysisResult::class); }
     public function boldsignEnvelopes(): HasMany { return $this->hasMany(BoldsignEnvelope::class); }
     public function workflowInstances(): HasMany { return $this->hasMany(WorkflowInstance::class); }
+    public function activeWorkflowInstance(): \Illuminate\Database\Eloquent\Relations\HasOne { return $this->hasOne(WorkflowInstance::class)->where('state', 'active'); }
     public function merchantAgreementInputs(): HasMany { return $this->hasMany(MerchantAgreementInput::class); }
 
     public function toSearchableArray(): array

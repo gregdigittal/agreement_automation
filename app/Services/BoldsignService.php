@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\BoldsignEnvelope;
 use App\Models\Contract;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 
 class BoldsignService
 {
@@ -84,6 +85,64 @@ class BoldsignService
         }
 
         AuditService::log('boldsign_webhook', 'boldsign_envelope', $envelope->id, ['status' => $newStatus]);
+    }
+
+    /**
+     * Create a BoldSign envelope for countersigning — only internal Digittal signers.
+     * The uploaded document already has the counterparty's signature.
+     */
+    public function createCountersignEnvelope(Contract $contract, array $internalSigners): BoldsignEnvelope
+    {
+        $storagePath = $contract->storage_path;
+        if (!$storagePath) {
+            throw new \RuntimeException("Contract {$contract->id} has no uploaded document to countersign.");
+        }
+
+        $documentContents = Storage::disk('s3')->get($storagePath);
+        if (!$documentContents) {
+            throw new \RuntimeException("Failed to download document from S3: {$storagePath}");
+        }
+
+        $signers = collect($internalSigners)->map(fn (array $signer, int $index) => [
+            'name' => $signer['name'],
+            'emailAddress' => $signer['email'],
+            'signerOrder' => $signer['order'] ?? ($index + 1),
+            'signerType' => 'Signer',
+        ])->values()->toArray();
+
+        $response = Http::withToken(config('ccrs.boldsign_api_key'))
+            ->attach('Files', $documentContents, basename($storagePath))
+            ->post(config('ccrs.boldsign_api_url') . '/v1/document/send', [
+                'title' => "Countersign: " . ($contract->title ?? 'Contract'),
+                'signers' => $signers,
+                'enableSigningOrder' => true,
+                'message' => 'Please countersign this contract on behalf of Digittal.',
+            ]);
+
+        if (!$response->successful()) {
+            throw new \RuntimeException('BoldSign API error creating countersign envelope: ' . $response->body());
+        }
+
+        $data = $response->json();
+
+        $envelope = BoldsignEnvelope::create([
+            'contract_id' => $contract->id,
+            'boldsign_document_id' => $data['documentId'] ?? $data['id'],
+            'status' => 'sent',
+            'is_countersign' => true,
+            'signers' => $internalSigners,
+            'sent_at' => now(),
+            'created_by' => auth()->id(),
+        ]);
+
+        $contract->update(['signing_status' => 'countersign_sent']);
+
+        AuditService::log('contract_sent_to_countersign', 'contract', $contract->id, [
+            'envelope_id' => $envelope->id,
+            'document_id' => $data['documentId'] ?? $data['id'],
+        ]);
+
+        return $envelope;
     }
 
     public function verifyWebhookSignature(string $rawBody, string $signature, string $secret): bool

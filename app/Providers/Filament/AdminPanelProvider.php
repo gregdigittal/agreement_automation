@@ -33,8 +33,21 @@ class AdminPanelProvider extends PanelProvider
             ->globalSearch(true)
             ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::Blue,
+                'danger' => Color::Red,
+                'gray' => Color::Zinc,
+                'info' => Color::Sky,
+                'success' => Color::Green,
+                'warning' => Color::Amber,
             ])
+            ->renderHook(
+                \Filament\View\PanelsRenderHook::BODY_START,
+                fn (): string => '<a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:rounded-md">Skip to main content</a>'
+            )
+            ->renderHook(
+                \Filament\View\PanelsRenderHook::CONTENT_START,
+                fn (): string => '<div id="main-content"></div>'
+            )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([])

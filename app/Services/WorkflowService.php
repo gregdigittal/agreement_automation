@@ -56,7 +56,7 @@ class WorkflowService
         $template = $instance->template;
         $stages = $template->stages ?? [];
         $currentStageConfig = collect($stages)->firstWhere('name', $stageName);
-        if ($currentStageConfig && ($currentStageConfig['type'] ?? null) === 'signing') {
+        if ($currentStageConfig && in_array($currentStageConfig['type'] ?? null, ['signing', 'countersign'])) {
             $this->checkSigningAuthority($instance->contract, $actor, $stageName);
         }
         $currentIndex = collect($stages)->search(fn ($s) => ($s['name'] ?? '') === $instance->current_stage);
@@ -81,7 +81,7 @@ class WorkflowService
         } elseif ($nextStage !== null) {
             $instance->update(['current_stage' => $nextStage]);
             $instance->contract->update(['workflow_state' => $nextStage]);
-            if (in_array($nextStage, ['signing', 'executed'])) {
+            if (in_array($nextStage, ['signing', 'countersign', 'executed'])) {
                 app(\App\Services\VendorNotificationService::class)->notifyContractStatusChange($instance->contract, $nextStage);
             }
         }

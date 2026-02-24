@@ -17,19 +17,23 @@
         }
     }"
     class="space-y-3"
+    role="tree"
+    aria-label="Workflow stages"
 >
     @foreach ($stages as $index => $stage)
         <div
             data-stage-id="{{ $stage['id'] }}"
             draggable="true"
+            role="treeitem"
+            aria-label="Stage {{ $index + 1 }}: {{ $stage['name'] ?? 'Unnamed' }}"
             @dragstart="startDrag({{ $index }})"
             @dragover.prevent="onDragOver({{ $index }})"
             @dragend="endDrag()"
             :class="dragOver === {{ $index }} ? 'ring-2 ring-primary-500' : ''"
             class="flex items-start gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 cursor-grab"
         >
-            <div class="mt-1 text-gray-400 cursor-grab">
-                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div class="mt-1 text-gray-400 cursor-grab" aria-label="Drag to reorder stage {{ $index + 1 }}">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M4 8h16M4 16h16"/>
                 </svg>
@@ -41,9 +45,10 @@
 
             <div class="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
                 <div class="col-span-2 sm:col-span-1">
-                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Stage Name</label>
+                    <label for="stage_name_{{ $index }}" class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Stage Name</label>
                     <input
                         type="text"
+                        id="stage_name_{{ $index }}"
                         value="{{ $stage['name'] ?? '' }}"
                         wire:change="updateStage({{ $index }}, 'name', $event.target.value)"
                         class="w-full rounded-md border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700"
@@ -51,8 +56,9 @@
                 </div>
 
                 <div>
-                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Role</label>
+                    <label for="stage_role_{{ $index }}" class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Role</label>
                     <select
+                        id="stage_role_{{ $index }}"
                         wire:change="updateStage({{ $index }}, 'role', $event.target.value)"
                         class="w-full rounded-md border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700"
                     >
@@ -65,9 +71,10 @@
                 </div>
 
                 <div>
-                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Days</label>
+                    <label for="stage_days_{{ $index }}" class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Days</label>
                     <input
                         type="number"
+                        id="stage_days_{{ $index }}"
                         min="1"
                         value="{{ $stage['duration_days'] ?? 5 }}"
                         wire:change="updateStage({{ $index }}, 'duration_days', (int) $event.target.value)"
@@ -92,6 +99,7 @@
                 wire:click="removeStage({{ $index }})"
                 class="mt-1 text-red-400 hover:text-red-600"
                 title="Remove stage"
+                aria-label="Remove stage {{ $index + 1 }}: {{ $stage['name'] ?? 'Unnamed' }}"
             >
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

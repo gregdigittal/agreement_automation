@@ -15,4 +15,5 @@ class SigningAuthority extends Model
 
     public function entity(): BelongsTo { return $this->belongsTo(Entity::class); }
     public function project(): BelongsTo { return $this->belongsTo(Project::class); }
+    public function user(): BelongsTo { return $this->belongsTo(User::class); }
 }
