@@ -3,12 +3,12 @@
         @php $metrics = $this->getPerformanceData(); @endphp
 
         @if (empty($metrics))
-            <p class="text-gray-500 italic text-sm">No workflow performance data available.</p>
+            <p class="text-gray-600 dark:text-gray-400 italic text-sm">No workflow performance data available.</p>
         @else
             <div class="overflow-x-auto">
                 <table class="w-full text-sm" aria-label="Workflow performance metrics">
                     <thead>
-                        <tr class="text-left text-gray-500 border-b dark:border-gray-700">
+                        <tr class="text-left text-gray-600 dark:text-gray-400 border-b dark:border-gray-700">
                             <th class="py-2 px-2">Stage</th>
                             <th class="py-2 px-2 text-right">Avg Duration (hrs)</th>
                             <th class="py-2 px-2 text-right">Min (hrs)</th>

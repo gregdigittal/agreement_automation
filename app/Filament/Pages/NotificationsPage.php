@@ -9,4 +9,5 @@ class NotificationsPage extends Page
     protected static ?string $navigationGroup = 'Admin';
     protected static ?string $title = 'Notifications';
     protected static string $view = 'filament.pages.notifications-page';
+    protected static bool $shouldRegisterNavigation = false;
 }

@@ -19,9 +19,9 @@
                     <x-heroicon-o-globe-alt class="w-5 h-5 text-blue-600" />
                     <span class="font-medium text-gray-900 dark:text-gray-100">{{ $region['name'] }}</span>
                     @if ($region['code'])
-                        <span class="text-xs text-gray-500">({{ $region['code'] }})</span>
+                        <span class="text-xs text-gray-600 dark:text-gray-400">({{ $region['code'] }})</span>
                     @endif
-                    <span class="ml-auto text-xs text-gray-500">{{ $region['active_contracts'] }} contracts &middot; {{ $region['active_workflows'] }} workflows</span>
+                    <span class="ml-auto text-xs text-gray-600 dark:text-gray-400">{{ $region['active_contracts'] }} contracts &middot; {{ $region['active_workflows'] }} workflows</span>
                 </button>
 
                 {{-- Entities --}}
@@ -41,9 +41,9 @@
                                 <x-heroicon-o-building-office class="w-4 h-4 text-indigo-600" />
                                 <span class="text-gray-800 dark:text-gray-200">{{ $entity['name'] }}</span>
                                 @if ($entity['code'])
-                                    <span class="text-xs text-gray-500">({{ $entity['code'] }})</span>
+                                    <span class="text-xs text-gray-600 dark:text-gray-400">({{ $entity['code'] }})</span>
                                 @endif
-                                <span class="ml-auto text-xs text-gray-500">{{ $entity['active_contracts'] }} contracts &middot; {{ $entity['active_workflows'] }} workflows</span>
+                                <span class="ml-auto text-xs text-gray-600 dark:text-gray-400">{{ $entity['active_contracts'] }} contracts &middot; {{ $entity['active_workflows'] }} workflows</span>
                             </button>
 
                             {{-- Projects --}}
@@ -56,13 +56,14 @@
                                         wire:click="selectNode('project', '{{ $project['id'] }}')"
                                         role="treeitem"
                                         aria-label="Project: {{ $project['name'] }}"
+                                        aria-expanded="false"
                                     >
                                         <x-heroicon-o-folder class="w-4 h-4 text-green-600" />
                                         <span class="text-gray-700 dark:text-gray-300">{{ $project['name'] }}</span>
                                         @if ($project['code'])
-                                            <span class="text-xs text-gray-500">({{ $project['code'] }})</span>
+                                            <span class="text-xs text-gray-600 dark:text-gray-400">({{ $project['code'] }})</span>
                                         @endif
-                                        <span class="ml-auto text-xs text-gray-500">{{ $project['active_contracts'] }} contracts &middot; {{ $project['active_workflows'] }} workflows</span>
+                                        <span class="ml-auto text-xs text-gray-600 dark:text-gray-400">{{ $project['active_contracts'] }} contracts &middot; {{ $project['active_workflows'] }} workflows</span>
                                     </button>
                                 @endforeach
                             </div>
@@ -71,7 +72,7 @@
                 </div>
             </div>
         @empty
-            <p class="text-gray-500 italic">No regions, entities, or projects found.</p>
+            <p class="text-gray-600 dark:text-gray-400 italic">No regions, entities, or projects found.</p>
         @endforelse
     </div>
 
@@ -80,7 +81,7 @@
         @if ($selectedNodeId)
             <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
                 {{ $selectedNodeLabel }}
-                <span class="text-xs font-normal text-gray-500 uppercase">{{ $selectedNodeType }}</span>
+                <span class="text-xs font-normal text-gray-600 dark:text-gray-400 uppercase">{{ $selectedNodeType }}</span>
             </h3>
 
             {{-- Signing Authorities --}}
@@ -89,7 +90,7 @@
                 @if (count($signingAuthorities) > 0)
                     <table class="w-full text-sm" aria-label="Signing authorities for {{ $selectedNodeLabel }}">
                         <thead>
-                            <tr class="text-left text-gray-500 border-b dark:border-gray-700">
+                            <tr class="text-left text-gray-600 dark:text-gray-400 border-b dark:border-gray-700">
                                 <th class="py-1">Name</th>
                                 <th class="py-1">Role</th>
                                 <th class="py-1">Type Pattern</th>
@@ -106,7 +107,7 @@
                         </tbody>
                     </table>
                 @else
-                    <p class="text-gray-500 text-sm italic">No signing authorities configured.</p>
+                    <p class="text-gray-600 dark:text-gray-400 text-sm italic">No signing authorities configured.</p>
                 @endif
             </div>
 
@@ -123,7 +124,7 @@
                             >
                                 <div>
                                     <span class="font-medium text-gray-900 dark:text-gray-100">{{ $tpl['name'] }}</span>
-                                    <span class="text-xs text-gray-500 ml-2">{{ $tpl['contract_type'] }} &middot; {{ $tpl['stage_count'] }} stages</span>
+                                    <span class="text-xs text-gray-600 dark:text-gray-400 ml-2">{{ $tpl['contract_type'] }} &middot; {{ $tpl['stage_count'] }} stages</span>
                                 </div>
                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
                                     {{ $tpl['status'] === 'published' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' }}">
@@ -134,7 +135,7 @@
                             <div x-show="expanded" x-collapse class="mt-2">
                                 <table class="w-full text-xs" aria-label="Stages for {{ $tpl['name'] }}">
                                     <thead>
-                                        <tr class="text-left text-gray-500 border-b dark:border-gray-700">
+                                        <tr class="text-left text-gray-600 dark:text-gray-400 border-b dark:border-gray-700">
                                             <th class="py-1">Stage</th>
                                             <th class="py-1">Type</th>
                                             <th class="py-1">Owners</th>
@@ -159,7 +160,7 @@
                         </div>
                     @endforeach
                 @else
-                    <p class="text-gray-500 text-sm italic">No workflow templates scoped to this node.</p>
+                    <p class="text-gray-600 dark:text-gray-400 text-sm italic">No workflow templates scoped to this node.</p>
                 @endif
             </div>
         @else

@@ -94,7 +94,7 @@
             {{
                 $attributes
                     ->merge([
-                        'aria-checked' => 'false',
+                        'x-bind:aria-checked' => 'state.toString()',
                         'autofocus' => $isAutofocused(),
                         'disabled' => $isDisabled(),
                         'id' => $getId(),

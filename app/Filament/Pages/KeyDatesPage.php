@@ -9,4 +9,5 @@ class KeyDatesPage extends Page
     protected static ?string $navigationGroup = 'Contracts';
     protected static ?string $title = 'Key Dates';
     protected static string $view = 'filament.pages.key-dates-page';
+    protected static bool $shouldRegisterNavigation = false;
 }

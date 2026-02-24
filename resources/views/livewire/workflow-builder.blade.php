@@ -14,6 +14,15 @@
             }
             this.dragIndex = null;
             this.dragOver = null;
+        },
+        moveStage(index, direction) {
+            const target = index + direction;
+            const ids = Array.from(document.querySelectorAll('[data-stage-id]'))
+                .map(el => el.dataset.stageId);
+            if (target < 0 || target >= ids.length) return;
+            const moved = ids.splice(index, 1)[0];
+            ids.splice(target, 0, moved);
+            $wire.reorderStages(ids);
         }
     }"
     class="space-y-3"
@@ -29,10 +38,13 @@
             @dragstart="startDrag({{ $index }})"
             @dragover.prevent="onDragOver({{ $index }})"
             @dragend="endDrag()"
+            @keydown.up.prevent="moveStage({{ $index }}, -1)"
+            @keydown.down.prevent="moveStage({{ $index }}, 1)"
+            tabindex="0"
             :class="dragOver === {{ $index }} ? 'ring-2 ring-primary-500' : ''"
             class="flex items-start gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 cursor-grab"
         >
-            <div class="mt-1 text-gray-400 cursor-grab" aria-label="Drag to reorder stage {{ $index + 1 }}">
+            <div class="mt-1 text-gray-400 cursor-grab" aria-label="Drag or use arrow keys to reorder stage {{ $index + 1 }}">
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M4 8h16M4 16h16"/>
@@ -111,7 +123,7 @@
 
     @if(count($stages) > 1)
         <div class="pl-10 text-xs text-gray-400 dark:text-gray-500 select-none">
-            {{ count($stages) }} stages · drag cards to reorder
+            {{ count($stages) }} stages · drag or use arrow keys to reorder
         </div>
     @endif
 

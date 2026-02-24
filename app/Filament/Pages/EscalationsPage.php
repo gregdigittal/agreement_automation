@@ -9,4 +9,5 @@ class EscalationsPage extends Page
     protected static ?string $navigationGroup = 'Workflows';
     protected static ?string $title = 'Escalations';
     protected static string $view = 'filament.pages.escalations-page';
+    protected static bool $shouldRegisterNavigation = false;
 }

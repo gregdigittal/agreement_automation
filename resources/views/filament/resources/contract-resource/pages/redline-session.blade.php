@@ -35,7 +35,13 @@
                     <span>Review Progress</span>
                     <span>{{ $session->reviewed_clauses }} / {{ $session->total_clauses }} clauses reviewed ({{ $session->progress_percentage }}%)</span>
                 </div>
-                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3"
+                     role="progressbar"
+                     aria-label="Review Progress"
+                     aria-valuenow="{{ $session->progress_percentage }}"
+                     aria-valuemin="0"
+                     aria-valuemax="100"
+                >
                     <div
                         class="bg-primary-600 h-3 rounded-full transition-all duration-300"
                         style="width: {{ $session->progress_percentage }}%"
@@ -196,7 +202,7 @@
                         <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-t dark:border-gray-700 flex items-center gap-3">
                             <button
                                 wire:click="acceptClause('{{ $clause->id }}')"
-                                class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition focus:outline-none focus:ring-2 focus:ring-green-500"
+                                class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                                 aria-label="Accept clause {{ $clause->clause_number }}"
                             >
                                 <x-heroicon-s-check class="w-4 h-4 mr-1" />
@@ -205,7 +211,7 @@
 
                             <button
                                 wire:click="rejectClause('{{ $clause->id }}')"
-                                class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition focus:outline-none focus:ring-2 focus:ring-red-500"
+                                class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                                 aria-label="Reject clause {{ $clause->clause_number }}"
                             >
                                 <x-heroicon-s-x-mark class="w-4 h-4 mr-1" />
@@ -216,7 +222,7 @@
                                 <button
                                     x-show="!editing"
                                     x-on:click="editing = true"
-                                    class="inline-flex items-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                    class="inline-flex items-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
                                     aria-label="Modify clause {{ $clause->clause_number }}"
                                 >
                                     <x-heroicon-s-pencil class="w-4 h-4 mr-1" />

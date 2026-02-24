@@ -10,6 +10,7 @@ class ReportsPage extends Page
     protected static ?string $navigationGroup = 'Reports';
     protected static ?string $title = 'Reports';
     protected static string $view = 'filament.pages.reports-page';
+    protected static bool $shouldRegisterNavigation = false;
 
     public function getHeaderActions(): array
     {

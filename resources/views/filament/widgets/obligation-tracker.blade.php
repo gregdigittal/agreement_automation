@@ -3,12 +3,12 @@
         @php $obligations = $this->getObligations(); @endphp
 
         @if (empty($obligations))
-            <p class="text-gray-500 italic text-sm">No upcoming obligations found.</p>
+            <p class="text-gray-600 dark:text-gray-400 italic text-sm">No upcoming obligations found.</p>
         @else
             <div class="overflow-x-auto">
                 <table class="w-full text-sm" aria-label="Upcoming obligations">
                     <thead>
-                        <tr class="text-left text-gray-500 border-b dark:border-gray-700">
+                        <tr class="text-left text-gray-600 dark:text-gray-400 border-b dark:border-gray-700">
                             <th class="py-2 px-2">Contract</th>
                             <th class="py-2 px-2">Type</th>
                             <th class="py-2 px-2">Description</th>
