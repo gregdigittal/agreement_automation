@@ -4,10 +4,12 @@ use App\Livewire\AgreementTree;
 use App\Models\Contract;
 use App\Models\Counterparty;
 use App\Models\Entity;
+use App\Models\EntityJurisdiction;
 use App\Models\Jurisdiction;
 use App\Models\Project;
 use App\Models\Region;
 use App\Models\User;
+use Filament\Facades\Filament;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -155,4 +157,130 @@ it('shows correct count badges', function () {
     expect($entityNode['executed_count'])->toBe($executedContracts);
     expect($entityNode['active_count'])->toBe($inReviewContracts);
     expect($entityNode['total_count'])->toBe($draftContracts + $executedContracts + $inReviewContracts);
+});
+
+it('loads contracts when node is expanded', function () {
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+
+    $contract = Contract::create([
+        'region_id' => $this->region->id,
+        'entity_id' => $this->entity->id,
+        'project_id' => $this->project->id,
+        'counterparty_id' => $this->counterparty->id,
+        'contract_type' => 'Commercial',
+        'title' => 'Loadable Contract',
+        'workflow_state' => 'draft',
+    ]);
+
+    $component = Livewire::test(AgreementTree::class)
+        ->call('toggleNode', 'entity_' . $this->entity->id)
+        ->call('loadContracts', 'entity', $this->entity->id);
+
+    $loaded = $component->get('loadedContracts');
+    $nodeKey = 'entity_' . $this->entity->id;
+
+    expect($loaded)->toHaveKey($nodeKey);
+    expect($loaded[$nodeKey]['contracts'])->toHaveCount(1);
+    expect($loaded[$nodeKey]['contracts'][0]['title'])->toBe('Loadable Contract');
+    expect($loaded[$nodeKey]['total'])->toBe(1);
+    expect($loaded[$nodeKey]['showing'])->toBe(1);
+});
+
+it('filters by status', function () {
+    Contract::create([
+        'region_id' => $this->region->id,
+        'entity_id' => $this->entity->id,
+        'project_id' => $this->project->id,
+        'counterparty_id' => $this->counterparty->id,
+        'contract_type' => 'Commercial',
+        'title' => 'Draft Contract',
+        'workflow_state' => 'draft',
+    ]);
+    Contract::create([
+        'region_id' => $this->region->id,
+        'entity_id' => $this->entity->id,
+        'project_id' => $this->project->id,
+        'counterparty_id' => $this->counterparty->id,
+        'contract_type' => 'Commercial',
+        'title' => 'Executed Contract',
+        'workflow_state' => 'executed',
+    ]);
+
+    $component = Livewire::test(AgreementTree::class)
+        ->set('statusFilter', 'draft');
+
+    $treeData = $component->viewData('treeData');
+
+    $entityNode = collect($treeData)->firstWhere('name', 'Test Entity');
+    expect($entityNode)->not->toBeNull();
+
+    // Per-state counts remain unfiltered
+    expect($entityNode['draft_count'])->toBe(1);
+    expect($entityNode['executed_count'])->toBe(1);
+    // Total count is filtered to only 'draft'
+    expect($entityNode['total_count'])->toBe(1);
+});
+
+it('groups by jurisdiction', function () {
+    $jurisdiction = Jurisdiction::create([
+        'name' => 'Test Jurisdiction',
+        'country_code' => 'TJ',
+        'is_active' => true,
+    ]);
+
+    EntityJurisdiction::create([
+        'entity_id' => $this->entity->id,
+        'jurisdiction_id' => $jurisdiction->id,
+        'license_number' => 'LIC-001',
+        'is_primary' => true,
+    ]);
+
+    Contract::create([
+        'region_id' => $this->region->id,
+        'entity_id' => $this->entity->id,
+        'project_id' => $this->project->id,
+        'counterparty_id' => $this->counterparty->id,
+        'contract_type' => 'Commercial',
+        'title' => 'Jurisdiction Contract',
+        'workflow_state' => 'draft',
+    ]);
+
+    $component = Livewire::test(AgreementTree::class)
+        ->call('setGroupBy', 'jurisdiction');
+
+    $treeData = $component->viewData('treeData');
+
+    expect($treeData)->toBeArray();
+    $jurisdictionNode = collect($treeData)->firstWhere('name', 'Test Jurisdiction');
+    expect($jurisdictionNode)->not->toBeNull();
+    expect($jurisdictionNode['type'])->toBe('jurisdiction');
+    expect($jurisdictionNode['total_count'])->toBe(1);
+    expect($jurisdictionNode['children'])->toHaveCount(1);
+    expect($jurisdictionNode['children'][0]['name'])->toBe('Test Entity');
+});
+
+it('groups by project', function () {
+    Contract::create([
+        'region_id' => $this->region->id,
+        'entity_id' => $this->entity->id,
+        'project_id' => $this->project->id,
+        'counterparty_id' => $this->counterparty->id,
+        'contract_type' => 'Commercial',
+        'title' => 'Project Contract',
+        'workflow_state' => 'draft',
+    ]);
+
+    $component = Livewire::test(AgreementTree::class)
+        ->call('setGroupBy', 'project');
+
+    $component->assertSet('groupBy', 'project');
+
+    $treeData = $component->viewData('treeData');
+
+    expect($treeData)->toBeArray();
+    $projectNode = collect($treeData)->firstWhere('name', 'Test Project');
+    expect($projectNode)->not->toBeNull();
+    expect($projectNode['type'])->toBe('project');
+    expect($projectNode['total_count'])->toBe(1);
+    expect($projectNode['entity_name'])->toBe('Test Entity');
 });
