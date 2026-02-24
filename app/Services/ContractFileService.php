@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Helpers\StorageHelper;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ContractFileService
 {
@@ -18,14 +19,16 @@ class ContractFileService
         if (!in_array($file->getMimeType(), self::ALLOWED_MIMES, true)) {
             throw new \InvalidArgumentException('File must be PDF or DOCX');
         }
+        $originalName = $file->getClientOriginalName();
+        $safeName = Str::uuid() . '.' . $file->getClientOriginalExtension();
         $path = Storage::disk($disk)->putFileAs(
             "contracts/{$contractId}",
             $file,
-            $file->getClientOriginalName()
+            $safeName
         );
         return [
             'storage_path' => $path,
-            'file_name' => $file->getClientOriginalName(),
+            'file_name' => $originalName,
         ];
     }
 

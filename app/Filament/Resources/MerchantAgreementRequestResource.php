@@ -10,6 +10,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 class MerchantAgreementRequestResource extends Resource
 {
@@ -71,6 +72,21 @@ class MerchantAgreementRequestResource extends Resource
                     }
                 }),
         ]);
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->hasAnyRole(['system_admin', 'legal', 'commercial']) ?? false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return auth()->user()?->hasAnyRole(['system_admin', 'legal']) ?? false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return auth()->user()?->hasRole('system_admin') ?? false;
     }
 
     public static function getPages(): array

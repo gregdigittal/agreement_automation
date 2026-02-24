@@ -47,12 +47,12 @@ class ProcessComplianceCheck implements ShouldQueue
             ],
         ];
 
-        $aiWorkerUrl = config('services.ai_worker.url', 'http://ai-worker:8001');
-        $aiWorkerSecret = config('services.ai_worker.secret');
+        $aiWorkerUrl = config('ccrs.ai_worker_url', 'http://ai-worker:8001');
+        $aiWorkerSecret = config('ccrs.ai_worker_secret');
 
         $response = Http::timeout(280)
             ->withHeaders([
-                'Authorization' => "Bearer {$aiWorkerSecret}",
+                'X-AI-Worker-Secret' => $aiWorkerSecret,
                 'Content-Type' => 'application/json',
             ])
             ->post("{$aiWorkerUrl}/check-compliance", $payload);

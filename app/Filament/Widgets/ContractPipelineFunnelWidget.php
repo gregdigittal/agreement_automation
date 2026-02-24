@@ -14,7 +14,7 @@ class ContractPipelineFunnelWidget extends ChartWidget
 
     protected function getData(): array
     {
-        $stages = ['draft', 'in_review', 'pending_approval', 'signing', 'executed', 'archived'];
+        $stages = ['draft', 'review', 'approval', 'signing', 'countersign', 'executed', 'archived'];
 
         $counts = [];
         foreach ($stages as $stage) {

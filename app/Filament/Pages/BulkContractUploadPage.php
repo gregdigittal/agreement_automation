@@ -86,7 +86,10 @@ class BulkContractUploadPage extends Page implements HasForms
             $zip = new \ZipArchive();
             if ($zip->open($zipPath) === true) {
                 for ($i = 0; $i < $zip->numFiles; $i++) {
-                    $filename = $zip->getNameIndex($i);
+                    $filename = basename($zip->getNameIndex($i));
+                    if (empty($filename) || $filename === '.' || $filename === '..') {
+                        continue;
+                    }
                     $contents = $zip->getFromIndex($i);
                     Storage::disk('s3')->put('bulk_uploads/files/' . $filename, $contents);
                 }

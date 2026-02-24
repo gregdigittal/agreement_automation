@@ -9,6 +9,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 class SigningAuthorityResource extends Resource
 {
@@ -37,6 +38,21 @@ class SigningAuthorityResource extends Resource
             Tables\Columns\TextColumn::make('project.name')->sortable(),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
         ])->actions([Tables\Actions\EditAction::make()]);
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->hasRole('system_admin') ?? false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return auth()->user()?->hasRole('system_admin') ?? false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return auth()->user()?->hasRole('system_admin') ?? false;
     }
 
     public static function getPages(): array

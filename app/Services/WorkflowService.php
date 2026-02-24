@@ -61,34 +61,36 @@ class WorkflowService
         }
         $currentIndex = collect($stages)->search(fn ($s) => ($s['name'] ?? '') === $instance->current_stage);
 
-        $stageAction = WorkflowStageAction::create([
-            'instance_id' => $instance->id,
-            'stage_name' => $stageName,
-            'action' => $action,
-            'actor_id' => $actor->id,
-            'actor_email' => $actor->email,
-            'comment' => $comment,
-            'artifacts' => $artifacts,
-            'created_at' => now(),
-        ]);
+        return DB::transaction(function () use ($instance, $stageName, $action, $actor, $comment, $artifacts, $stages, $currentIndex) {
+            $stageAction = WorkflowStageAction::create([
+                'instance_id' => $instance->id,
+                'stage_name' => $stageName,
+                'action' => $action,
+                'actor_id' => $actor->id,
+                'actor_email' => $actor->email,
+                'comment' => $comment,
+                'artifacts' => $artifacts,
+                'created_at' => now(),
+            ]);
 
-        $nextStage = $this->resolveNextStage($stages, $currentIndex, $action);
+            $nextStage = $this->resolveNextStage($stages, $currentIndex, $action);
 
-        if ($nextStage === null && $action === 'approve') {
-            $instance->update(['state' => 'completed', 'completed_at' => now()]);
-            $instance->contract->update(['workflow_state' => 'completed']);
-            app(\App\Services\VendorNotificationService::class)->notifyContractStatusChange($instance->contract, 'executed');
-        } elseif ($nextStage !== null) {
-            $instance->update(['current_stage' => $nextStage]);
-            $instance->contract->update(['workflow_state' => $nextStage]);
-            if (in_array($nextStage, ['signing', 'countersign', 'executed'])) {
-                app(\App\Services\VendorNotificationService::class)->notifyContractStatusChange($instance->contract, $nextStage);
+            if ($nextStage === null && $action === 'approve') {
+                $instance->update(['state' => 'completed', 'completed_at' => now()]);
+                $instance->contract->update(['workflow_state' => 'completed']);
+                app(\App\Services\VendorNotificationService::class)->notifyContractStatusChange($instance->contract, 'executed');
+            } elseif ($nextStage !== null) {
+                $instance->update(['current_stage' => $nextStage]);
+                $instance->contract->update(['workflow_state' => $nextStage]);
+                if (in_array($nextStage, ['signing', 'countersign', 'executed'])) {
+                    app(\App\Services\VendorNotificationService::class)->notifyContractStatusChange($instance->contract, $nextStage);
+                }
             }
-        }
 
-        AuditService::log("workflow_stage.{$action}", 'workflow_instance', $instance->id, ['stage' => $stageName], $actor);
+            AuditService::log("workflow_stage.{$action}", 'workflow_instance', $instance->id, ['stage' => $stageName], $actor);
 
-        return $stageAction;
+            return $stageAction;
+        });
     }
 
     public function getActiveInstance(string $contractId): ?WorkflowInstance

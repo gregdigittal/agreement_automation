@@ -11,6 +11,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class MerchantAgreementResource extends Resource
 {
@@ -95,6 +96,21 @@ class MerchantAgreementResource extends Resource
                     \Filament\Notifications\Notification::make()->title('DOCX generated')->success()->send();
                 }),
         ]);
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->hasAnyRole(['system_admin', 'legal', 'commercial']) ?? false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return auth()->user()?->hasAnyRole(['system_admin', 'legal']) ?? false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return auth()->user()?->hasRole('system_admin') ?? false;
     }
 
     public static function getPages(): array

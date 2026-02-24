@@ -14,6 +14,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class CounterpartyResource extends Resource
 {
@@ -105,6 +106,10 @@ class CounterpartyResource extends Resource
                 ->icon('heroicon-o-arrow-path-rounded-square')
                 ->color('danger')
                 ->visible(fn (): bool => auth()->user()?->hasRole('system_admin') ?? false)
+                ->requiresConfirmation()
+                ->modalHeading('Merge Counterparty')
+                ->modalDescription('This will move all contracts from this counterparty to the target and mark this counterparty as Merged. This action cannot be undone.')
+                ->modalSubmitActionLabel('Yes, merge')
                 ->form(fn (Counterparty $record) => [
                     Forms\Components\Select::make('target_counterparty_id')
                         ->label('Target counterparty')
@@ -123,6 +128,7 @@ class CounterpartyResource extends Resource
                             'merged_by_email' => auth()->user()?->email,
                             'created_at' => now(),
                         ]);
+                        $record->update(['status' => 'Merged']);
                     });
                     \Filament\Notifications\Notification::make()->title('Counterparties merged')->success()->send();
                 }),
@@ -135,6 +141,21 @@ class CounterpartyResource extends Resource
             ContactsRelationManager::class,
             VendorDocumentsRelationManager::class,
         ];
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->hasAnyRole(['system_admin', 'legal', 'commercial']) ?? false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return auth()->user()?->hasAnyRole(['system_admin', 'legal', 'commercial']) ?? false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return auth()->user()?->hasRole('system_admin') ?? false;
     }
 
     public static function getPages(): array

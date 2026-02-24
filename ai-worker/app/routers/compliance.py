@@ -27,7 +27,7 @@ class ComplianceFramework(BaseModel):
 
 
 class ComplianceCheckRequest(BaseModel):
-    contract_text: str
+    contract_text: str = Field(max_length=500_000)  # ~500K chars max
     contract_id: str
     framework: ComplianceFramework
 
@@ -143,7 +143,7 @@ async def check_compliance(request: ComplianceCheckRequest):
 
     except json.JSONDecodeError as e:
         logger.error("compliance_check_json_parse_error", error=str(e), contract_id=request.contract_id)
-        raise HTTPException(status_code=500, detail=f"Failed to parse AI response: {e}")
+        raise HTTPException(status_code=500, detail="Failed to parse AI response. See AI worker logs for details.")
     except Exception as e:
         logger.error("compliance_check_failed", error=str(e), contract_id=request.contract_id)
-        raise HTTPException(status_code=500, detail=f"Compliance check failed: {e}")
+        raise HTTPException(status_code=500, detail="Compliance check failed. See AI worker logs for details.")

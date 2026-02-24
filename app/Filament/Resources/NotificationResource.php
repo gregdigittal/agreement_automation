@@ -9,6 +9,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 class NotificationResource extends Resource
 {
@@ -46,6 +47,21 @@ class NotificationResource extends Resource
         ])
         ->defaultSort('created_at', 'desc')
         ->actions([Tables\Actions\EditAction::make()]);
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->hasRole('system_admin') ?? false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return auth()->user()?->hasRole('system_admin') ?? false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return auth()->user()?->hasRole('system_admin') ?? false;
     }
 
     public static function getPages(): array

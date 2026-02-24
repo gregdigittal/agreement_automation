@@ -91,8 +91,8 @@ class GenerateWeeklyReport implements ShouldQueue
                 ->where('status', '!=', 'completed')
                 ->count(),
 
-            'open_escalations' => DB::table('escalations')
-                ->where('status', 'open')
+            'open_escalations' => DB::table('escalation_events')
+                ->whereNull('resolved_at')
                 ->count(),
 
             'compliance_issues' => config('features.regulatory_compliance', false)

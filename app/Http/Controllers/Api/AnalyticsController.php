@@ -142,8 +142,8 @@ class AnalyticsController extends Controller
         $dailyUsage = DB::table('ai_analysis_results')
             ->select(
                 DB::raw('DATE(created_at) as day'),
-                DB::raw('SUM(JSON_UNQUOTE(JSON_EXTRACT(result, "$.usage.input_tokens"))) as input_tokens'),
-                DB::raw('SUM(JSON_UNQUOTE(JSON_EXTRACT(result, "$.usage.output_tokens"))) as output_tokens'),
+                DB::raw('SUM(COALESCE(token_usage_input, 0)) as input_tokens'),
+                DB::raw('SUM(COALESCE(token_usage_output, 0)) as output_tokens'),
                 DB::raw('COUNT(*) as analysis_count')
             )
             ->where('created_at', '>=', now()->subDays(30))
@@ -172,19 +172,19 @@ class AnalyticsController extends Controller
 
     public function workflowPerformance(): JsonResponse
     {
+        // workflow_stage_actions only has created_at — calculate per-stage action counts
+        // and average time between consecutive stage actions on the same workflow instance
         $metrics = DB::table('workflow_stage_actions')
             ->select(
                 'stage_name',
-                DB::raw('AVG(TIMESTAMPDIFF(HOUR, created_at, completed_at)) as avg_hours'),
-                DB::raw('MAX(TIMESTAMPDIFF(HOUR, created_at, completed_at)) as max_hours'),
-                DB::raw('MIN(TIMESTAMPDIFF(HOUR, created_at, completed_at)) as min_hours'),
                 DB::raw('COUNT(*) as total_actions'),
-                DB::raw('SUM(CASE WHEN completed_at > sla_deadline THEN 1 ELSE 0 END) as sla_breaches')
+                DB::raw("SUM(CASE WHEN action = 'approve' THEN 1 ELSE 0 END) as approvals"),
+                DB::raw("SUM(CASE WHEN action = 'reject' THEN 1 ELSE 0 END) as rejections"),
+                DB::raw("SUM(CASE WHEN action = 'rework' THEN 1 ELSE 0 END) as reworks")
             )
-            ->whereNotNull('completed_at')
             ->where('created_at', '>=', now()->subDays(90))
             ->groupBy('stage_name')
-            ->orderByRaw('AVG(TIMESTAMPDIFF(HOUR, created_at, completed_at)) DESC')
+            ->orderByDesc('total_actions')
             ->get();
 
         return response()->json(['data' => $metrics]);

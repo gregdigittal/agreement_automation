@@ -11,10 +11,7 @@ return new class extends Migration
         Schema::table('contracts', function (Blueprint $table) {
             $table->index(['workflow_state', 'created_at']);
             $table->index(['counterparty_id', 'workflow_state']);
-            $table->index(['region_id', 'entity_id', 'project_id']);
-            if (Schema::getConnection()->getDriverName() !== 'sqlite') {
-                $table->fullText(['title']);
-            }
+            // Note: ['region_id', 'entity_id', 'project_id'] index already exists in create_contracts migration
         });
 
         Schema::table('audit_log', function (Blueprint $table) {
@@ -32,10 +29,6 @@ return new class extends Migration
         Schema::table('contracts', function (Blueprint $table) {
             $table->dropIndex(['workflow_state', 'created_at']);
             $table->dropIndex(['counterparty_id', 'workflow_state']);
-            $table->dropIndex(['region_id', 'entity_id', 'project_id']);
-            if (Schema::getConnection()->getDriverName() !== 'sqlite') {
-                $table->dropFullText(['title']);
-            }
         });
         Schema::table('audit_log', function (Blueprint $table) {
             $table->dropIndex(['actor_id', 'at']);

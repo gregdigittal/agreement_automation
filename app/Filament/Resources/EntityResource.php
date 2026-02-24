@@ -9,6 +9,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 class EntityResource extends Resource
 {
@@ -34,6 +35,21 @@ class EntityResource extends Resource
             Tables\Columns\TextColumn::make('region.name')->sortable(),
             Tables\Columns\TextColumn::make('projects_count')->counts('projects')->label('Projects'),
         ])->actions([Tables\Actions\EditAction::make()]);
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->hasRole('system_admin') ?? false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return auth()->user()?->hasRole('system_admin') ?? false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return auth()->user()?->hasRole('system_admin') ?? false;
     }
 
     public static function getPages(): array

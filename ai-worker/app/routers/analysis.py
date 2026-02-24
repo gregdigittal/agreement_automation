@@ -1,7 +1,7 @@
 import base64
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.deps import get_db
@@ -18,8 +18,8 @@ router = APIRouter(dependencies=[Depends(verify_ai_worker_secret)])
 class AnalyzeRequest(BaseModel):
     contract_id: str
     analysis_type: str  # summary | extraction | risk | deviation | obligations
-    file_content_base64: str
-    file_name: str
+    file_content_base64: str = Field(max_length=20_000_000)  # ~15MB decoded
+    file_name: str = Field(max_length=500)
     context: dict = {}  # optional: region_id, entity_id, counterparty_id for mcp_tools
 
 
@@ -76,7 +76,7 @@ async def analyze(req: AnalyzeRequest, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         logger.error("analyze_failed", contract_id=req.contract_id, analysis_type=req.analysis_type, error=str(e))
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Analysis failed. See AI worker logs for details.")
 
 
 @router.post("/generate-workflow")
@@ -92,7 +92,7 @@ async def generate_workflow_endpoint(req: GenerateWorkflowRequest):
         return result
     except Exception as e:
         logger.error("generate_workflow_failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Workflow generation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Workflow generation failed. See AI worker logs for details.")
 
 
 def _extract_text(file_bytes: bytes, file_name: str) -> str:

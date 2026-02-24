@@ -17,7 +17,8 @@ Route::get('/health/ready', function () {
         \Illuminate\Support\Facades\Redis::connection()->ping();
         return response()->json(['status' => 'ready']);
     } catch (\Throwable $e) {
-        return response()->json(['status' => 'not_ready', 'error' => $e->getMessage()], 503);
+        \Illuminate\Support\Facades\Log::warning('Health readiness check failed', ['error' => $e->getMessage()]);
+        return response()->json(['status' => 'not_ready'], 503);
     }
 })->name('health.ready');
 

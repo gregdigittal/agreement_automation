@@ -16,8 +16,8 @@ class AiUsageCostWidget extends ChartWidget
         $results = DB::table('ai_analysis_results')
             ->select(
                 DB::raw('DATE(created_at) as day'),
-                DB::raw('SUM(JSON_UNQUOTE(JSON_EXTRACT(result, "$.usage.input_tokens"))) as input_tokens'),
-                DB::raw('SUM(JSON_UNQUOTE(JSON_EXTRACT(result, "$.usage.output_tokens"))) as output_tokens'),
+                DB::raw('SUM(COALESCE(token_usage_input, 0)) as input_tokens'),
+                DB::raw('SUM(COALESCE(token_usage_output, 0)) as output_tokens'),
                 DB::raw('COUNT(*) as analysis_count')
             )
             ->where('created_at', '>=', now()->subDays(30))

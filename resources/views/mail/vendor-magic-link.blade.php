@@ -3,7 +3,7 @@
 
 Dear {{ $vendorName }},
 
-Click the button below to log in to your CCRS Vendor Portal. This link expires in 48 hours.
+Click the button below to log in to your CCRS Vendor Portal. This link expires in 15 minutes.
 
 <x-mail::button :url="$link">Log In to Portal</x-mail::button>
 
