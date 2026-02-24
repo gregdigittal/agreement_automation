@@ -29,7 +29,7 @@ class ContractFileService
         ];
     }
 
-    public function getSignedUrl(string $storagePath, int $minutes = 60): string
+    public function getSignedUrl(string $storagePath): string
     {
         return StorageHelper::temporaryUrl($storagePath, 'download');
     }

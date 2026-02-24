@@ -29,6 +29,12 @@ spec:
             limits:
               cpu: "500m"
               memory: "256Mi"
+          livenessProbe:
+            exec:
+              command: ["php", "artisan", "queue:health"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
           envFrom:
             - secretRef:
                 name: ccrs-secrets
