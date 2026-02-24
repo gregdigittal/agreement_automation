@@ -13,4 +13,9 @@ class Feature
     {
         return ! static::enabled($feature);
     }
+
+    public static function inHouseSigning(): bool
+    {
+        return (bool) config('ccrs.in_house_signing');
+    }
 }
