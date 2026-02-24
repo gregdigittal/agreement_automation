@@ -7,14 +7,13 @@ use App\Http\Controllers\Auth\AzureAdController;
 
 // Kubernetes liveness probe — returns 200 if app is running
 Route::get('/health', function () {
-    return response()->json(['status' => 'ok', 'timestamp' => now()->toIso8601String()]);
+    return response('ok', 200);
 })->name('health');
 
-// Kubernetes readiness probe — returns 200 only if DB and Redis are reachable
+// Kubernetes readiness probe — returns 200 only if DB is reachable
 Route::get('/health/ready', function () {
     try {
         \Illuminate\Support\Facades\DB::connection()->getPdo();
-        \Illuminate\Support\Facades\Redis::connection()->ping();
         return response()->json(['status' => 'ready']);
     } catch (\Throwable $e) {
         \Illuminate\Support\Facades\Log::warning('Health readiness check failed', ['error' => $e->getMessage()]);
