@@ -13,6 +13,14 @@ class AnalyticsController extends Controller
 {
     public function pipeline(Request $request): JsonResponse
     {
+        $request->validate([
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
+            'region_id' => 'nullable|string|max:36',
+            'entity_id' => 'nullable|string|max:36',
+            'contract_type' => 'nullable|string|max:50',
+        ]);
+
         $query = Contract::query();
 
         if ($request->filled('date_from')) {
@@ -93,6 +101,13 @@ class AnalyticsController extends Controller
 
     public function obligationsTimeline(Request $request): JsonResponse
     {
+        $request->validate([
+            'obligation_type' => 'nullable|string|max:50',
+            'status' => 'nullable|string|max:30',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
+        ]);
+
         $query = DB::table('obligations_register')
             ->join('contracts', 'obligations_register.contract_id', '=', 'contracts.id')
             ->select(

@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -66,25 +67,27 @@ class ProcessComplianceCheck implements ShouldQueue
 
         $data = $response->json();
 
-        // Re-check replaces previous results
-        ComplianceFinding::where('contract_id', $this->contract->id)
-            ->where('framework_id', $this->framework->id)
-            ->delete();
+        // Re-check replaces previous results — wrapped in transaction for atomicity
+        DB::transaction(function () use ($data) {
+            ComplianceFinding::where('contract_id', $this->contract->id)
+                ->where('framework_id', $this->framework->id)
+                ->delete();
 
-        foreach ($data['findings'] ?? [] as $finding) {
-            ComplianceFinding::create([
-                'id' => Str::uuid()->toString(),
-                'contract_id' => $this->contract->id,
-                'framework_id' => $this->framework->id,
-                'requirement_id' => $finding['requirement_id'],
-                'requirement_text' => $this->getRequirementText($finding['requirement_id']),
-                'status' => $finding['status'] ?? 'unclear',
-                'evidence_clause' => $finding['evidence_clause'] ?? null,
-                'evidence_page' => $finding['evidence_page'] ?? null,
-                'ai_rationale' => $finding['rationale'] ?? null,
-                'confidence' => $finding['confidence'] ?? null,
-            ]);
-        }
+            foreach ($data['findings'] ?? [] as $finding) {
+                ComplianceFinding::create([
+                    'id' => Str::uuid()->toString(),
+                    'contract_id' => $this->contract->id,
+                    'framework_id' => $this->framework->id,
+                    'requirement_id' => $finding['requirement_id'],
+                    'requirement_text' => $this->getRequirementText($finding['requirement_id']),
+                    'status' => $finding['status'] ?? 'unclear',
+                    'evidence_clause' => $finding['evidence_clause'] ?? null,
+                    'evidence_page' => $finding['evidence_page'] ?? null,
+                    'ai_rationale' => $finding['rationale'] ?? null,
+                    'confidence' => $finding['confidence'] ?? null,
+                ]);
+            }
+        });
 
         Log::info("Compliance check completed for contract {$this->contract->id} against framework {$this->framework->framework_name}", [
             'findings_count' => count($data['findings'] ?? []),

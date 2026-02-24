@@ -56,4 +56,25 @@ class ContractPipelineFunnelWidget extends ChartWidget
             ],
         ];
     }
+
+    protected function getExtraBodyAttributes(): array
+    {
+        return [
+            'role' => 'img',
+            'aria-label' => $this->getAccessibleDescription(),
+        ];
+    }
+
+    protected function getAccessibleDescription(): string
+    {
+        $data = $this->getData();
+        $labels = $data['labels'] ?? [];
+        $values = $data['datasets'][0]['data'] ?? [];
+        $parts = [];
+        foreach ($labels as $i => $label) {
+            $parts[] = "{$label}: " . ($values[$i] ?? 0);
+        }
+
+        return $this->getHeading() . '. ' . implode(', ', $parts) . '.';
+    }
 }

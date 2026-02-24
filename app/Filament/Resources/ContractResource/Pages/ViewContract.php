@@ -4,6 +4,7 @@ namespace App\Filament\Resources\ContractResource\Pages;
 
 use App\Filament\Resources\ContractResource;
 use App\Models\Contract;
+use App\Services\RegulatoryComplianceService;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Infolists\Infolist;
 use Filament\Infolists\Components;
@@ -52,6 +53,35 @@ class ViewContract extends ViewRecord
                             ->label("Version"),
                     ])
                     ->columns(2),
+                Components\Section::make('Compliance Overview')
+                    ->visible(fn (Contract $record): bool => config('features.regulatory_compliance', false)
+                        && $record->complianceFindings()->exists())
+                    ->schema(function (Contract $record): array {
+                        $scores = app(RegulatoryComplianceService::class)->getScoreSummary($record);
+                        $entries = [];
+                        foreach ($scores as $frameworkId => $score) {
+                            $framework = \App\Models\RegulatoryFramework::find($frameworkId);
+                            $name = $framework?->framework_name ?? $frameworkId;
+                            $label = "{$score['score']}% compliant ({$score['compliant']}/{$score['total']}"
+                                . " — {$score['non_compliant']} non-compliant, {$score['unclear']} unclear)";
+                            $color = match (true) {
+                                $score['score'] >= 80.0 => 'success',
+                                $score['score'] >= 50.0 => 'warning',
+                                default => 'danger',
+                            };
+                            $entries[] = Components\TextEntry::make("compliance_score_{$frameworkId}")
+                                ->label($name)
+                                ->state($label)
+                                ->badge()
+                                ->color($color);
+                        }
+                        return $entries ?: [
+                            Components\TextEntry::make('no_compliance_scores')
+                                ->label('')
+                                ->state('No compliance data available'),
+                        ];
+                    })
+                    ->columnSpanFull(),
             ]);
     }
 }

@@ -1,5 +1,5 @@
 import json
-from typing import Optional
+from typing import Literal, Optional
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
@@ -34,7 +34,7 @@ class ComplianceCheckRequest(BaseModel):
 
 class ComplianceFindingResult(BaseModel):
     requirement_id: str
-    status: str = Field(description="One of: compliant, non_compliant, unclear, not_applicable")
+    status: Literal["compliant", "non_compliant", "unclear", "not_applicable"] = "unclear"
     evidence_clause: Optional[str] = None
     evidence_page: Optional[int] = None
     rationale: str
@@ -94,7 +94,7 @@ async def check_compliance(request: ComplianceCheckRequest):
 
     try:
         response = client.messages.create(
-            model="claude-sonnet-4-6",
+            model=settings.ai_model,
             max_tokens=4096,
             system=system_prompt,
             messages=[{"role": "user", "content": user_prompt}],
@@ -124,7 +124,7 @@ async def check_compliance(request: ComplianceCheckRequest):
         usage = {
             "input_tokens": response.usage.input_tokens,
             "output_tokens": response.usage.output_tokens,
-            "model": "claude-sonnet-4-6",
+            "model": settings.ai_model,
             "analysis_type": "compliance_check",
         }
         logger.info(
