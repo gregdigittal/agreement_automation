@@ -36,6 +36,7 @@ class Contract extends Model
     public function merchantAgreementInputs(): HasMany { return $this->hasMany(MerchantAgreementInput::class); }
     public function redlineSessions(): HasMany { return $this->hasMany(RedlineSession::class); }
     public function complianceFindings(): HasMany { return $this->hasMany(ComplianceFinding::class); }
+    public function kycPack(): \Illuminate\Database\Eloquent\Relations\HasOne { return $this->hasOne(KycPack::class); }
 
     public function toSearchableArray(): array
     {
