@@ -12,7 +12,6 @@ use App\Models\SigningSessionSigner;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class SigningService
 {
@@ -66,19 +65,23 @@ class SigningService
 
     /**
      * Send the signing invitation to a signer.
+     *
+     * @return string The raw (unhashed) token for URL construction
      */
-    public function sendToSigner(SigningSessionSigner $signer): void
+    public function sendToSigner(SigningSessionSigner $signer): string
     {
-        $token = Str::random(64);
+        // Generate a CSPRNG token; store only the SHA-256 hash in the DB.
+        // The raw token is sent to the signer via email for URL construction.
+        $rawToken = bin2hex(random_bytes(32));
 
         $signer->update([
-            'token' => $token,
+            'token' => hash('sha256', $rawToken),
             'token_expires_at' => now()->addDays(7),
             'status' => 'sent',
             'sent_at' => now(),
         ]);
 
-        Mail::to($signer->signer_email)->send(new SigningInvitation($signer));
+        Mail::to($signer->signer_email)->send(new SigningInvitation($signer, $rawToken));
 
         SigningAuditLog::create([
             'signing_session_id' => $signer->signing_session_id,
@@ -92,6 +95,8 @@ class SigningService
             'user_agent' => request()->userAgent(),
             'created_at' => now(),
         ]);
+
+        return $rawToken;
     }
 
     /**
@@ -101,7 +106,9 @@ class SigningService
      */
     public function validateToken(string $token): SigningSessionSigner
     {
-        $signer = SigningSessionSigner::where('token', $token)->first();
+        // Hash the inbound token before querying — only the hash is stored in the DB (C1).
+        $hashedToken = hash('sha256', $token);
+        $signer = SigningSessionSigner::where('token', $hashedToken)->first();
 
         if (!$signer) {
             throw new \RuntimeException('Invalid signing token.');
@@ -111,9 +118,23 @@ class SigningService
             throw new \RuntimeException('This signing link has expired.');
         }
 
+        // I1: Guard against re-signing or re-declining
+        if ($signer->status === 'signed') {
+            throw new \RuntimeException('You have already signed this document.');
+        }
+        if ($signer->status === 'declined') {
+            throw new \RuntimeException('You have declined to sign this document.');
+        }
+
         $session = $signer->session;
         if (!$session || $session->status !== 'active') {
             throw new \RuntimeException('This signing session is no longer active.');
+        }
+
+        // I3: Enforce session-level expires_at
+        if ($session->expires_at && $session->expires_at->isPast()) {
+            $session->update(['status' => 'expired']);
+            throw new \RuntimeException('This signing session has expired.');
         }
 
         // Record first view
@@ -141,8 +162,17 @@ class SigningService
      */
     public function captureSignature(SigningSessionSigner $signer, array $fieldValues, string $signatureImageBase64): void
     {
-        // Decode and store signature image to S3
-        $imageData = base64_decode($signatureImageBase64);
+        // C4: Validate base64 input is a real image before storing
+        $imageData = base64_decode($signatureImageBase64, true);
+        if ($imageData === false) {
+            throw new \InvalidArgumentException('Invalid base64 signature data.');
+        }
+        $imageInfo = @getimagesizefromstring($imageData);
+        if ($imageInfo === false || !in_array($imageInfo['mime'], ['image/png', 'image/jpeg'])) {
+            throw new \InvalidArgumentException('Signature must be a valid PNG or JPEG image.');
+        }
+
+        // Store signature image
         $path = "signing/{$signer->signing_session_id}/{$signer->id}.png";
         $disk = config('ccrs.contracts_disk', 's3');
         Storage::disk($disk)->put($path, $imageData);
@@ -279,32 +309,35 @@ class SigningService
             ->get($finalStoragePath);
         $finalHash = $pdfService->computeHash($finalContent);
 
-        // --- 4. Update session with final artefacts ---------------------------
-        $session->update([
-            'status' => 'completed',
-            'completed_at' => now(),
-            'final_storage_path' => $finalStoragePath,
-            'final_document_hash' => $finalHash,
-        ]);
-
-        // Update contract signing status
-        $session->contract->update(['signing_status' => 'signed']);
-
-        SigningAuditLog::create([
-            'signing_session_id' => $session->id,
-            'event' => 'completed',
-            'details' => [
-                'contract_id' => $session->contract_id,
-                'signer_count' => $session->signers->count(),
+        // I7: Wrap all DB updates in a transaction; email is sent AFTER commit
+        DB::transaction(function () use ($session, $finalStoragePath, $finalHash) {
+            // --- 4. Update session with final artefacts ---------------------------
+            $session->update([
+                'status' => 'completed',
+                'completed_at' => now(),
                 'final_storage_path' => $finalStoragePath,
                 'final_document_hash' => $finalHash,
-            ],
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-            'created_at' => now(),
-        ]);
+            ]);
 
-        // Send completion email to all signers and initiator
+            // Update contract signing status
+            $session->contract->update(['signing_status' => 'signed']);
+
+            SigningAuditLog::create([
+                'signing_session_id' => $session->id,
+                'event' => 'completed',
+                'details' => [
+                    'contract_id' => $session->contract_id,
+                    'signer_count' => $session->signers->count(),
+                    'final_storage_path' => $finalStoragePath,
+                    'final_document_hash' => $finalHash,
+                ],
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'created_at' => now(),
+            ]);
+        });
+
+        // Send completion email to all signers and initiator (after transaction commit)
         $session->load('initiator');
 
         foreach ($session->signers as $signer) {

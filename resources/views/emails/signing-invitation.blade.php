@@ -23,7 +23,7 @@
         </div>
 
         <div style="text-align: center; margin: 32px 0;">
-            <a href="{{ route('signing.show', $signer->token) }}"
+            <a href="{{ route('signing.show', $signingToken) }}"
                style="display: inline-block; background-color: #4f46e5; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-size: 16px; font-weight: 600;">
                 Review &amp; Sign Document
             </a>

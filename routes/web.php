@@ -69,10 +69,12 @@ Route::prefix('reports/export')->middleware('auth')->group(function () {
     Route::get('/obligations/excel', [ReportExportController::class, 'obligationsExcel'])->name('reports.export.obligations.excel');
 });
 
-// E-Signing (public, token-based auth)
-Route::prefix('sign')->group(function () {
+// E-Signing (public, token-based auth) — C2: throttled to prevent brute-force
+Route::prefix('sign')->middleware('throttle:signing')->group(function () {
     Route::get('/{token}', [\App\Http\Controllers\SigningController::class, 'show'])
         ->name('signing.show');
+    Route::get('/{token}/document', [\App\Http\Controllers\SigningController::class, 'document'])
+        ->name('signing.document');
     Route::post('/{token}/submit', [\App\Http\Controllers\SigningController::class, 'submit'])
         ->name('signing.submit');
     Route::post('/{token}/decline', [\App\Http\Controllers\SigningController::class, 'decline'])

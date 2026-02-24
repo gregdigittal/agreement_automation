@@ -17,7 +17,15 @@ class SigningSessionFactory extends Factory
             'contract_id' => Contract::factory(),
             'initiated_by' => User::factory(),
             'signing_order' => 'sequential',
-            'status' => 'draft',
+            'status' => 'active',
         ];
+    }
+
+    /**
+     * Indicate that the session is in draft status.
+     */
+    public function draft(): static
+    {
+        return $this->state(fn (array $attributes) => ['status' => 'draft']);
     }
 }

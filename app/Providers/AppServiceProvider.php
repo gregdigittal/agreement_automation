@@ -26,5 +26,9 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Support\Facades\RateLimiter::for('magic-link', function ($request) {
             return \Illuminate\Cache\RateLimiting\Limit::perMinute(5)->by($request->ip());
         });
+        // C2: Rate-limit public signing routes to prevent brute-force / spam
+        \Illuminate\Support\Facades\RateLimiter::for('signing', function ($request) {
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(10)->by($request->ip());
+        });
     }
 }
