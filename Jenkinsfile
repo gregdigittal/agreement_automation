@@ -9,7 +9,8 @@ pipeline {
         IMAGE_TAG      = "${IMAGE}:${BUILD_NUMBER}"
         IMAGE_LATEST   = "${IMAGE}:latest"
         NAMESPACE      = 'cco-sandbox'
-        DOMAIN         = "${APP_NAME}-sandbox.digittal.mobi"
+        DOMAIN         = 'ccrs-sandbox.digittal.mobi'
+        PMA_DOMAIN     = 'ccrs-pma-sandbox.digittal.mobi'
 
         // Cluster credentials
         KUBE_CREDENTIALS_ID = 'sandbox-kubeconfig'
@@ -57,12 +58,28 @@ pipeline {
                                 -n ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
                         """
 
+                        // Create app secrets (APP_KEY etc.)
+                        sh """
+                            kubectl create secret generic app-secrets \
+                                --from-literal=APP_KEY='base64:PCtuu05VVFmJFB11V8GhcxccRHw4268l9hv61XwTMo8=' \
+                                -n ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+                        """
+
+                        // Clean up any orphaned production-style resources from previous deploys
+                        sh """
+                            kubectl delete deployment ccrs-app -n ${NAMESPACE} --ignore-not-found=true
+                            kubectl delete service ccrs-app -n ${NAMESPACE} --ignore-not-found=true
+                            kubectl delete hpa ccrs-app -n ${NAMESPACE} --ignore-not-found=true
+                            kubectl delete pdb ccrs-app -n ${NAMESPACE} --ignore-not-found=true
+                        """
+
                         // Apply k8s manifests from the repo (deploy/k8s/ directory)
                         sh """
                             export APP_NAME="${APP_NAME}"
                             export IMAGE_TAG="${IMAGE_TAG}"
                             export NAMESPACE="${NAMESPACE}"
                             export DOMAIN="${DOMAIN}"
+                            export PMA_DOMAIN="${PMA_DOMAIN}"
 
                             # Process and apply each manifest template
                             for f in deploy/k8s/*.yaml; do
@@ -73,7 +90,7 @@ pipeline {
                         // Verify rollout
                         sh """
                             kubectl rollout status deployment/${APP_NAME} \
-                                -n ${NAMESPACE} --timeout=180s
+                                -n ${NAMESPACE} --timeout=300s
                         """
                     }
                 }
@@ -106,6 +123,20 @@ pipeline {
     post {
         success {
             echo "Deployed successfully: https://${DOMAIN}"
+            emailext(
+                subject: "DEPLOYED: ${APP_NAME} #${BUILD_NUMBER}",
+                body: """${APP_NAME} has been deployed successfully.
+
+App: https://${DOMAIN}
+phpMyAdmin: https://${PMA_DOMAIN}
+Build: ${BUILD_URL}
+Branch: ${env.BRANCH_NAME ?: 'main'}
+Commit: ${env.GIT_COMMIT?.take(8) ?: 'unknown'}
+
+This is an automated notification from Jenkins.""",
+                to: 'greg@digittal.io, mike@digittal.io',
+                from: 'support.system@icecash.co.zw'
+            )
         }
         failure {
             script {
@@ -117,9 +148,12 @@ pipeline {
                             echo "  DEBUG: Pod events and logs"
                             echo "========================================="
                             kubectl get events -n ${NAMESPACE} --sort-by='.lastTimestamp' | tail -20 || true
-                            echo "---"
+                            echo "--- Current container logs ---"
                             kubectl logs deployment/${APP_NAME} -c ${APP_NAME} \
                                 -n ${NAMESPACE} --tail=50 2>/dev/null || true
+                            echo "--- Previous container logs (crash reason) ---"
+                            kubectl logs deployment/${APP_NAME} -c ${APP_NAME} \
+                                -n ${NAMESPACE} --tail=50 --previous 2>/dev/null || true
                         """
                     }
                 } catch (e) {
@@ -127,6 +161,20 @@ pipeline {
                 }
                 echo "Build or deploy failed for ${APP_NAME}"
             }
+            emailext(
+                subject: "FAILED: ${APP_NAME} #${BUILD_NUMBER}",
+                body: """${APP_NAME} deployment FAILED.
+
+Build: ${BUILD_URL}
+Branch: ${env.BRANCH_NAME ?: 'main'}
+Commit: ${env.GIT_COMMIT?.take(8) ?: 'unknown'}
+
+Check the build console output for details: ${BUILD_URL}console
+
+This is an automated notification from Jenkins.""",
+                to: 'greg@digittal.io, mike@digittal.io',
+                from: 'support.system@icecash.co.zw'
+            )
         }
     }
 }

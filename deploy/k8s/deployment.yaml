@@ -1,65 +1,142 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ccrs-app
+  name: ${APP_NAME}
+  namespace: ${NAMESPACE}
   labels:
-    app: ccrs
-    component: app
+    app: ${APP_NAME}
+    project: cco-sandbox
 spec:
-  replicas: 2
+  replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
-      app: ccrs
-      component: app
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 0
-      maxSurge: 1
+      app: ${APP_NAME}
   template:
     metadata:
       labels:
-        app: ccrs
-        component: app
+        app: ${APP_NAME}
+        project: cco-sandbox
     spec:
-      terminationGracePeriodSeconds: 60
+      imagePullSecrets:
+        - name: dockerreg
+      securityContext:
+        runAsNonRoot: false
       containers:
-        - name: app
-          image: ${REGISTRY}/ccrs-app:${IMAGE_TAG}
+        # ---- Laravel + Filament app ----
+        - name: ${APP_NAME}
+          image: ${IMAGE_TAG}
           ports:
             - containerPort: 8080
+              name: http
+          env:
+            - name: APP_NAME
+              value: "CCRS"
+            - name: APP_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: APP_KEY
+            - name: APP_ENV
+              value: "production"
+            - name: APP_DEBUG
+              value: "true"
+            - name: APP_URL
+              value: "https://${DOMAIN}"
+            - name: DB_CONNECTION
+              value: "mysql"
+            - name: DB_HOST
+              value: "127.0.0.1"
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_DATABASE
+              value: "ccrs"
+            - name: DB_USERNAME
+              value: "ccrs"
+            - name: DB_PASSWORD
+              value: "ccrs-sandbox-pass"
+            - name: CACHE_STORE
+              value: "database"
+            - name: SESSION_DRIVER
+              value: "database"
+            - name: QUEUE_CONNECTION
+              value: "database"
           resources:
             requests:
-              cpu: "250m"
-              memory: "256Mi"
+              cpu: 100m
+              memory: 128Mi
             limits:
-              cpu: "1000m"
-              memory: "512Mi"
+              cpu: 500m
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 18
           livenessProbe:
             httpGet:
               path: /health
               port: 8080
-            initialDelaySeconds: 30
-            periodSeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /health/ready
+              path: /health
               port: 8080
-            initialDelaySeconds: 10
-            periodSeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
             failureThreshold: 3
-          envFrom:
-            - secretRef:
-                name: ccrs-secrets
+
+        # ---- MySQL sidecar ----
+        - name: mysql
+          image: mysql:8.0
           env:
-            - name: APP_ENV
-              value: production
-            - name: LOG_CHANNEL
-              value: json
-            - name: CACHE_DRIVER
-              value: redis
-            - name: SESSION_DRIVER
-              value: redis
-            - name: QUEUE_CONNECTION
-              value: redis
+            - name: MYSQL_ROOT_PASSWORD
+              value: "ccrs-root-pass"
+            - name: MYSQL_DATABASE
+              value: "ccrs"
+            - name: MYSQL_USER
+              value: "ccrs"
+            - name: MYSQL_PASSWORD
+              value: "ccrs-sandbox-pass"
+          ports:
+            - containerPort: 3306
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+
+        # ---- phpMyAdmin sidecar ----
+        - name: phpmyadmin
+          image: phpmyadmin:5
+          env:
+            - name: PMA_HOST
+              value: "127.0.0.1"
+            - name: PMA_PORT
+              value: "3306"
+            - name: APACHE_PORT
+              value: "8888"
+          ports:
+            - containerPort: 8888
+              name: pma
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+      volumes:
+        - name: mysql-data
+          persistentVolumeClaim:
+            claimName: ${APP_NAME}-mysql-data
