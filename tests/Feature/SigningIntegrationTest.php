@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\Region;
 use App\Models\SigningAuditLog;
 use App\Models\User;
+use App\Services\PdfService;
 use App\Services\SigningService;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -38,6 +39,16 @@ it('completes full signing flow with sequential signers', function () {
         'storage_path' => 'contracts/integration-test.pdf',
         'file_name' => 'integration-test.pdf',
     ]);
+
+    // Mock PdfService so FPDI does not attempt to parse the fake PDF
+    $mockPdf = Mockery::mock(PdfService::class);
+    $mockPdf->shouldReceive('getPageCount')->andReturn(1);
+    $mockPdf->shouldReceive('overlaySignatures')->andReturn('contracts/signed/integration-final.pdf');
+    $mockPdf->shouldReceive('generateAuditCertificate')->andReturn('contracts/audit/cert.pdf');
+    $mockPdf->shouldReceive('computeHash')->andReturn(hash('sha256', 'integration-sealed'));
+    app()->instance(PdfService::class, $mockPdf);
+
+    Storage::disk('s3')->put('contracts/signed/integration-final.pdf', '%PDF-sealed-content');
 
     $service = app(SigningService::class);
 

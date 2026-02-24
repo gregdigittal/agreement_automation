@@ -11,6 +11,7 @@ use App\Models\SigningAuditLog;
 use App\Models\SigningSession;
 use App\Models\SigningSessionSigner;
 use App\Models\User;
+use App\Services\PdfService;
 use App\Services\SigningService;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -131,6 +132,17 @@ it('captures signature and updates signer', function () {
 });
 
 it('completes session when all signers done', function () {
+    // Mock PdfService so FPDI does not attempt to parse the fake PDF
+    $mockPdf = Mockery::mock(PdfService::class);
+    $mockPdf->shouldReceive('getPageCount')->andReturn(1);
+    $mockPdf->shouldReceive('overlaySignatures')->andReturn('contracts/signed/final.pdf');
+    $mockPdf->shouldReceive('generateAuditCertificate')->andReturn('contracts/audit/cert.pdf');
+    $mockPdf->shouldReceive('computeHash')->andReturn(hash('sha256', 'sealed-pdf'));
+    app()->instance(PdfService::class, $mockPdf);
+
+    // Place a fake final PDF so Storage::get works during hash computation
+    Storage::disk('s3')->put('contracts/signed/final.pdf', '%PDF-sealed-content');
+
     $session = $this->service->createSession($this->contract, [
         ['name' => 'Alice', 'email' => 'alice@example.com', 'type' => 'external', 'order' => 0],
     ], 'sequential');
@@ -145,6 +157,8 @@ it('completes session when all signers done', function () {
 
     $session->refresh();
     expect($session->status)->toBe('completed');
+    expect($session->final_storage_path)->toBe('contracts/signed/final.pdf');
+    expect($session->final_document_hash)->not->toBeNull();
     expect($this->contract->fresh()->signing_status)->toBe('signed');
 
     Mail::assertSent(SigningComplete::class);
@@ -193,4 +207,72 @@ it('cancels session on cancel', function () {
         ->where('event', 'cancelled')
         ->first();
     expect($auditLog)->not->toBeNull();
+});
+
+it('creates audit log entries for each action', function () {
+    // Mock PdfService for the completion step
+    $mockPdf = Mockery::mock(PdfService::class);
+    $mockPdf->shouldReceive('getPageCount')->andReturn(1);
+    $mockPdf->shouldReceive('overlaySignatures')->andReturn('contracts/signed/audit-test.pdf');
+    $mockPdf->shouldReceive('generateAuditCertificate')->andReturn('contracts/audit/cert.pdf');
+    $mockPdf->shouldReceive('computeHash')->andReturn(hash('sha256', 'audit-test'));
+    app()->instance(PdfService::class, $mockPdf);
+
+    Storage::disk('s3')->put('contracts/signed/audit-test.pdf', '%PDF-audit-test');
+
+    // 1. Create session — should log 'created'
+    $session = $this->service->createSession($this->contract, [
+        ['name' => 'Alice', 'email' => 'alice@example.com', 'type' => 'external', 'order' => 0],
+    ], 'sequential');
+
+    $createdLog = SigningAuditLog::where('signing_session_id', $session->id)
+        ->where('event', 'created')
+        ->first();
+    expect($createdLog)->not->toBeNull();
+    expect($createdLog->details)->toHaveKey('signer_count', 1);
+
+    // 2. Send to signer — should log 'sent'
+    $signer = $session->signers->first();
+    $this->service->sendToSigner($signer);
+    $signer->refresh();
+
+    $sentLog = SigningAuditLog::where('signing_session_id', $session->id)
+        ->where('event', 'sent')
+        ->first();
+    expect($sentLog)->not->toBeNull();
+    expect($sentLog->signer_id)->toBe($signer->id);
+
+    // 3. Validate token / view — should log 'viewed'
+    $this->service->validateToken($signer->token);
+
+    $viewedLog = SigningAuditLog::where('signing_session_id', $session->id)
+        ->where('event', 'viewed')
+        ->first();
+    expect($viewedLog)->not->toBeNull();
+    expect($viewedLog->signer_id)->toBe($signer->id);
+
+    // 4. Capture signature — should log 'signed'
+    $base64Png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    $this->service->captureSignature($signer, [], $base64Png);
+
+    $signedLog = SigningAuditLog::where('signing_session_id', $session->id)
+        ->where('event', 'signed')
+        ->first();
+    expect($signedLog)->not->toBeNull();
+    expect($signedLog->signer_id)->toBe($signer->id);
+
+    // 5. Advance session (completes since only one signer) — should log 'completed'
+    $this->service->advanceSession($session->fresh());
+
+    $completedLog = SigningAuditLog::where('signing_session_id', $session->id)
+        ->where('event', 'completed')
+        ->first();
+    expect($completedLog)->not->toBeNull();
+
+    // Verify the full set of audit events in chronological order
+    $allEvents = SigningAuditLog::where('signing_session_id', $session->id)
+        ->orderBy('created_at')
+        ->pluck('event')
+        ->toArray();
+    expect($allEvents)->toContain('created', 'sent', 'viewed', 'signed', 'completed');
 });
