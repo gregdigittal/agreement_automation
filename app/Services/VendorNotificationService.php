@@ -19,7 +19,7 @@ class VendorNotificationService
                 'subject' => $subject, 'body' => $body,
                 'related_resource_type' => $resourceType, 'related_resource_id' => $resourceId,
             ]);
-            Mail::to($vendor->email)->queue(new \App\Mail\VendorNotificationMail($vendor, $subject, $body));
+            Mail::to($vendor->email)->queue(new \App\Mail\VendorNotificationMail($vendor, mailSubject: $subject, body: $body));
         }
     }
 
@@ -29,7 +29,7 @@ class VendorNotificationService
         $this->notifyVendors(
             $contract->counterparty,
             "Agreement Status Update: {$contract->title}",
-            "Your agreement \"{$contract->title}\" has moved to status: **{$newState}**.",
+            "Your agreement \"{$contract->title}\" has moved to status: {$newState}.",
             'contract', $contract->id,
         );
     }

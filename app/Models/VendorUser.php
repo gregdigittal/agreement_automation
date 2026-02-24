@@ -19,16 +19,12 @@ class VendorUser extends Authenticatable implements FilamentUser
     protected $guard = 'vendor';
 
     protected $fillable = [
-        'id', 'email', 'name', 'counterparty_id', 'login_token',
-        'login_token_expires_at', 'last_login_at',
+        'id', 'email', 'name', 'counterparty_id', 'last_login_at',
     ];
 
     protected $casts = [
-        'login_token_expires_at' => 'datetime',
-        'last_login_at'          => 'datetime',
+        'last_login_at' => 'datetime',
     ];
-
-    protected $hidden = ['login_token'];
 
     public function canAccessPanel(Panel $panel): bool
     {

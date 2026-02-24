@@ -32,13 +32,15 @@ return new class extends Migration {
             $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
             $table->uuid('counterparty_id');
             $table->uuid('contract_id')->nullable();
-            $table->string('title');
+            $table->string('title')->nullable();
             $table->string('storage_path')->nullable();
-            $table->string('file_name')->nullable();
-            $table->string('uploaded_by')->nullable();
+            $table->string('filename')->nullable();
+            $table->string('document_type', 50)->default('supporting');
+            $table->char('uploaded_by_vendor_user_id', 36)->nullable();
             $table->timestamps();
             $table->foreign('counterparty_id')->references('id')->on('counterparties')->cascadeOnDelete();
             $table->foreign('contract_id')->references('id')->on('contracts')->nullOnDelete();
+            $table->foreign('uploaded_by_vendor_user_id')->references('id')->on('vendor_users')->nullOnDelete();
             $table->index('counterparty_id');
         });
     }

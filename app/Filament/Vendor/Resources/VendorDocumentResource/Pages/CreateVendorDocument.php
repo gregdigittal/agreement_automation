@@ -12,6 +12,9 @@ class CreateVendorDocument extends CreateRecord
         if (empty($data['filename']) && !empty($data['storage_path'])) {
             $data['filename'] = basename($data['storage_path']);
         }
+        if (empty($data['title'])) {
+            $data['title'] = $data['filename'] ?? 'Untitled Document';
+        }
         return $data;
     }
 }
