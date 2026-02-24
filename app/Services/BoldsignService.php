@@ -8,6 +8,17 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * @deprecated This service is deprecated in favour of the in-house SigningService.
+ *
+ * When the feature flag FEATURE_IN_HOUSE_SIGNING=true (default), all e-signing
+ * is handled by \App\Services\SigningService and the BoldSign integration is
+ * disabled. This class is retained for backward-compatibility with deployments
+ * that still rely on BoldSign while transitioning to in-house signing.
+ *
+ * @see \App\Services\SigningService
+ * @see \App\Helpers\Feature::inHouseSigning()
+ */
 class BoldsignService
 {
     public function sendToSign(Contract $contract, array $signers, string $signingOrder = 'sequential'): BoldsignEnvelope

@@ -224,6 +224,10 @@ class ContractResource extends Resource
                 ->icon('heroicon-o-pencil-square')
                 ->color('warning')
                 ->visible(function (Contract $record): bool {
+                    // Only visible when NOT using in-house signing (BoldSign legacy path)
+                    if (Feature::inHouseSigning()) {
+                        return false;
+                    }
                     $instance = $record->activeWorkflowInstance;
                     if (!$instance || !$instance->template) {
                         return false;
@@ -347,19 +351,28 @@ class ContractResource extends Resource
 
     public static function getRelationManagers(): array
     {
-        return [
+        $relations = [
             RelationManagers\KeyDatesRelationManager::class,
             RelationManagers\RemindersRelationManager::class,
             RelationManagers\ObligationsRelationManager::class,
             RelationManagers\ContractLanguagesRelationManager::class,
             RelationManagers\ContractLinksRelationManager::class,
             RelationManagers\AiAnalysisRelationManager::class,
-            RelationManagers\BoldsignEnvelopesRelationManager::class,
             RelationManagers\RedlineSessionsRelationManager::class,
             RelationManagers\ComplianceFindingsRelationManager::class,
             RelationManagers\KycPackRelationManager::class,
-            RelationManagers\SigningSessionsRelationManager::class,
         ];
+
+        if (Feature::inHouseSigning()) {
+            $relations[] = RelationManagers\SigningSessionsRelationManager::class;
+        } else {
+            // BoldSign legacy path — only add if the class still exists
+            if (class_exists(RelationManagers\BoldsignEnvelopesRelationManager::class)) {
+                $relations[] = RelationManagers\BoldsignEnvelopesRelationManager::class;
+            }
+        }
+
+        return $relations;
     }
 
     public static function canCreate(): bool
