@@ -57,11 +57,15 @@ spec:
             - name: DB_PASSWORD
               value: "ccrs-sandbox-pass"
             - name: CACHE_STORE
-              value: "database"
+              value: "redis"
             - name: SESSION_DRIVER
-              value: "database"
+              value: "redis"
             - name: QUEUE_CONNECTION
-              value: "database"
+              value: "redis"
+            - name: REDIS_HOST
+              value: "127.0.0.1"
+            - name: REDIS_PORT
+              value: "6379"
           resources:
             requests:
               cpu: 100m
@@ -115,6 +119,19 @@ spec:
           volumeMounts:
             - name: mysql-data
               mountPath: /var/lib/mysql
+
+        # ---- Redis sidecar ----
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
 
         # ---- phpMyAdmin sidecar ----
         - name: phpmyadmin

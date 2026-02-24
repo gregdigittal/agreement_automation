@@ -57,10 +57,11 @@ Describe what you need in a comment or message. The CTO will make the change. Ex
 ## Sandbox Environment Details
 
 ### Architecture (DO NOT CHANGE)
-The sandbox pod runs 3 containers:
+The sandbox pod runs 4 containers:
 1. **App container** — Laravel + Filament (port 8080)
 2. **MySQL sidecar** — MySQL 8.0 (port 3306, localhost access only)
-3. **phpMyAdmin sidecar** — Database management UI (port 8888)
+3. **Redis sidecar** — Redis 7 Alpine (port 6379, localhost access only)
+4. **phpMyAdmin sidecar** — Database management UI (port 8888)
 
 ### URLs
 - **App**: https://ccrs-sandbox.digittal.mobi
@@ -78,11 +79,13 @@ DB_PASSWORD=ccrs-sandbox-pass
 
 ### Cache / Session / Queue (MUST USE THESE)
 ```
-CACHE_STORE=database
-SESSION_DRIVER=database
-QUEUE_CONNECTION=database
+CACHE_STORE=redis
+SESSION_DRIVER=redis
+QUEUE_CONNECTION=redis
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
 ```
-Do NOT switch to Redis — there is no Redis instance in the sandbox.
+Redis is available as a sidecar container on localhost:6379. Horizon is installed for queue management.
 
 ### Deployment
 Push to `main` → Jenkins auto-builds and deploys within ~2 minutes.
