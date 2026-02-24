@@ -11,6 +11,7 @@ use App\Models\WorkflowTemplate;
 use App\Services\BoldsignService;
 use App\Services\WorkflowService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -18,6 +19,15 @@ use Tests\TestCase;
 class CountersignWorkflowTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // These tests exercise the legacy BoldSign countersigning path;
+        // explicitly disable in-house signing so BoldSign code paths are active.
+        Config::set('ccrs.in_house_signing', false);
+    }
 
     public function test_countersign_envelope_created_with_only_internal_signers(): void
     {

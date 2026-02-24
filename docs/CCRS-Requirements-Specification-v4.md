@@ -858,7 +858,7 @@ Single Kubernetes pod with 3 containers:
 | `FEATURE_REDLINING` | false | Clause redlining & AI negotiation |
 | `FEATURE_REGULATORY_COMPLIANCE` | false | Compliance framework checking |
 | `FEATURE_ADVANCED_ANALYTICS` | false | Sophisticated dashboards & reports |
-| `FEATURE_IN_HOUSE_SIGNING` | false | In-house e-signing engine (replaces BoldSign) |
+| `FEATURE_IN_HOUSE_SIGNING` | true | In-house e-signing engine (replaces BoldSign) |
 
 ---
 
