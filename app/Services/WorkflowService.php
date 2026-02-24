@@ -59,6 +59,19 @@ class WorkflowService
         if ($currentStageConfig && in_array($currentStageConfig['type'] ?? null, ['signing', 'countersign'])) {
             $this->checkSigningAuthority($instance->contract, $actor, $stageName);
         }
+
+        // KYC signing gate check
+        if ($currentStageConfig && in_array($currentStageConfig['type'] ?? null, ['signing', 'countersign'])) {
+            $kycService = app(\App\Services\KycService::class);
+            if (!$kycService->isReadyForSigning($instance->contract)) {
+                $missing = $kycService->getMissingItems($instance->contract);
+                throw new \RuntimeException(
+                    "KYC pack incomplete. {$missing->count()} required items pending: " .
+                    $missing->pluck('label')->implode(', ')
+                );
+            }
+        }
+
         $currentIndex = collect($stages)->search(fn ($s) => ($s['name'] ?? '') === $instance->current_stage);
 
         return DB::transaction(function () use ($instance, $stageName, $action, $actor, $comment, $artifacts, $stages, $currentIndex) {
