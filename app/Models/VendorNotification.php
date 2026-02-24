@@ -9,7 +9,7 @@ class VendorNotification extends Model
     use HasUuidPrimaryKey;
 
     protected $table = 'vendor_notifications';
-    protected $fillable = ['id', 'vendor_user_id', 'subject', 'body', 'related_resource_type', 'related_resource_id', 'read_at'];
+    protected $fillable = ['vendor_user_id', 'subject', 'body', 'related_resource_type', 'related_resource_id', 'read_at'];
     protected $casts = ['read_at' => 'datetime'];
 
     public function vendorUser(): \Illuminate\Database\Eloquent\Relations\BelongsTo

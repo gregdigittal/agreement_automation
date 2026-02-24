@@ -41,7 +41,7 @@ class AnalyticsController extends Controller
 
         $pipeline = $query->select('workflow_state', DB::raw('COUNT(*) as count'))
             ->groupBy('workflow_state')
-            ->orderByRaw("FIELD(workflow_state, 'draft', 'in_review', 'pending_approval', 'signing', 'executed', 'archived', 'cancelled', 'expired')")
+            ->orderByRaw("FIELD(workflow_state, 'draft', 'review', 'approval', 'signing', 'countersign', 'executed', 'archived')")
             ->get();
 
         return response()->json(['data' => $pipeline]);

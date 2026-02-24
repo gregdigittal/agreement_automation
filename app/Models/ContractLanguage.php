@@ -10,7 +10,7 @@ class ContractLanguage extends Model
     use HasUuidPrimaryKey;
 
     public $timestamps = false;
-    protected $fillable = ['id', 'contract_id', 'language_code', 'is_primary', 'storage_path', 'file_name'];
+    protected $fillable = ['contract_id', 'language_code', 'is_primary', 'storage_path', 'file_name'];
     protected $casts = ['is_primary' => 'boolean', 'created_at' => 'datetime'];
 
     public function contract(): BelongsTo { return $this->belongsTo(Contract::class); }

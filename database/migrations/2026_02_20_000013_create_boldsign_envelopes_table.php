@@ -21,7 +21,6 @@ return new class extends Migration {
             $table->timestamps();
             $table->foreign('contract_id')->references('id')->on('contracts')->cascadeOnDelete();
             $table->index('contract_id');
-            $table->index('boldsign_document_id');
         });
     }
 

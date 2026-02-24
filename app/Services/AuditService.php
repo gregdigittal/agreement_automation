@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\AuditLog;
 use App\Models\User;
-use Illuminate\Support\Str;
 
 class AuditService
 {
@@ -17,7 +16,6 @@ class AuditService
     ): void {
         $actor = $actor ?? auth()->user();
         AuditLog::create([
-            'id' => Str::uuid()->toString(),
             'at' => now(),
             'actor_id' => $actor?->id,
             'actor_email' => $actor?->email,

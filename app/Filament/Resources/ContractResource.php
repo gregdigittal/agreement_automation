@@ -83,7 +83,7 @@ class ContractResource extends Resource
                 ])
                 ->columns(2),
         ])->disabled(fn (?Contract $record): bool =>
-        $record !== null && in_array($record->workflow_state, ['executed', 'completed'])
+        $record !== null && in_array($record->workflow_state, ['executed', 'archived'])
     );
     }
 

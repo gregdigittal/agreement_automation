@@ -10,15 +10,19 @@ class PendingWorkflowsWidget extends StatsOverviewWidget
     protected function getStats(): array
     {
         $userRole = auth()->user()?->roles?->first()?->name;
+
+        if (!$userRole) {
+            return [Stat::make('Pending Your Approval', 0)->color('warning')];
+        }
+
         $count = WorkflowInstance::where('state', 'active')
-            ->with('template')
-            ->get()
+            ->with('template:id,stages')
+            ->get(['id', 'current_stage', 'template_id'])
             ->filter(function ($instance) use ($userRole) {
                 $stages = $instance->template->stages ?? [];
                 foreach ($stages as $stage) {
                     if (($stage['name'] ?? '') === $instance->current_stage) {
-                        $approverRole = $stage['approver_role'] ?? null;
-                        return $approverRole !== null && $approverRole === $userRole;
+                        return ($stage['approver_role'] ?? null) === $userRole;
                     }
                 }
                 return false;

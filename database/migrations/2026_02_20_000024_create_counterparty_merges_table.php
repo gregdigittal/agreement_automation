@@ -14,6 +14,7 @@ return new class extends Migration {
             $table->string('merged_by');
             $table->string('merged_by_email')->nullable();
             $table->timestamp('created_at')->useCurrent();
+            $table->index('source_counterparty_id');
             $table->foreign('target_counterparty_id')->references('id')->on('counterparties');
         });
     }

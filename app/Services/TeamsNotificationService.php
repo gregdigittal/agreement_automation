@@ -62,7 +62,7 @@ class TeamsNotificationService
         $response = Http::withToken($token)->post($url, [
             'body' => [
                 'contentType' => 'html',
-                'content' => "<b>{$subject}</b><br/>{$body}",
+                'content' => '<b>' . e($subject) . '</b><br/>' . e($body),
             ],
         ]);
 

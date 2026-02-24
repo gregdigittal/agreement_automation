@@ -13,7 +13,6 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class ProcessComplianceCheck implements ShouldQueue
 {
@@ -76,7 +75,6 @@ class ProcessComplianceCheck implements ShouldQueue
 
             foreach ($data['findings'] ?? [] as $finding) {
                 ComplianceFinding::create([
-                    'id' => Str::uuid()->toString(),
                     'contract_id' => $this->contract->id,
                     'framework_id' => $this->framework->id,
                     'requirement_id' => $finding['requirement_id'],

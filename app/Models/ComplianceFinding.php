@@ -12,7 +12,6 @@ class ComplianceFinding extends Model
     use HasFactory, HasUuidPrimaryKey;
 
     protected $fillable = [
-        'id',
         'contract_id',
         'framework_id',
         'requirement_id',
