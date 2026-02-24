@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\EntityResource\RelationManagers;
 
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -12,24 +11,6 @@ class JurisdictionsRelationManager extends RelationManager
 {
     protected static string $relationship = 'jurisdictions';
     protected static ?string $title = 'Jurisdictions';
-
-    public function form(Form $form): Form
-    {
-        return $form->schema([
-            Forms\Components\Select::make('jurisdiction_id')
-                ->relationship('jurisdiction', 'name')
-                ->required()
-                ->searchable()
-                ->preload()
-                ->label('Jurisdiction')
-                ->columnSpanFull(),
-            Forms\Components\TextInput::make('license_number')
-                ->maxLength(100),
-            Forms\Components\DatePicker::make('license_expiry'),
-            Forms\Components\Toggle::make('is_primary')
-                ->default(false),
-        ]);
-    }
 
     public function table(Table $table): Table
     {
@@ -51,6 +32,12 @@ class JurisdictionsRelationManager extends RelationManager
                     ]),
             ])
             ->actions([
+                Tables\Actions\EditAction::make()
+                    ->form([
+                        Forms\Components\TextInput::make('license_number')->maxLength(100),
+                        Forms\Components\DatePicker::make('license_expiry'),
+                        Forms\Components\Toggle::make('is_primary')->default(false),
+                    ]),
                 Tables\Actions\DetachAction::make(),
             ]);
     }

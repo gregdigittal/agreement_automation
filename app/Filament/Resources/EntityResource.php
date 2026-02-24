@@ -35,7 +35,12 @@ class EntityResource extends Resource
                 Forms\Components\Textarea::make('registered_address')
                     ->rows(2),
                 Forms\Components\Select::make('parent_entity_id')
-                    ->relationship('parent', 'name')
+                    ->relationship(
+                        'parent',
+                        'name',
+                        fn (\Illuminate\Database\Eloquent\Builder $query, ?Model $record) =>
+                            $record ? $query->where('id', '!=', $record->id) : $query
+                    )
                     ->searchable()
                     ->preload()
                     ->placeholder('None (top-level entity)'),
