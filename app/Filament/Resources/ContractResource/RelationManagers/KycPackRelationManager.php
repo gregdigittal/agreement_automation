@@ -138,6 +138,24 @@ class KycPackRelationManager extends RelationManager
                             ->success()
                             ->send();
                     }),
+                Tables\Actions\Action::make('mark_na')
+                    ->label('N/A')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('gray')
+                    ->visible(fn ($record): bool => $record->status === 'pending')
+                    ->requiresConfirmation()
+                    ->action(function ($record): void {
+                        $record->update([
+                            'status' => 'not_applicable',
+                            'completed_at' => now(),
+                            'completed_by' => auth()->id(),
+                        ]);
+                        $pack = $record->pack;
+                        if ($pack->isComplete()) {
+                            $pack->update(['status' => 'complete', 'completed_at' => now()]);
+                        }
+                        Notification::make()->title('Marked as N/A')->success()->send();
+                    }),
             ])
             ->headerActions([
                 Tables\Actions\Action::make('initialize_kyc_pack')

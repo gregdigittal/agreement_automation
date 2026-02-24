@@ -37,12 +37,16 @@ class KycTemplateResource extends Resource
                     ->preload()
                     ->placeholder('All jurisdictions'),
                 Forms\Components\Select::make('contract_type_pattern')
-                    ->options([
-                        '*' => 'All Types (*)',
-                        'Commercial' => 'Commercial',
-                        'Merchant' => 'Merchant',
-                    ])
-                    ->placeholder('All types'),
+                    ->options(fn () => array_merge(
+                        ['*' => 'All Types (*)'],
+                        \App\Models\Contract::query()
+                            ->distinct()
+                            ->whereNotNull('contract_type')
+                            ->pluck('contract_type', 'contract_type')
+                            ->toArray()
+                    ))
+                    ->default('*')
+                    ->required(),
                 Forms\Components\Select::make('status')
                     ->options([
                         'draft' => 'Draft',
