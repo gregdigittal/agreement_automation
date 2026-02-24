@@ -68,3 +68,13 @@ Route::prefix('reports/export')->middleware('auth')->group(function () {
     Route::get('/compliance/{contract_id}/pdf', [ReportExportController::class, 'compliancePdf'])->name('reports.export.compliance.pdf');
     Route::get('/obligations/excel', [ReportExportController::class, 'obligationsExcel'])->name('reports.export.obligations.excel');
 });
+
+// E-Signing (public, token-based auth)
+Route::prefix('sign')->group(function () {
+    Route::get('/{token}', [\App\Http\Controllers\SigningController::class, 'show'])
+        ->name('signing.show');
+    Route::post('/{token}/submit', [\App\Http\Controllers\SigningController::class, 'submit'])
+        ->name('signing.submit');
+    Route::post('/{token}/decline', [\App\Http\Controllers\SigningController::class, 'decline'])
+        ->name('signing.decline');
+});
