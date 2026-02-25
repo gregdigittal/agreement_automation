@@ -22,7 +22,7 @@ Route::get('/health/ready', function () {
 })->name('health.ready');
 
 Route::get('/', function () {
-    return view('welcome');
+    return redirect(auth()->check() ? '/admin' : '/admin/login');
 });
 
 Route::get('/login', fn () => redirect(route('azure.redirect')))->name('login');
