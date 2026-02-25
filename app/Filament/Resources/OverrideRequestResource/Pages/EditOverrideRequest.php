@@ -14,6 +14,7 @@ class EditOverrideRequest extends EditRecord
     {
         if (isset($data['status']) && $data['status'] !== 'pending') {
             $data['decided_by'] = auth()->user()?->email;
+            $data['decided_at'] = now();
         }
 
         return $data;
