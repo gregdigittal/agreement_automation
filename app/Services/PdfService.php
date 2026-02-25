@@ -18,9 +18,12 @@ class PdfService
         $pdf = new \setasign\Fpdi\Fpdi();
         $tmpFile = tempnam(sys_get_temp_dir(), 'pdf_');
         file_put_contents($tmpFile, $content);
-        $count = $pdf->setSourceFile($tmpFile);
-        @unlink($tmpFile);
-        return $count;
+        try {
+            $count = $pdf->setSourceFile($tmpFile);
+            return $count;
+        } finally {
+            @unlink($tmpFile);
+        }
     }
 
     public function overlaySignatures(string $storagePath, array $signatures): string
@@ -29,35 +32,45 @@ class PdfService
         $tmpSource = tempnam(sys_get_temp_dir(), 'pdf_src_');
         file_put_contents($tmpSource, $content);
 
-        $pdf = new \setasign\Fpdi\Fpdi();
-        $pageCount = $pdf->setSourceFile($tmpSource);
+        $tmpImgFiles = [];
+        $tmpOutput = null;
+        try {
+            $pdf = new \setasign\Fpdi\Fpdi();
+            $pageCount = $pdf->setSourceFile($tmpSource);
 
-        for ($i = 1; $i <= $pageCount; $i++) {
-            $tplId = $pdf->importPage($i);
-            $size = $pdf->getTemplateSize($tplId);
-            $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
-            $pdf->useTemplate($tplId);
+            for ($i = 1; $i <= $pageCount; $i++) {
+                $tplId = $pdf->importPage($i);
+                $size = $pdf->getTemplateSize($tplId);
+                $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                $pdf->useTemplate($tplId);
 
-            // Overlay signatures for this page
-            foreach ($signatures as $sig) {
-                if (($sig['page'] ?? 0) === $i && !empty($sig['image_path'])) {
-                    $imgContent = Storage::disk(config('ccrs.contracts_disk'))->get($sig['image_path']);
-                    $tmpImg = tempnam(sys_get_temp_dir(), 'sig_');
-                    file_put_contents($tmpImg, $imgContent);
-                    $pdf->Image($tmpImg, $sig['x'], $sig['y'], $sig['width'], $sig['height']);
-                    @unlink($tmpImg);
+                // Overlay signatures for this page
+                foreach ($signatures as $sig) {
+                    if (($sig['page'] ?? 0) === $i && !empty($sig['image_path'])) {
+                        $imgContent = Storage::disk(config('ccrs.contracts_disk'))->get($sig['image_path']);
+                        $tmpImg = tempnam(sys_get_temp_dir(), 'sig_');
+                        $tmpImgFiles[] = $tmpImg;
+                        file_put_contents($tmpImg, $imgContent);
+                        $pdf->Image($tmpImg, $sig['x'], $sig['y'], $sig['width'], $sig['height']);
+                    }
                 }
             }
+
+            $outputPath = 'contracts/signed/' . \Illuminate\Support\Str::uuid() . '.pdf';
+            $tmpOutput = tempnam(sys_get_temp_dir(), 'pdf_out_');
+            $pdf->Output($tmpOutput, 'F');
+            Storage::disk(config('ccrs.contracts_disk'))->put($outputPath, file_get_contents($tmpOutput));
+
+            return $outputPath;
+        } finally {
+            @unlink($tmpSource);
+            if ($tmpOutput) {
+                @unlink($tmpOutput);
+            }
+            foreach ($tmpImgFiles as $tmpImg) {
+                @unlink($tmpImg);
+            }
         }
-
-        $outputPath = 'contracts/signed/' . \Illuminate\Support\Str::uuid() . '.pdf';
-        $tmpOutput = tempnam(sys_get_temp_dir(), 'pdf_out_');
-        $pdf->Output($tmpOutput, 'F');
-        Storage::disk(config('ccrs.contracts_disk'))->put($outputPath, file_get_contents($tmpOutput));
-        @unlink($tmpOutput);
-        @unlink($tmpSource);
-
-        return $outputPath;
     }
 
     public function generateAuditCertificate(SigningSession $session): string
@@ -113,10 +126,13 @@ class PdfService
 
         $outputPath = 'contracts/audit/' . $session->id . '_certificate.pdf';
         $tmpOutput = tempnam(sys_get_temp_dir(), 'cert_');
-        $pdf->Output($tmpOutput, 'F');
-        Storage::disk(config('ccrs.contracts_disk'))->put($outputPath, file_get_contents($tmpOutput));
-        @unlink($tmpOutput);
+        try {
+            $pdf->Output($tmpOutput, 'F');
+            Storage::disk(config('ccrs.contracts_disk'))->put($outputPath, file_get_contents($tmpOutput));
 
-        return $outputPath;
+            return $outputPath;
+        } finally {
+            @unlink($tmpOutput);
+        }
     }
 }
