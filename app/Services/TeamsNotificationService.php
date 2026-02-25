@@ -39,8 +39,9 @@ class TeamsNotificationService
      *
      * @param  string  $subject  Bold header line
      * @param  string  $body  Message body (plain text or simple HTML)
+     * @param  string  $color  Accent color hex (default: indigo)
      */
-    public function sendToChannel(string $subject, string $body): void
+    public function sendToChannel(string $subject, string $body, string $color = '#4f46e5'): void
     {
         $teamId = config('ccrs.teams.team_id');
         $channelId = config('ccrs.teams.channel_id');
@@ -59,10 +60,12 @@ class TeamsNotificationService
             $channelId
         );
 
+        $html = $this->formatCard($subject, $body, $color);
+
         $response = Http::withToken($token)->post($url, [
             'body' => [
                 'contentType' => 'html',
-                'content' => '<b>' . e($subject) . '</b><br/>' . e($body),
+                'content' => $html,
             ],
         ]);
 
@@ -74,5 +77,26 @@ class TeamsNotificationService
             ]);
             throw new \RuntimeException('Teams notification failed: ' . $response->status());
         }
+    }
+
+    /**
+     * Format a structured HTML card for Teams.
+     */
+    private function formatCard(string $subject, string $body, string $color): string
+    {
+        $escapedSubject = e($subject);
+        $escapedBody = e($body);
+        $timestamp = now()->format('d M Y H:i');
+
+        return '<table style="border-collapse:collapse;width:100%;max-width:500px;">'
+            . '<tr>'
+            . '<td style="background-color:' . $color . ';width:4px;"></td>'
+            . '<td style="padding:12px 16px;">'
+            . '<div style="font-size:16px;font-weight:bold;color:#1a1a1a;margin-bottom:8px;">' . $escapedSubject . '</div>'
+            . '<div style="font-size:14px;color:#4a4a4a;line-height:1.5;">' . $escapedBody . '</div>'
+            . '<div style="font-size:11px;color:#9ca3af;margin-top:10px;border-top:1px solid #e5e7eb;padding-top:8px;">CCRS &middot; ' . $timestamp . '</div>'
+            . '</td>'
+            . '</tr>'
+            . '</table>';
     }
 }
