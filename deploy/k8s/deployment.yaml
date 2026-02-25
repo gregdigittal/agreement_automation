@@ -76,6 +76,19 @@ spec:
                   key: client-secret
             - name: AZURE_AD_TENANT_ID
               value: "651ccfb9-324d-452b-ac16-59bbb4e26ef2"
+            # Azure AD Group → Role mapping
+            - name: AZURE_AD_GROUP_SYSTEM_ADMIN
+              value: "276a7166-83fb-422d-b0b5-739a0a45522e"
+            - name: AZURE_AD_GROUP_LEGAL
+              value: "16d70fb0-3d64-4a4f-996d-bde54e34778b"
+            - name: AZURE_AD_GROUP_COMMERCIAL
+              value: "6ca259c7-ad7c-4798-8482-636a82a1ca97"
+            - name: AZURE_AD_GROUP_FINANCE
+              value: "de113f35-530b-4f5d-94b9-bdd124d9e706"
+            - name: AZURE_AD_GROUP_OPERATIONS
+              value: "9944befd-dea6-45a6-b2f8-963fbf514c5b"
+            - name: AZURE_AD_GROUP_AUDIT
+              value: "396a024c-121d-4b10-979a-c111d7939945"
           resources:
             requests:
               cpu: 100m
