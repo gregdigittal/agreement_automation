@@ -13,8 +13,16 @@ class AuditMiddleware
     {
         $response = $next($request);
 
-        if ($request->isMethod('GET') || !str_starts_with($request->path(), 'admin')) {
+        if (!str_starts_with($request->path(), 'admin')) {
             return $response;
+        }
+
+        // Log GET requests only for individual record views (e.g., admin/contracts/{id})
+        if ($request->isMethod('GET')) {
+            $recordId = $request->route('record');
+            if (!$recordId) {
+                return $response;
+            }
         }
 
         $path = $request->path();

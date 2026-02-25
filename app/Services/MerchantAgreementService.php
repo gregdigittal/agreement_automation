@@ -136,18 +136,18 @@ class MerchantAgreementService
         @unlink($tempTemplatePath);
         @unlink($outputTempPath);
 
-        $contract = Contract::create([
-            'id'              => Str::uuid()->toString(),
+        $contract = new Contract([
             'title'           => 'Merchant Agreement — ' . $counterparty->legal_name,
             'contract_type'   => 'Merchant',
             'counterparty_id' => $counterparty->id,
             'region_id'       => $agreement->region_id,
             'entity_id'       => $agreement->entity_id,
             'project_id'      => $agreement->project_id,
-            'workflow_state'  => 'draft',
             'storage_path'    => $s3OutputKey,
             'created_by'      => $actor->id,
         ]);
+        $contract->workflow_state = 'draft';
+        $contract->save();
 
         AuditService::log(
             action: 'merchant_agreement.generated',

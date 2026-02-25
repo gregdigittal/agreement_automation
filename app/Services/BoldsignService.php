@@ -46,7 +46,8 @@ class BoldsignService
                 'sent_at' => now(),
             ]);
 
-            $contract->update(['signing_status' => 'sent']);
+            $contract->signing_status = 'sent';
+            $contract->save();
 
             AuditService::log('contract_sent_to_sign', 'contract', $contract->id, [
                 'envelope_id' => $envelope->id,
@@ -93,10 +94,9 @@ class BoldsignService
 
         if ($newStatus === 'completed') {
             $contract = $envelope->contract;
-            $contract->update([
-                'signing_status' => 'completed',
-                'workflow_state' => 'executed',
-            ]);
+            $contract->signing_status = 'completed';
+            $contract->workflow_state = 'executed';
+            $contract->save();
         }
 
         AuditService::log('boldsign_webhook', 'boldsign_envelope', $envelope->id, ['status' => $newStatus]);
@@ -150,7 +150,8 @@ class BoldsignService
             'created_by' => auth()->id(),
         ]);
 
-        $contract->update(['signing_status' => 'countersign_sent']);
+        $contract->signing_status = 'countersign_sent';
+        $contract->save();
 
         AuditService::log('contract_sent_to_countersign', 'contract', $contract->id, [
             'envelope_id' => $envelope->id,

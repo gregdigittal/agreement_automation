@@ -25,7 +25,8 @@ class SearchService
             ];
         }
 
-        $like = '%' . $query . '%';
+        $escaped = str_replace(['%', '_'], ['\\%', '\\_'], $query);
+        $like = '%' . $escaped . '%';
 
         return [
             'contracts' => Contract::where('title', 'LIKE', $like)->limit($perType)->get()->toArray(),

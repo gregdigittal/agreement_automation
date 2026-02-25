@@ -40,7 +40,8 @@ class WorkflowService
                 'started_at' => now(),
             ]);
 
-            $contract->update(['workflow_state' => $firstStage]);
+            $contract->workflow_state = $firstStage;
+            $contract->save();
 
             AuditService::log('workflow_instance.start', 'workflow_instance', $instance->id, [], $actor);
 
@@ -98,11 +99,13 @@ class WorkflowService
 
             if ($nextStage === null && $action === 'approve') {
                 $instance->update(['state' => 'completed', 'completed_at' => now()]);
-                $instance->contract->update(['workflow_state' => 'completed']);
+                $instance->contract->workflow_state = 'completed';
+                $instance->contract->save();
                 app(\App\Services\VendorNotificationService::class)->notifyContractStatusChange($instance->contract, 'executed');
             } elseif ($nextStage !== null) {
                 $instance->update(['current_stage' => $nextStage]);
-                $instance->contract->update(['workflow_state' => $nextStage]);
+                $instance->contract->workflow_state = $nextStage;
+                $instance->contract->save();
                 if (in_array($nextStage, ['signing', 'countersign', 'executed'])) {
                     app(\App\Services\VendorNotificationService::class)->notifyContractStatusChange($instance->contract, $nextStage);
                 }

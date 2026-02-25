@@ -46,18 +46,18 @@ class ProcessContractBatch implements ShouldQueue
             $destKey = 'contracts/' . Str::uuid() . '/' . basename($data['file_path']);
             Storage::disk('s3')->copy($sourceKey, $destKey);
 
-            $contract = Contract::create([
-                'id' => Str::uuid()->toString(),
+            $contract = new Contract([
                 'title' => $data['title'],
                 'contract_type' => $data['contract_type'] ?? 'Commercial',
                 'counterparty_id' => $counterparty->id,
                 'region_id' => $region->id,
                 'entity_id' => $entity->id,
                 'project_id' => $project->id,
-                'workflow_state' => 'draft',
                 'storage_path' => $destKey,
                 'created_by' => $row->created_by,
             ]);
+            $contract->workflow_state = 'draft';
+            $contract->save();
 
             AuditService::log(
                 'contract.bulk_created',

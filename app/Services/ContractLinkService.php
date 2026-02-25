@@ -25,18 +25,18 @@ class ContractLinkService
                 $title .= ' (Extension)';
             }
 
-            $child = Contract::create([
-                'id' => Str::uuid()->toString(),
+            $child = new Contract([
                 'title' => $title,
                 'contract_type' => $parent->contract_type,
                 'counterparty_id' => $parent->counterparty_id,
                 'region_id' => $parent->region_id,
                 'entity_id' => $parent->entity_id,
                 'project_id' => $parent->project_id,
-                'workflow_state' => 'draft',
                 'storage_path' => $extra['storage_path'] ?? null,
                 'created_by' => $actor->id,
             ]);
+            $child->workflow_state = 'draft';
+            $child->save();
 
             ContractLink::create([
                 'id' => Str::uuid()->toString(),

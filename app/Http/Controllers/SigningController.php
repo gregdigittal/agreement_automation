@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\SigningAuditLog;
 use App\Services\SigningService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
@@ -89,19 +90,27 @@ class SigningController extends Controller
 
         $request->validate(['reason' => 'nullable|string|max:1000']);
 
-        $signer->update(['status' => 'declined']);
+        DB::transaction(function () use ($signer, $request) {
+            $signer = $signer->lockForUpdate()->find($signer->id);
 
-        SigningAuditLog::create([
-            'signing_session_id' => $signer->signing_session_id,
-            'signer_id' => $signer->id,
-            'event' => 'declined',
-            'details' => ['reason' => $request->input('reason')],
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'created_at' => now(),
-        ]);
+            if ($signer->status === 'declined') {
+                return;
+            }
 
-        $signer->session->update(['status' => 'cancelled']);
+            $signer->update(['status' => 'declined']);
+
+            SigningAuditLog::create([
+                'signing_session_id' => $signer->signing_session_id,
+                'signer_id' => $signer->id,
+                'event' => 'declined',
+                'details' => ['reason' => $request->input('reason')],
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'created_at' => now(),
+            ]);
+
+            $signer->session->update(['status' => 'cancelled']);
+        });
 
         // Notify the initiator that a signer declined
         try {

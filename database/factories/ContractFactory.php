@@ -13,6 +13,8 @@ class ContractFactory extends Factory
 {
     protected $model = Contract::class;
 
+    protected array $stateFields = [];
+
     public function definition(): array
     {
         return [
@@ -23,11 +25,26 @@ class ContractFactory extends Factory
             'counterparty_id' => Counterparty::factory(),
             'contract_type' => fake()->randomElement(['Commercial', 'Merchant']),
             'title' => fake()->sentence(4),
-            'workflow_state' => 'draft',
-            'signing_status' => 'not_sent',
             'storage_path' => 'contracts/' . fake()->uuid() . '.pdf',
             'file_name' => fake()->slug(2) . '.pdf',
             'file_version' => 1,
         ];
+    }
+
+    public function configure(): static
+    {
+        return $this->afterCreating(function (Contract $contract) {
+            $contract->workflow_state = $contract->workflow_state ?? 'draft';
+            $contract->signing_status = $contract->signing_status ?? 'not_sent';
+            $contract->saveQuietly();
+        });
+    }
+
+    public function withState(string $workflowState): static
+    {
+        return $this->afterCreating(function (Contract $contract) use ($workflowState) {
+            $contract->workflow_state = $workflowState;
+            $contract->saveQuietly();
+        });
     }
 }

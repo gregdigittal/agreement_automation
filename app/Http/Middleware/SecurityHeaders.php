@@ -27,11 +27,12 @@ class SecurityHeaders
 
         $response->headers->set('Content-Security-Policy',
             "default-src 'self'; " .
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " .
-            "style-src 'self' 'unsafe-inline'; " .
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com; " .
+            "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " .
             "img-src 'self' data: https:; " .
             "font-src 'self' data:; " .
-            "connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com;"
+            "connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com; " .
+            "worker-src 'self' blob:;"
         );
 
         return $response;

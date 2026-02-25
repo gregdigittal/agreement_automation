@@ -18,6 +18,12 @@ class ReportExportController extends Controller
     public function contractsExcel(Request $request)
     {
         $this->authorizeRole($request);
+        $request->validate([
+            'region_id' => 'nullable|uuid',
+            'entity_id' => 'nullable|uuid',
+            'contract_type' => 'nullable|string|max:50',
+            'workflow_state' => 'nullable|string|max:50',
+        ]);
         $export = new ContractExport(
             regionId:     $request->query('region_id'),
             entityId:     $request->query('entity_id'),
@@ -31,6 +37,11 @@ class ReportExportController extends Controller
     public function contractsPdf(Request $request)
     {
         $this->authorizeRole($request);
+        $request->validate([
+            'region_id' => 'nullable|uuid',
+            'contract_type' => 'nullable|string|max:50',
+            'workflow_state' => 'nullable|string|max:50',
+        ]);
         $contracts = Contract::query()
             ->with(['counterparty', 'region', 'entity'])
             ->when($request->query('region_id'),      fn ($q, $v) => $q->where('region_id', $v))
@@ -121,6 +132,12 @@ class ReportExportController extends Controller
     public function obligationsExcel(Request $request)
     {
         $this->authorizeRole($request);
+        $request->validate([
+            'status' => 'nullable|string|max:50',
+            'obligation_type' => 'nullable|string|max:50',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
+        ]);
 
         $query = DB::table('obligations_register')
             ->join('contracts', 'obligations_register.contract_id', '=', 'contracts.id')

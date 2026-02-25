@@ -12,6 +12,17 @@ use App\Models\User;
 use Filament\Facades\Filament;
 use Livewire\Livewire;
 
+/**
+ * Helper to create a Contract with guarded workflow_state field.
+ */
+function createContractWithState(array $attributes, string $workflowState = 'draft'): Contract
+{
+    $contract = new Contract(collect($attributes)->except('workflow_state')->toArray());
+    $contract->workflow_state = $workflowState;
+    $contract->save();
+    return $contract;
+}
+
 beforeEach(function () {
     $this->user = User::factory()->create();
     $this->user->assignRole('system_admin');
@@ -30,24 +41,22 @@ it('renders the agreement repository page', function () {
 });
 
 it('groups contracts by entity', function () {
-    Contract::create([
+    createContractWithState([
         'region_id' => $this->region->id,
         'entity_id' => $this->entity->id,
         'project_id' => $this->project->id,
         'counterparty_id' => $this->counterparty->id,
         'contract_type' => 'Commercial',
         'title' => 'Entity Draft Contract',
-        'workflow_state' => 'draft',
-    ]);
-    Contract::create([
+    ], 'draft');
+    createContractWithState([
         'region_id' => $this->region->id,
         'entity_id' => $this->entity->id,
         'project_id' => $this->project->id,
         'counterparty_id' => $this->counterparty->id,
         'contract_type' => 'Merchant',
         'title' => 'Entity Executed Contract',
-        'workflow_state' => 'executed',
-    ]);
+    ], 'executed');
 
     $component = Livewire::test(AgreementTree::class);
 
@@ -67,15 +76,14 @@ it('groups contracts by entity', function () {
 });
 
 it('groups contracts by counterparty', function () {
-    Contract::create([
+    createContractWithState([
         'region_id' => $this->region->id,
         'entity_id' => $this->entity->id,
         'project_id' => $this->project->id,
         'counterparty_id' => $this->counterparty->id,
         'contract_type' => 'Commercial',
         'title' => 'CP Contract',
-        'workflow_state' => 'draft',
-    ]);
+    ], 'draft');
 
     $component = Livewire::test(AgreementTree::class)
         ->call('setGroupBy', 'counterparty');
@@ -113,39 +121,36 @@ it('shows correct count badges', function () {
     $inReviewContracts = 1;
 
     for ($i = 0; $i < $draftContracts; $i++) {
-        Contract::create([
+        createContractWithState([
             'region_id' => $this->region->id,
             'entity_id' => $this->entity->id,
             'project_id' => $this->project->id,
             'counterparty_id' => $this->counterparty->id,
             'contract_type' => 'Commercial',
             'title' => "Draft Contract {$i}",
-            'workflow_state' => 'draft',
-        ]);
+        ], 'draft');
     }
 
     for ($i = 0; $i < $executedContracts; $i++) {
-        Contract::create([
+        createContractWithState([
             'region_id' => $this->region->id,
             'entity_id' => $this->entity->id,
             'project_id' => $this->project->id,
             'counterparty_id' => $this->counterparty->id,
             'contract_type' => 'Commercial',
             'title' => "Executed Contract {$i}",
-            'workflow_state' => 'executed',
-        ]);
+        ], 'executed');
     }
 
     for ($i = 0; $i < $inReviewContracts; $i++) {
-        Contract::create([
+        createContractWithState([
             'region_id' => $this->region->id,
             'entity_id' => $this->entity->id,
             'project_id' => $this->project->id,
             'counterparty_id' => $this->counterparty->id,
             'contract_type' => 'Merchant',
             'title' => "In Review Contract {$i}",
-            'workflow_state' => 'in_review',
-        ]);
+        ], 'in_review');
     }
 
     $component = Livewire::test(AgreementTree::class);
@@ -162,15 +167,14 @@ it('shows correct count badges', function () {
 it('loads contracts when node is expanded', function () {
     Filament::setCurrentPanel(Filament::getPanel('admin'));
 
-    $contract = Contract::create([
+    createContractWithState([
         'region_id' => $this->region->id,
         'entity_id' => $this->entity->id,
         'project_id' => $this->project->id,
         'counterparty_id' => $this->counterparty->id,
         'contract_type' => 'Commercial',
         'title' => 'Loadable Contract',
-        'workflow_state' => 'draft',
-    ]);
+    ], 'draft');
 
     $component = Livewire::test(AgreementTree::class)
         ->call('toggleNode', 'entity_' . $this->entity->id)
@@ -187,24 +191,22 @@ it('loads contracts when node is expanded', function () {
 });
 
 it('filters by status', function () {
-    Contract::create([
+    createContractWithState([
         'region_id' => $this->region->id,
         'entity_id' => $this->entity->id,
         'project_id' => $this->project->id,
         'counterparty_id' => $this->counterparty->id,
         'contract_type' => 'Commercial',
         'title' => 'Draft Contract',
-        'workflow_state' => 'draft',
-    ]);
-    Contract::create([
+    ], 'draft');
+    createContractWithState([
         'region_id' => $this->region->id,
         'entity_id' => $this->entity->id,
         'project_id' => $this->project->id,
         'counterparty_id' => $this->counterparty->id,
         'contract_type' => 'Commercial',
         'title' => 'Executed Contract',
-        'workflow_state' => 'executed',
-    ]);
+    ], 'executed');
 
     $component = Livewire::test(AgreementTree::class)
         ->set('statusFilter', 'draft');
@@ -235,15 +237,14 @@ it('groups by jurisdiction', function () {
         'is_primary' => true,
     ]);
 
-    Contract::create([
+    createContractWithState([
         'region_id' => $this->region->id,
         'entity_id' => $this->entity->id,
         'project_id' => $this->project->id,
         'counterparty_id' => $this->counterparty->id,
         'contract_type' => 'Commercial',
         'title' => 'Jurisdiction Contract',
-        'workflow_state' => 'draft',
-    ]);
+    ], 'draft');
 
     $component = Livewire::test(AgreementTree::class)
         ->call('setGroupBy', 'jurisdiction');
@@ -260,15 +261,14 @@ it('groups by jurisdiction', function () {
 });
 
 it('groups by project', function () {
-    Contract::create([
+    createContractWithState([
         'region_id' => $this->region->id,
         'entity_id' => $this->entity->id,
         'project_id' => $this->project->id,
         'counterparty_id' => $this->counterparty->id,
         'contract_type' => 'Commercial',
         'title' => 'Project Contract',
-        'workflow_state' => 'draft',
-    ]);
+    ], 'draft');
 
     $component = Livewire::test(AgreementTree::class)
         ->call('setGroupBy', 'project');
