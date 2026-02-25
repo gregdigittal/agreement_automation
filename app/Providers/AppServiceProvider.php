@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Services\AiWorkerClient;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -20,7 +21,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        \Illuminate\Support\Facades\Event::listen(
+        Event::listen(
             \SocialiteProviders\Manager\SocialiteWasCalled::class,
             \SocialiteProviders\Azure\AzureExtendSocialite::class.'@handle'
         );
