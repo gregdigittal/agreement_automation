@@ -17,7 +17,7 @@ class NotificationService
         if ($unreadOnly) {
             $query->whereNull('read_at');
         }
-        return $query->orderByDesc('created_at')->get();
+        return $query->orderByDesc('created_at')->limit(200)->get();
     }
 
     public function markRead(string $notificationId, User $user): void

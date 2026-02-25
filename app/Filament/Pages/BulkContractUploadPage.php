@@ -90,7 +90,23 @@ class BulkContractUploadPage extends Page implements HasForms
             $zipPath = Storage::disk('local')->path($data['zip_file']);
             $zip = new \ZipArchive();
             if ($zip->open($zipPath) === true) {
+                $maxFiles = 500;
+                $maxFileSize = 50 * 1024 * 1024; // 50 MB per file
+
+                if ($zip->numFiles > $maxFiles) {
+                    $zip->close();
+                    Notification::make()->title("ZIP contains too many files ({$zip->numFiles}). Maximum is {$maxFiles}.")->danger()->send();
+                    return;
+                }
+
                 for ($i = 0; $i < $zip->numFiles; $i++) {
+                    $stat = $zip->statIndex($i);
+                    if ($stat['size'] > $maxFileSize) {
+                        $zip->close();
+                        Notification::make()->title('File "' . $stat['name'] . '" exceeds 50 MB limit.')->danger()->send();
+                        return;
+                    }
+
                     $filename = basename($zip->getNameIndex($i));
                     if (empty($filename) || $filename === '.' || $filename === '..') {
                         continue;

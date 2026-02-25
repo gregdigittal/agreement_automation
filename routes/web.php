@@ -10,11 +10,10 @@ Route::get('/health', function () {
     return response('ok', 200);
 })->name('health');
 
-// Kubernetes readiness probe — returns 200 only if DB + Redis are reachable
+// Kubernetes readiness probe — returns 200 only if DB is reachable
 Route::get('/health/ready', function () {
     try {
         \Illuminate\Support\Facades\DB::connection()->getPdo();
-        \Illuminate\Support\Facades\Redis::ping();
         return response()->json(['status' => 'ready']);
     } catch (\Throwable $e) {
         \Illuminate\Support\Facades\Log::warning('Health readiness check failed', ['error' => $e->getMessage()]);
@@ -40,6 +39,9 @@ Route::get('/contracts/{contract}/download', function (\App\Models\Contract $con
     if (!auth()->user()?->hasAnyRole(['system_admin', 'legal', 'commercial', 'finance', 'audit'])) {
         abort(403);
     }
+    if (!$contract->storage_path) {
+        abort(404, 'No document uploaded for this contract.');
+    }
     $service = app(\App\Services\ContractFileService::class);
     $url = $service->getSignedUrl($contract->storage_path);
     return $url ? redirect($url) : abort(404);
@@ -54,6 +56,9 @@ Route::post('/vendor/logout', [\App\Http\Controllers\VendorAuthController::class
 Route::get('/vendor/contracts/{contract}/download', function (\App\Models\Contract $contract) {
     $user = auth('vendor')->user();
     if (!$user || $contract->counterparty_id !== $user->counterparty_id) abort(403);
+    if (!$contract->storage_path) {
+        abort(404, 'No document uploaded for this contract.');
+    }
     $service = app(\App\Services\ContractFileService::class);
     $url = $service->getSignedUrl($contract->storage_path);
     return $url ? redirect($url) : abort(404);

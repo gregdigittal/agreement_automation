@@ -19,7 +19,7 @@ class VendorUser extends Authenticatable implements FilamentUser
     protected $guard = 'vendor';
 
     protected $fillable = [
-        'id', 'email', 'name', 'counterparty_id', 'last_login_at',
+        'email', 'name', 'counterparty_id', 'last_login_at',
     ];
 
     protected $casts = [

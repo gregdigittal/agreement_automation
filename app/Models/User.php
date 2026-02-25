@@ -16,7 +16,7 @@ class User extends Authenticatable implements FilamentUser
     public $incrementing = false;
     protected string $guard_name = 'web';
 
-    protected $fillable = ['id', 'email', 'name', 'notification_preferences'];
+    protected $fillable = ['email', 'name', 'notification_preferences'];
 
     protected $casts = [
         'notification_preferences' => 'array',

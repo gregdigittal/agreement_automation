@@ -43,22 +43,32 @@ class GenerateWeeklyReport implements ShouldQueue
             $q->whereIn('name', ['system_admin', 'legal']);
         })->get();
 
+        $sentCount = 0;
         foreach ($recipients as $user) {
             $prefs = $user->notification_preferences ?? [];
             $emailEnabled = $prefs['email'] ?? true;
 
             if ($emailEnabled) {
-                Mail::send('emails.weekly-report', $reportData, function ($message) use ($user, $pdfContent, $filename) {
-                    $message->to($user->email)
-                        ->subject('CCRS Weekly Report — '.now()->format('d M Y'))
-                        ->attachData($pdfContent, basename($filename), [
-                            'mime' => 'application/pdf',
-                        ]);
-                });
+                try {
+                    Mail::send('emails.weekly-report', $reportData, function ($message) use ($user, $pdfContent, $filename) {
+                        $message->to($user->email)
+                            ->subject('CCRS Weekly Report — '.now()->format('d M Y'))
+                            ->attachData($pdfContent, basename($filename), [
+                                'mime' => 'application/pdf',
+                            ]);
+                    });
+                    $sentCount++;
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to send weekly report to user', [
+                        'user_id' => $user->id,
+                        'email' => $user->email,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
         }
 
-        Log::info("Weekly report generated and sent to {$recipients->count()} recipients.", [
+        Log::info("Weekly report generated and sent to {$sentCount} of {$recipients->count()} recipients.", [
             'storage_path' => $filename,
         ]);
     }
@@ -81,8 +91,8 @@ class GenerateWeeklyReport implements ShouldQueue
                 ->pluck('count', 'contract_type')
                 ->toArray(),
 
-            'expiring_contracts' => Contract::where('end_date', '>=', $now)
-                ->where('end_date', '<=', $now->copy()->addDays(30))
+            'expiring_contracts' => Contract::where('expiry_date', '>=', $now)
+                ->where('expiry_date', '<=', $now->copy()->addDays(30))
                 ->whereNotIn('workflow_state', ['cancelled', 'expired'])
                 ->count(),
 

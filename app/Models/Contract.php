@@ -10,7 +10,7 @@ use Laravel\Scout\Searchable;
 class Contract extends Model
 {
     use HasFactory, HasUuidPrimaryKey, Searchable;
-    protected $fillable = ['region_id', 'entity_id', 'project_id', 'counterparty_id', 'parent_contract_id', 'contract_type', 'title', 'workflow_state', 'signing_status', 'storage_path', 'file_name', 'file_version', 'sharepoint_url', 'sharepoint_version', 'expiry_date', 'created_by', 'updated_by'];
+    protected $fillable = ['region_id', 'entity_id', 'project_id', 'counterparty_id', 'parent_contract_id', 'contract_type', 'title', 'storage_path', 'file_name', 'file_version', 'sharepoint_url', 'sharepoint_version', 'expiry_date', 'created_by', 'updated_by'];
     protected $casts = ['file_version' => 'integer', 'workflow_state' => 'string', 'signing_status' => 'string', 'expiry_date' => 'date'];
 
     public function region(): BelongsTo { return $this->belongsTo(Region::class); }
@@ -57,5 +57,10 @@ class Contract extends Model
     public function searchableAs(): string
     {
         return 'contracts';
+    }
+
+    public function makeAllSearchableUsing($query)
+    {
+        return $query->with(['counterparty', 'region', 'entity', 'project']);
     }
 }

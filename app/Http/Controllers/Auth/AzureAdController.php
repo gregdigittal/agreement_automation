@@ -29,13 +29,20 @@ class AzureAdController extends Controller
 
         $role = $this->resolveRole($socialiteUser->token);
 
-        $user = User::updateOrCreate(
-            ['id' => $socialiteUser->getId()],
-            [
+        $user = User::find($socialiteUser->getId());
+        if ($user) {
+            $user->update([
                 'email' => $socialiteUser->getEmail(),
                 'name' => $socialiteUser->getName(),
-            ]
-        );
+            ]);
+        } else {
+            $user = new User([
+                'email' => $socialiteUser->getEmail(),
+                'name' => $socialiteUser->getName(),
+            ]);
+            $user->id = $socialiteUser->getId();
+            $user->save();
+        }
 
         if ($role) {
             $user->syncRoles([$role]);

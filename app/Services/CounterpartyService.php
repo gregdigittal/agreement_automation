@@ -19,7 +19,7 @@ class CounterpartyService
         $query = Counterparty::query()
             ->where(function ($q) use ($legalName, $registrationNumber) {
                 $q->where('registration_number', $registrationNumber)
-                  ->orWhere('legal_name', 'LIKE', '%' . substr(trim($legalName), 0, 6) . '%');
+                  ->orWhere('legal_name', 'LIKE', '%' . str_replace(['%', '_'], ['\\%', '\\_'], substr(trim($legalName), 0, 6)) . '%');
             })
             ->where('status', '!=', 'Blacklisted')
             ->limit(5);

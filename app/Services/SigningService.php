@@ -321,7 +321,8 @@ class SigningService
             ]);
 
             // Update contract signing status
-            $session->contract->update(['signing_status' => 'signed']);
+            $session->contract->signing_status = 'signed';
+            $session->contract->save();
 
             SigningAuditLog::create([
                 'signing_session_id' => $session->id,
