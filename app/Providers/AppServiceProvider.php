@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Services\AiWorkerClient;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -20,6 +21,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Event::listen(
+            \SocialiteProviders\Manager\SocialiteWasCalled::class,
+            \SocialiteProviders\Azure\AzureExtendSocialite::class.'@handle'
+        );
+
         \Illuminate\Support\Facades\RateLimiter::for('tito', function ($request) {
             return \Illuminate\Cache\RateLimiting\Limit::perMinute(200)->by($request->ip());
         });
