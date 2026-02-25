@@ -66,6 +66,16 @@ spec:
               value: "127.0.0.1"
             - name: REDIS_PORT
               value: "6379"
+            # Azure AD OAuth
+            - name: AZURE_AD_CLIENT_ID
+              value: "35b4e9d4-2c34-4d2f-99c1-d076da853581"
+            - name: AZURE_AD_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: azure-ad-secrets
+                  key: client-secret
+            - name: AZURE_AD_TENANT_ID
+              value: "651ccfb9-324d-452b-ac16-59bbb4e26ef2"
           resources:
             requests:
               cpu: 100m
