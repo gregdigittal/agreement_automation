@@ -30,6 +30,7 @@ pipeline {
 
     stages {
         stage('Build Docker Image') {
+            when { branch 'sandbox' }
             steps {
                 script {
                     echo "Building ${IMAGE_TAG} ..."
@@ -41,6 +42,7 @@ pipeline {
         }
 
         stage('Deploy to Kubernetes') {
+            when { branch 'sandbox' }
             steps {
                 script {
                     withKubeConfig([credentialsId: KUBE_CREDENTIALS_ID, serverUrl: KUBE_SERVER_URL]) {
@@ -86,10 +88,10 @@ pipeline {
                             done
                         """
 
-                        // Verify rollout
+                        // Verify rollout (generous timeout — entrypoint runs migrations + seeders)
                         sh """
                             kubectl rollout status deployment/${APP_NAME} \
-                                -n ${NAMESPACE} --timeout=300s
+                                -n ${NAMESPACE} --timeout=600s
                         """
                     }
                 }
@@ -97,6 +99,7 @@ pipeline {
         }
 
         stage('Show App Logs') {
+            when { branch 'sandbox' }
             steps {
                 script {
                     withKubeConfig([credentialsId: KUBE_CREDENTIALS_ID, serverUrl: KUBE_SERVER_URL]) {
