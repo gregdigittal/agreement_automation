@@ -12,11 +12,15 @@ use Livewire\Component;
 
 class AgreementTree extends Component
 {
+    protected const TREE_NODE_LIMIT = 200;
+
     public string $groupBy = 'entity';
 
     public string $search = '';
 
     public string $statusFilter = '';
+
+    public int $treeTotal = 0;
 
     /** @var array<string, bool> */
     public array $expanded = [];
@@ -136,7 +140,9 @@ class AgreementTree extends Component
 
         $query->withCount($this->contractCountScopes());
 
-        return $query->orderBy('name')->get()->map(fn (Entity $entity) => [
+        $this->treeTotal = $query->count();
+
+        return $query->orderBy('name')->limit(self::TREE_NODE_LIMIT)->get()->map(fn (Entity $entity) => [
             'id' => $entity->id,
             'name' => $entity->name,
             'code' => $entity->code ?? '',
@@ -162,7 +168,9 @@ class AgreementTree extends Component
 
         $query->withCount($this->contractCountScopes());
 
-        return $query->orderBy('legal_name')->get()->map(fn (Counterparty $cp) => [
+        $this->treeTotal = $query->count();
+
+        return $query->orderBy('legal_name')->limit(self::TREE_NODE_LIMIT)->get()->map(fn (Counterparty $cp) => [
             'id' => $cp->id,
             'name' => $cp->legal_name,
             'code' => $cp->registration_number ?? '',
@@ -188,7 +196,9 @@ class AgreementTree extends Component
             });
         }
 
-        return $query->orderBy('name')->get()->map(fn (Jurisdiction $jurisdiction) => [
+        $this->treeTotal = $query->count();
+
+        return $query->orderBy('name')->limit(self::TREE_NODE_LIMIT)->get()->map(fn (Jurisdiction $jurisdiction) => [
             'id' => $jurisdiction->id,
             'name' => $jurisdiction->name,
             'code' => $jurisdiction->country_code ?? '',
@@ -225,7 +235,9 @@ class AgreementTree extends Component
 
         $query->withCount($this->contractCountScopes());
 
-        return $query->orderBy('name')->get()->map(fn (Project $project) => [
+        $this->treeTotal = $query->count();
+
+        return $query->orderBy('name')->limit(self::TREE_NODE_LIMIT)->get()->map(fn (Project $project) => [
             'id' => $project->id,
             'name' => $project->name,
             'code' => $project->code ?? '',

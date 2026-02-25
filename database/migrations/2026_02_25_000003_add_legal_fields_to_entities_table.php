@@ -12,7 +12,7 @@ return new class extends Migration
             $table->string('legal_name', 500)->nullable()->after('name');
             $table->string('registration_number', 100)->nullable()->after('legal_name');
             $table->text('registered_address')->nullable()->after('registration_number');
-            $table->uuid('parent_entity_id')->nullable()->after('registered_address');
+            $table->char('parent_entity_id', 36)->nullable()->after('registered_address');
 
             $table->foreign('parent_entity_id')->references('id')->on('entities')->nullOnDelete();
         });

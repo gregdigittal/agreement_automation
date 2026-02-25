@@ -10,7 +10,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('jurisdictions', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
+            $table->char('id', 36)->primary()->default(DB::raw('(UUID())'));
             $table->string('name', 255);
             $table->char('country_code', 2);
             $table->string('regulatory_body', 255)->nullable();

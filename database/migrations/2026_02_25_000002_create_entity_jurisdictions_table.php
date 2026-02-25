@@ -10,9 +10,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('entity_jurisdictions', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('(UUID())'));
-            $table->uuid('entity_id');
-            $table->uuid('jurisdiction_id');
+            $table->char('id', 36)->primary()->default(DB::raw('(UUID())'));
+            $table->char('entity_id', 36);
+            $table->char('jurisdiction_id', 36);
             $table->string('license_number', 100)->nullable();
             $table->date('license_expiry')->nullable();
             $table->boolean('is_primary')->default(false);

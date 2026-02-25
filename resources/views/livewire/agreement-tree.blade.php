@@ -72,5 +72,11 @@
                 <p class="text-sm">No agreements found matching your criteria.</p>
             </div>
         @endforelse
+
+        @if ($treeTotal > count($treeData))
+            <div class="px-4 py-3 text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-200 dark:border-amber-800">
+                Showing {{ count($treeData) }} of {{ $treeTotal }} nodes. Use search or filters to narrow results.
+            </div>
+        @endif
     </div>
 </div>
