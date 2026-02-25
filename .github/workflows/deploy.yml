@@ -1,0 +1,93 @@
+name: Deploy to Sandbox
+
+on:
+  push:
+    branches: [sandbox]
+
+env:
+  APP_NAME: digittal-ccrs
+  REGISTRY: repo-de.digittal.mobi
+  NAMESPACE: cco-sandbox
+  DOMAIN: ccrs-sandbox.digittal.mobi
+  PMA_DOMAIN: ccrs-pma-sandbox.digittal.mobi
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set image tag
+        run: echo "IMAGE_TAG=${{ env.REGISTRY }}/sandbox/${{ env.APP_NAME }}:${{ github.run_number }}" >> $GITHUB_ENV
+
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ env.IMAGE_TAG }} .
+          docker tag ${{ env.IMAGE_TAG }} ${{ env.REGISTRY }}/sandbox/${{ env.APP_NAME }}:latest
+
+      - name: Push to registry
+        run: |
+          echo "${{ secrets.DOCKER_REGISTRY_PASSWORD }}" | docker login ${{ env.REGISTRY }} -u admin --password-stdin
+          docker push ${{ env.IMAGE_TAG }}
+          docker push ${{ env.REGISTRY }}/sandbox/${{ env.APP_NAME }}:latest
+
+      - name: Write kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Create namespace and secrets
+        run: |
+          kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
+          kubectl create secret docker-registry dockerreg \
+            --docker-server=${{ env.REGISTRY }} \
+            --docker-username=admin \
+            --docker-password='${{ secrets.DOCKER_REGISTRY_PASSWORD }}' \
+            -n ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
+          kubectl create secret generic app-secrets \
+            --from-literal=APP_KEY='${{ secrets.APP_KEY }}' \
+            -n ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
+          kubectl create secret generic azure-ad-secrets \
+            --from-literal=client-secret='${{ secrets.AZURE_AD_CLIENT_SECRET }}' \
+            -n ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply Kubernetes manifests
+        run: |
+          export APP_NAME="${{ env.APP_NAME }}"
+          export IMAGE_TAG="${{ env.IMAGE_TAG }}"
+          export NAMESPACE="${{ env.NAMESPACE }}"
+          export DOMAIN="${{ env.DOMAIN }}"
+          export PMA_DOMAIN="${{ env.PMA_DOMAIN }}"
+
+          for f in deploy/k8s/*.yaml; do
+            envsubst < "$f" | kubectl apply -n ${{ env.NAMESPACE }} -f -
+          done
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/${{ env.APP_NAME }} \
+            -n ${{ env.NAMESPACE }} --timeout=600s
+
+      - name: Show app logs
+        if: always()
+        run: |
+          echo "========================================="
+          echo "  Pod status"
+          echo "========================================="
+          kubectl get pods -n ${{ env.NAMESPACE }} -l app=${{ env.APP_NAME }} -o wide || true
+          echo "========================================="
+          echo "  App logs (last 50 lines)"
+          echo "========================================="
+          kubectl logs deployment/${{ env.APP_NAME }} -c ${{ env.APP_NAME }} \
+            -n ${{ env.NAMESPACE }} --tail=50 2>/dev/null || true
+
+      - name: Cleanup kubeconfig
+        if: always()
+        run: rm -f $HOME/.kube/config
