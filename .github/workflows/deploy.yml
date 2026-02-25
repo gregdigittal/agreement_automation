@@ -27,9 +27,9 @@ jobs:
 
       - name: Build Docker images
         run: |
-          docker build -t ${{ env.IMAGE_TAG }} .
+          docker build --no-cache -t ${{ env.IMAGE_TAG }} .
           docker tag ${{ env.IMAGE_TAG }} ${{ env.REGISTRY }}/sandbox/${{ env.APP_NAME }}:latest
-          docker build -t ${{ env.AI_WORKER_IMAGE_TAG }} ./ai-worker
+          docker build --no-cache -t ${{ env.AI_WORKER_IMAGE_TAG }} ./ai-worker
           docker tag ${{ env.AI_WORKER_IMAGE_TAG }} ${{ env.REGISTRY }}/sandbox/ccrs-ai-worker:latest
 
       - name: Push to registry
