@@ -29,7 +29,16 @@ class TeamsNotificationTest extends TestCase
             'Contract XYZ has been approved by Legal.'
         );
 
-        Http::assertSent(fn ($req) => str_contains($req->url(), '/messages'));
+        Http::assertSent(function ($req) {
+            if (! str_contains($req->url(), '/messages')) {
+                return false;
+            }
+            $content = $req->data()['body']['content'] ?? '';
+            // Verify structured card format
+            return str_contains($content, '<table')
+                && str_contains($content, 'Contract Approved')
+                && str_contains($content, 'CCRS');
+        });
     }
 
     public function test_skips_when_not_configured(): void

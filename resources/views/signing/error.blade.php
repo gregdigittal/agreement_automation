@@ -5,7 +5,7 @@
 @section('content')
 <div class="p-8 text-center">
     <div class="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6">
-        <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
     </div>
