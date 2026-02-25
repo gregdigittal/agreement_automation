@@ -10,10 +10,11 @@ Route::get('/health', function () {
     return response('ok', 200);
 })->name('health');
 
-// Kubernetes readiness probe — returns 200 only if DB is reachable
+// Kubernetes readiness probe — returns 200 only if DB + Redis are reachable
 Route::get('/health/ready', function () {
     try {
         \Illuminate\Support\Facades\DB::connection()->getPdo();
+        \Illuminate\Support\Facades\Redis::ping();
         return response()->json(['status' => 'ready']);
     } catch (\Throwable $e) {
         \Illuminate\Support\Facades\Log::warning('Health readiness check failed', ['error' => $e->getMessage()]);
