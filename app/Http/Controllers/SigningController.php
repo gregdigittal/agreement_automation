@@ -103,13 +103,20 @@ class SigningController extends Controller
 
         $signer->session->update(['status' => 'cancelled']);
 
-        // I4: Notify the initiator that a signer declined
-        $initiator = $signer->session->initiator;
-        if ($initiator?->email) {
-            Mail::raw(
-                "Signer {$signer->signer_name} ({$signer->signer_email}) has declined to sign: {$signer->session->contract->title}. Reason: " . ($request->input('reason') ?? 'No reason provided.'),
-                fn ($msg) => $msg->to($initiator->email)->subject('Signing Declined: ' . $signer->session->contract->title)
-            );
+        // Notify the initiator that a signer declined
+        try {
+            $initiator = $signer->session->initiator;
+            if ($initiator?->email) {
+                Mail::raw(
+                    "Signer {$signer->signer_name} ({$signer->signer_email}) has declined to sign: {$signer->session->contract->title}. Reason: " . ($request->input('reason') ?? 'No reason provided.'),
+                    fn ($msg) => $msg->to($initiator->email)->subject('Signing Declined: ' . $signer->session->contract->title)
+                );
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send decline notification email', [
+                'session_id' => $signer->signing_session_id,
+                'error' => $e->getMessage(),
+            ]);
         }
 
         return view('signing.declined');
