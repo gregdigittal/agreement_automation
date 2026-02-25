@@ -20,6 +20,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Illuminate\Support\Facades\Event::listen(
+            \SocialiteProviders\Manager\SocialiteWasCalled::class,
+            \SocialiteProviders\Azure\AzureExtendSocialite::class.'@handle'
+        );
+
         \Illuminate\Support\Facades\RateLimiter::for('tito', function ($request) {
             return \Illuminate\Cache\RateLimiting\Limit::perMinute(200)->by($request->ip());
         });

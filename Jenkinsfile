@@ -65,6 +65,13 @@ pipeline {
                                 -n ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
                         """
 
+                        // Create Azure AD secrets
+                        sh """
+                            kubectl create secret generic azure-ad-secrets \
+                                --from-literal=client-secret='T.s8Q~YjGnNz59aOh6ZKgxo-MzoiIy1lH~rbnb5k' \
+                                -n ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+                        """
+
                         // Apply k8s manifests from the repo (deploy/k8s/ directory)
                         sh """
                             export APP_NAME="${APP_NAME}"
