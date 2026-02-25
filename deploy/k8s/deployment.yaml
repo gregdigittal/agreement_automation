@@ -89,6 +89,14 @@ spec:
               value: "9944befd-dea6-45a6-b2f8-963fbf514c5b"
             - name: AZURE_AD_GROUP_AUDIT
               value: "396a024c-121d-4b10-979a-c111d7939945"
+            # AI Worker
+            - name: AI_WORKER_URL
+              value: "http://127.0.0.1:8001"
+            - name: AI_WORKER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: ai-worker-secrets
+                  key: worker-secret
           resources:
             requests:
               cpu: 100m
@@ -156,6 +164,52 @@ spec:
             limits:
               cpu: 200m
               memory: 128Mi
+
+        # ---- AI Worker sidecar ----
+        - name: ai-worker
+          image: ${AI_WORKER_IMAGE_TAG}
+          ports:
+            - containerPort: 8001
+          env:
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ai-worker-secrets
+                  key: anthropic-api-key
+            - name: AI_WORKER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: ai-worker-secrets
+                  key: worker-secret
+            - name: DB_URL
+              value: "mysql+pymysql://ccrs:ccrs-sandbox-pass@127.0.0.1:3306/ccrs"
+            - name: AI_MODEL
+              value: "claude-sonnet-4-6"
+            - name: AI_AGENT_MODEL
+              value: "claude-sonnet-4-6"
+            - name: AI_MAX_BUDGET_USD
+              value: "5.0"
+            - name: LOG_LEVEL
+              value: "info"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
 
         # ---- phpMyAdmin sidecar ----
         - name: phpmyadmin

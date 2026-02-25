@@ -12,6 +12,9 @@ pipeline {
         DOMAIN         = 'ccrs-sandbox.digittal.mobi'
         PMA_DOMAIN     = 'ccrs-pma-sandbox.digittal.mobi'
 
+        AI_WORKER_IMAGE     = "${REGISTRY}/sandbox/ccrs-ai-worker"
+        AI_WORKER_IMAGE_TAG = "${AI_WORKER_IMAGE}:${BUILD_NUMBER}"
+
         // Cluster credentials
         KUBE_CREDENTIALS_ID = 'sandbox-kubeconfig'
         KUBE_SERVER_URL     = 'https://136.243.89.211:6443'
@@ -37,6 +40,11 @@ pipeline {
                     def app = docker.build("${IMAGE_TAG}", ".")
                     app.push()
                     app.push('latest')
+
+                    echo "Building AI Worker ${AI_WORKER_IMAGE_TAG} ..."
+                    def aiWorker = docker.build("${AI_WORKER_IMAGE_TAG}", "./ai-worker")
+                    aiWorker.push()
+                    aiWorker.push('latest')
                 }
             }
         }
@@ -74,6 +82,14 @@ pipeline {
                                 -n ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
                         """
 
+                        // Create AI Worker secrets
+                        sh """
+                            kubectl create secret generic ai-worker-secrets \
+                                --from-literal=anthropic-api-key='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' \
+                                --from-literal=worker-secret='923509a7319d402e2fbc0579676b963ef3480fefcb0cea8595d456acfbb5a39f' \
+                                -n ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+                        """
+
                         // Apply k8s manifests from the repo (deploy/k8s/ directory)
                         sh """
                             export APP_NAME="${APP_NAME}"
@@ -81,6 +97,7 @@ pipeline {
                             export NAMESPACE="${NAMESPACE}"
                             export DOMAIN="${DOMAIN}"
                             export PMA_DOMAIN="${PMA_DOMAIN}"
+                            export AI_WORKER_IMAGE_TAG="${AI_WORKER_IMAGE_TAG}"
 
                             # Process and apply each manifest template
                             for f in deploy/k8s/*.yaml; do

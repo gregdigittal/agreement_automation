@@ -20,19 +20,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set image tag
-        run: echo "IMAGE_TAG=${{ env.REGISTRY }}/sandbox/${{ env.APP_NAME }}:${{ github.run_number }}" >> $GITHUB_ENV
+      - name: Set image tags
+        run: |
+          echo "IMAGE_TAG=${{ env.REGISTRY }}/sandbox/${{ env.APP_NAME }}:${{ github.run_number }}" >> $GITHUB_ENV
+          echo "AI_WORKER_IMAGE_TAG=${{ env.REGISTRY }}/sandbox/ccrs-ai-worker:${{ github.run_number }}" >> $GITHUB_ENV
 
-      - name: Build Docker image
+      - name: Build Docker images
         run: |
           docker build -t ${{ env.IMAGE_TAG }} .
           docker tag ${{ env.IMAGE_TAG }} ${{ env.REGISTRY }}/sandbox/${{ env.APP_NAME }}:latest
+          docker build -t ${{ env.AI_WORKER_IMAGE_TAG }} ./ai-worker
+          docker tag ${{ env.AI_WORKER_IMAGE_TAG }} ${{ env.REGISTRY }}/sandbox/ccrs-ai-worker:latest
 
       - name: Push to registry
         run: |
           echo "${{ secrets.DOCKER_REGISTRY_PASSWORD }}" | docker login ${{ env.REGISTRY }} -u admin --password-stdin
           docker push ${{ env.IMAGE_TAG }}
           docker push ${{ env.REGISTRY }}/sandbox/${{ env.APP_NAME }}:latest
+          docker push ${{ env.AI_WORKER_IMAGE_TAG }}
+          docker push ${{ env.REGISTRY }}/sandbox/ccrs-ai-worker:latest
 
       - name: Write kubeconfig
         run: |
@@ -58,6 +64,11 @@ jobs:
             --from-literal=client-secret='${{ secrets.AZURE_AD_CLIENT_SECRET }}' \
             -n ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
 
+          kubectl create secret generic ai-worker-secrets \
+            --from-literal=anthropic-api-key='${{ secrets.ANTHROPIC_API_KEY }}' \
+            --from-literal=worker-secret='${{ secrets.AI_WORKER_SECRET }}' \
+            -n ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Apply Kubernetes manifests
         run: |
           export APP_NAME="${{ env.APP_NAME }}"
@@ -65,6 +76,7 @@ jobs:
           export NAMESPACE="${{ env.NAMESPACE }}"
           export DOMAIN="${{ env.DOMAIN }}"
           export PMA_DOMAIN="${{ env.PMA_DOMAIN }}"
+          export AI_WORKER_IMAGE_TAG="${{ env.AI_WORKER_IMAGE_TAG }}"
 
           for f in deploy/k8s/*.yaml; do
             envsubst < "$f" | kubectl apply -n ${{ env.NAMESPACE }} -f -
