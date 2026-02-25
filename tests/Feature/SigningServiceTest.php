@@ -249,6 +249,51 @@ it('sends to next signer in sequential mode', function () {
     });
 });
 
+it('regenerates token when sending reminder', function () {
+    $session = $this->service->createSession($this->contract, [
+        ['name' => 'Alice', 'email' => 'alice@example.com', 'type' => 'external', 'order' => 0],
+    ], 'sequential');
+
+    $signer = $session->signers->first();
+    $originalRawToken = $this->service->sendToSigner($signer);
+    $signer->refresh();
+    $originalHashedToken = $signer->token;
+    $originalExpiry = $signer->token_expires_at;
+
+    // Wait a tiny bit so timestamps differ (or just trust the logic)
+    $reminderRawToken = $this->service->sendReminder($signer);
+    $signer->refresh();
+
+    // The reminder must return a new raw token (64 hex chars)
+    expect($reminderRawToken)->toHaveLength(64);
+    // The new raw token must differ from the original
+    expect($reminderRawToken)->not->toBe($originalRawToken);
+    // The stored hash must be the SHA-256 of the new raw token
+    expect($signer->token)->toBe(hash('sha256', $reminderRawToken));
+    // The stored hash must differ from the original (old token invalidated)
+    expect($signer->token)->not->toBe($originalHashedToken);
+    // Expiry must be refreshed
+    expect($signer->token_expires_at)->not->toBeNull();
+
+    // The new raw token must be usable for validation
+    $validatedSigner = $this->service->validateToken($reminderRawToken);
+    expect($validatedSigner->id)->toBe($signer->id);
+
+    // The old token must no longer work
+    expect(fn () => $this->service->validateToken($originalRawToken))
+        ->toThrow(\RuntimeException::class, 'Invalid signing token.');
+
+    // Audit log should contain a reminder_sent event
+    $reminderLog = SigningAuditLog::where('signing_session_id', $session->id)
+        ->where('event', 'reminder_sent')
+        ->first();
+    expect($reminderLog)->not->toBeNull();
+    expect($reminderLog->signer_id)->toBe($signer->id);
+
+    // Two SigningInvitation emails should have been sent (original + reminder)
+    Mail::assertSent(SigningInvitation::class, 2);
+});
+
 it('cancels session on cancel', function () {
     $session = $this->service->createSession($this->contract, [
         ['name' => 'Alice', 'email' => 'alice@example.com', 'type' => 'external', 'order' => 0],

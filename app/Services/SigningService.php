@@ -12,6 +12,7 @@ use App\Models\SigningSessionSigner;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use App\Services\ContractFileService;
 
 class SigningService
 {
@@ -41,7 +42,7 @@ class SigningService
                     'signer_name' => $signerData['name'],
                     'signer_email' => $signerData['email'],
                     'signer_type' => $signerData['type'] ?? 'external',
-                    'signing_order' => $signerData['order'] ?? ($index + 1),
+                    'signing_order' => $signerData['order'] ?? $index,
                     'status' => 'pending',
                 ]);
             }
@@ -369,11 +370,22 @@ class SigningService
     }
 
     /**
-     * Re-send signing invitation to a signer.
+     * Re-send signing invitation to a signer with a fresh token.
+     *
+     * Regenerating the token also invalidates any previous link for this signer,
+     * which is more secure than re-using the old token.
+     *
+     * @return string The raw (unhashed) token for URL construction
      */
-    public function sendReminder(SigningSessionSigner $signer): void
+    public function sendReminder(SigningSessionSigner $signer): string
     {
-        Mail::to($signer->signer_email)->send(new SigningInvitation($signer));
+        $rawToken = bin2hex(random_bytes(32)); // CSPRNG
+        $signer->update([
+            'token' => hash('sha256', $rawToken),
+            'token_expires_at' => now()->addDays(7),
+        ]);
+
+        Mail::to($signer->signer_email)->send(new SigningInvitation($signer, $rawToken));
 
         SigningAuditLog::create([
             'signing_session_id' => $signer->signing_session_id,
@@ -387,5 +399,7 @@ class SigningService
             'user_agent' => request()->userAgent(),
             'created_at' => now(),
         ]);
+
+        return $rawToken;
     }
 }
