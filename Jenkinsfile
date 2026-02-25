@@ -37,12 +37,12 @@ pipeline {
             steps {
                 script {
                     echo "Building ${IMAGE_TAG} ..."
-                    def app = docker.build("${IMAGE_TAG}", ".")
+                    def app = docker.build("${IMAGE_TAG}", "--no-cache .")
                     app.push()
                     app.push('latest')
 
                     echo "Building AI Worker ${AI_WORKER_IMAGE_TAG} ..."
-                    def aiWorker = docker.build("${AI_WORKER_IMAGE_TAG}", "./ai-worker")
+                    def aiWorker = docker.build("${AI_WORKER_IMAGE_TAG}", "--no-cache ./ai-worker")
                     aiWorker.push()
                     aiWorker.push('latest')
                 }
