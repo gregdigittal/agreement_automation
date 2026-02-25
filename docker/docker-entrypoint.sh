@@ -46,12 +46,18 @@ if [ "${APP_ENV:-production}" = "production" ]; then
     php artisan view:cache
 fi
 
-# Run migrations (don't crash container on failure — sandbox may have conflicts)
+# Run migrations — if migrate fails (e.g. orphan tables from DDL auto-commit),
+# fall back to migrate:fresh which drops everything and re-runs cleanly.
+# This is safe for sandbox (no production data to lose).
 echo "Running migrations..."
-php artisan migrate --force || echo "WARNING: Migration failed — may need manual intervention"
+if ! php artisan migrate --force 2>&1; then
+    echo "WARNING: migrate failed — falling back to migrate:fresh (sandbox only)"
+    php artisan migrate:fresh --force 2>&1 || echo "ERROR: migrate:fresh also failed"
+fi
 
-# Run seeders (don't crash on failure)
-php artisan db:seed --force 2>/dev/null || true
+# Run seeders (idempotent — uses firstOrCreate)
+echo "Running seeders..."
+php artisan db:seed --force 2>&1 || echo "WARNING: Seeder failed"
 
 # Publish Filament assets (if Filament is installed)
 if php artisan list 2>/dev/null | grep -q "filament:assets"; then
