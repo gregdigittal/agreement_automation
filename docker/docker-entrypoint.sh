@@ -35,16 +35,10 @@ if [ "${DB_CONNECTION:-mysql}" = "mysql" ]; then
     done
 fi
 
-# Optimize for production
-if [ "${APP_ENV:-production}" = "production" ]; then
-    echo "Optimizing for production..."
-    php artisan config:clear
-    php artisan route:clear
-    php artisan view:clear
-    php artisan config:cache
-    php artisan route:cache
-    php artisan view:cache
-fi
+# Clear caches before migration (stale cache can reference missing tables)
+php artisan config:clear 2>/dev/null || true
+php artisan route:clear 2>/dev/null || true
+php artisan view:clear 2>/dev/null || true
 
 # Run migrations — if migrate fails (e.g. orphan tables from DDL auto-commit),
 # fall back to migrate:fresh which drops everything and re-runs cleanly.
@@ -62,6 +56,15 @@ php artisan db:seed --force 2>&1 || echo "WARNING: Seeder failed"
 # Publish Filament assets (if Filament is installed)
 if php artisan list 2>/dev/null | grep -q "filament:assets"; then
     php artisan filament:assets
+fi
+
+# Optimize for production — AFTER migrations so service providers
+# that query the DB (e.g. Filament Shield) can boot successfully
+if [ "${APP_ENV:-production}" = "production" ]; then
+    echo "Optimizing for production..."
+    php artisan config:cache
+    php artisan route:cache
+    php artisan view:cache
 fi
 
 echo "Starting application..."
