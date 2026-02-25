@@ -250,8 +250,8 @@
     signature_pad was also removed from npm — signing.js includes a built-in
     canvas fallback that provides equivalent draw functionality.
 --}}
-{{-- I6: crossorigin + referrerpolicy added; TODO: verify SRI integrity hashes before production --}}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
+    integrity="sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e"
     crossorigin="anonymous"
     referrerpolicy="no-referrer"></script>
 <script>

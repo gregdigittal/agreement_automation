@@ -341,12 +341,19 @@ class SigningService
         // Send completion email to all signers and initiator (after transaction commit)
         $session->load('initiator');
 
-        foreach ($session->signers as $signer) {
-            Mail::to($signer->signer_email)->send(new SigningComplete($session));
-        }
+        try {
+            foreach ($session->signers as $signer) {
+                Mail::to($signer->signer_email)->send(new SigningComplete($session));
+            }
 
-        if ($session->initiator && $session->initiator->email) {
-            Mail::to($session->initiator->email)->send(new SigningComplete($session));
+            if ($session->initiator && $session->initiator->email) {
+                Mail::to($session->initiator->email)->send(new SigningComplete($session));
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send signing completion emails', [
+                'session_id' => $session->id,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

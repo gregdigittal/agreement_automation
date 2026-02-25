@@ -15,12 +15,17 @@ class PdfService
     public function getPageCount(string $storagePath): int
     {
         $content = Storage::disk(config('ccrs.contracts_disk'))->get($storagePath);
+        if ($content === null) {
+            throw new \RuntimeException("Contract PDF not found at path: {$storagePath}");
+        }
+
         $pdf = new \setasign\Fpdi\Fpdi();
         $tmpFile = tempnam(sys_get_temp_dir(), 'pdf_');
         file_put_contents($tmpFile, $content);
         try {
-            $count = $pdf->setSourceFile($tmpFile);
-            return $count;
+            return $pdf->setSourceFile($tmpFile);
+        } catch (\Throwable $e) {
+            throw new \RuntimeException("Failed to read contract PDF: {$e->getMessage()}", 0, $e);
         } finally {
             @unlink($tmpFile);
         }
@@ -29,6 +34,10 @@ class PdfService
     public function overlaySignatures(string $storagePath, array $signatures): string
     {
         $content = Storage::disk(config('ccrs.contracts_disk'))->get($storagePath);
+        if ($content === null) {
+            throw new \RuntimeException("Contract PDF not found at path: {$storagePath}");
+        }
+
         $tmpSource = tempnam(sys_get_temp_dir(), 'pdf_src_');
         file_put_contents($tmpSource, $content);
 

@@ -90,6 +90,8 @@ class AgreementTree extends Component
             case 'project':
                 $query->where('project_id', $id);
                 break;
+            default:
+                return;
         }
 
         $total = (clone $query)->count();
