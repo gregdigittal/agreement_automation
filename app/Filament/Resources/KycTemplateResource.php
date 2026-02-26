@@ -25,7 +25,9 @@ class KycTemplateResource extends Resource
             Forms\Components\Section::make('Template Details')->schema([
                 Forms\Components\TextInput::make('name')
                     ->required()
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->placeholder('e.g. UAE Commercial KYC')
+                    ->helperText('A descriptive name for this KYC checklist template.'),
                 Forms\Components\Select::make('entity_id')
                     ->relationship('entity', 'name')
                     ->searchable()
@@ -140,6 +142,11 @@ class KycTemplateResource extends Resource
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([]);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->hasAnyRole(['system_admin', 'legal']) ?? false;
     }
 
     public static function canCreate(): bool

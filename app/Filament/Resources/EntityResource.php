@@ -22,18 +22,34 @@ class EntityResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable(),
-            Forms\Components\TextInput::make('name')->required()->maxLength(255),
-            Forms\Components\TextInput::make('code')->maxLength(50),
+            Forms\Components\Select::make('region_id')
+                ->relationship('region', 'name')
+                ->required()
+                ->searchable()
+                ->preload()
+                ->helperText('The region this entity belongs to.'),
+            Forms\Components\TextInput::make('name')
+                ->required()
+                ->maxLength(255)
+                ->placeholder('e.g. Digittal UAE')
+                ->helperText('The display name for this entity.'),
+            Forms\Components\TextInput::make('code')
+                ->maxLength(50)
+                ->placeholder('e.g. DGT-AE, DGT-UK')
+                ->helperText('Short internal identifier used in bulk uploads and reports.'),
 
             Forms\Components\Section::make('Legal Details')->schema([
                 Forms\Components\TextInput::make('legal_name')
                     ->maxLength(500)
-                    ->placeholder('Full legal entity name'),
+                    ->placeholder('Full legal entity name')
+                    ->helperText('The official legal name as registered with authorities.'),
                 Forms\Components\TextInput::make('registration_number')
-                    ->maxLength(100),
+                    ->maxLength(100)
+                    ->placeholder('e.g. 12345678')
+                    ->helperText('Trade license or company registration number.'),
                 Forms\Components\Textarea::make('registered_address')
-                    ->rows(2),
+                    ->rows(2)
+                    ->helperText('The official registered address of this entity.'),
                 Forms\Components\Select::make('parent_entity_id')
                     ->relationship(
                         'parent',
@@ -56,6 +72,11 @@ class EntityResource extends Resource
             Tables\Columns\TextColumn::make('region.name')->sortable(),
             Tables\Columns\TextColumn::make('projects_count')->counts('projects')->label('Projects'),
         ])->actions([Tables\Actions\EditAction::make()]);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->hasRole('system_admin') ?? false;
     }
 
     public static function canCreate(): bool

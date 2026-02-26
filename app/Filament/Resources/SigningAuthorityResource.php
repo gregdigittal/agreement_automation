@@ -21,11 +21,31 @@ class SigningAuthorityResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable(),
-            Forms\Components\Select::make('project_id')->relationship('project', 'name')->searchable(),
-            Forms\Components\TextInput::make('user_id')->maxLength(255),
-            Forms\Components\TextInput::make('user_email')->email()->required()->maxLength(255),
-            Forms\Components\TextInput::make('role_or_name')->required()->maxLength(255),
+            Forms\Components\Select::make('entity_id')
+                ->relationship('entity', 'name')
+                ->required()
+                ->searchable()
+                ->preload()
+                ->helperText('The entity this signing authority belongs to.'),
+            Forms\Components\Select::make('project_id')
+                ->relationship('project', 'name')
+                ->searchable()
+                ->preload()
+                ->helperText('Optionally restrict to a specific project.'),
+            Forms\Components\TextInput::make('user_id')
+                ->maxLength(255)
+                ->helperText('System user ID (auto-populated when linked to a user account).'),
+            Forms\Components\TextInput::make('user_email')
+                ->email()
+                ->required()
+                ->maxLength(255)
+                ->placeholder('e.g. signer@digittal.io')
+                ->helperText('Email address of the authorised signatory.'),
+            Forms\Components\TextInput::make('role_or_name')
+                ->required()
+                ->maxLength(255)
+                ->placeholder('e.g. General Counsel, CFO')
+                ->helperText('The role or full name of the signing authority.'),
         ]);
     }
 
@@ -38,6 +58,11 @@ class SigningAuthorityResource extends Resource
             Tables\Columns\TextColumn::make('project.name')->sortable(),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
         ])->actions([Tables\Actions\EditAction::make()]);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->hasRole('system_admin') ?? false;
     }
 
     public static function canCreate(): bool

@@ -21,8 +21,24 @@ class RegionResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\TextInput::make('name')->required()->maxLength(255),
-            Forms\Components\TextInput::make('code')->maxLength(50),
+            Forms\Components\TextInput::make('name')
+                ->required()
+                ->maxLength(255)
+                ->placeholder('e.g. Middle East & North Africa')
+                ->helperText('A descriptive name for this organisational region.'),
+            Forms\Components\Select::make('code')
+                ->options([
+                    'MENA' => 'MENA',
+                    'GCC' => 'GCC',
+                    'EMEA' => 'EMEA',
+                    'APAC' => 'APAC',
+                    'NA' => 'NA (North America)',
+                    'LATAM' => 'LATAM',
+                    'EUR' => 'EUR (Europe)',
+                    'SSA' => 'SSA (Sub-Saharan Africa)',
+                ])
+                ->searchable()
+                ->helperText('Standard region code. Used in CSV uploads and reports.'),
         ]);
     }
 
@@ -38,6 +54,11 @@ class RegionResource extends Resource
             ->filters([])
             ->actions([Tables\Actions\EditAction::make()])
             ->bulkActions([Tables\Actions\BulkActionGroup::make([Tables\Actions\DeleteBulkAction::make()])]);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->hasRole('system_admin') ?? false;
     }
 
     public static function canCreate(): bool
