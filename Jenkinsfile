@@ -82,12 +82,16 @@ pipeline {
                                 -n ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
                         """
 
-                        // Create AI Worker secrets
+                        // AI Worker secrets are managed externally (not committed to git).
+                        // Create manually once per namespace:
+                        //   kubectl create secret generic ai-worker-secrets \
+                        //     --from-literal=anthropic-api-key='...' \
+                        //     --from-literal=openai-api-key='...' \
+                        //     --from-literal=worker-secret='...' \
+                        //     -n cco-sandbox
                         sh """
-                            kubectl create secret generic ai-worker-secrets \
-                                --from-literal=anthropic-api-key='REDACTED_ANTHROPIC_KEY' \
-                                --from-literal=worker-secret='923509a7319d402e2fbc0579676b963ef3480fefcb0cea8595d456acfbb5a39f' \
-                                -n ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+                            kubectl get secret ai-worker-secrets -n ${NAMESPACE} > /dev/null 2>&1 || \
+                                echo "WARNING: ai-worker-secrets not found in ${NAMESPACE} — create it manually"
                         """
 
                         // Apply k8s manifests from the repo (deploy/k8s/ directory)
