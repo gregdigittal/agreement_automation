@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('contract_user_access', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
+            $table->id();
             $table->char('contract_id', 36);
             $table->char('user_id', 36);
             $table->string('access_level', 20)->default('view');

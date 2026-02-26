@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SigningAuditLog;
+use App\Models\StoredSignature;
 use App\Services\SigningService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +27,13 @@ class SigningController extends Controller
         // Pass the raw token (from URL) so views can build signing URLs without exposing the hash
         $rawToken = $token;
 
-        return view('signing.show', compact('signer', 'session', 'contract', 'rawToken'));
+        // Load stored signatures for this signer (by email match)
+        $storedSignatures = StoredSignature::forSigner(null, $signer->signer_email)
+            ->orderByDesc('is_default')
+            ->orderByDesc('created_at')
+            ->get();
+
+        return view('signing.show', compact('signer', 'session', 'contract', 'rawToken', 'storedSignatures'));
     }
 
     public function submit(Request $request, string $token)
@@ -39,7 +46,7 @@ class SigningController extends Controller
 
         $request->validate([
             'signature_image' => 'required|string|max:500000', // C4: ~375KB decoded limit
-            'signature_method' => 'required|in:draw,type,upload',
+            'signature_method' => 'required|in:draw,type,upload,webcam',
             'fields' => 'array',
             'fields.*.id' => 'required|string',
             'fields.*.value' => 'nullable|string',
