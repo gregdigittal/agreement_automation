@@ -29,8 +29,19 @@ class ContractResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()
+        $query = parent::getEloquentQuery()
             ->with(['counterparty', 'region', 'entity', 'project']);
+
+        $user = auth()->user();
+        if ($user && !$user->hasRole('system_admin')) {
+            $userId = $user->id;
+            $query->where(function (Builder $q) use ($userId) {
+                $q->where('is_restricted', false)
+                  ->orWhereHas('authorizedUsers', fn (Builder $sub) => $sub->where('users.id', $userId));
+            });
+        }
+
+        return $query;
     }
 
     public static function form(Form $form): Form
@@ -82,6 +93,33 @@ class ContractResource extends Resource
                         ->placeholder('e.g. 2.3'),
                 ])
                 ->columns(2),
+            Forms\Components\Section::make('Access Control')
+                ->description('Restrict this contract to specific users. When restricted, only authorized users and system admins can see it.')
+                ->collapsed()
+                ->visible(fn (): bool => auth()->user()?->hasAnyRole(['system_admin', 'legal']) ?? false)
+                ->schema([
+                    Forms\Components\Toggle::make('is_restricted')
+                        ->label('Restricted Access')
+                        ->helperText('When enabled, only authorized users listed below (and system admins) can view or edit this contract.')
+                        ->live()
+                        ->afterStateUpdated(function ($state, ?Contract $record) {
+                            if ($record) {
+                                \App\Services\AuditService::log(
+                                    $state ? 'access_restricted' : 'access_unrestricted',
+                                    'contract',
+                                    $record->id,
+                                );
+                            }
+                        }),
+                    Forms\Components\Select::make('authorizedUsers')
+                        ->label('Authorized Users')
+                        ->relationship('authorizedUsers', 'name')
+                        ->multiple()
+                        ->searchable()
+                        ->preload()
+                        ->visible(fn (Forms\Get $get): bool => (bool) $get('is_restricted'))
+                        ->helperText('Select users who should have access to this restricted contract.'),
+                ]),
         ])->disabled(fn (?Contract $record): bool =>
         $record !== null && in_array($record->workflow_state, ['executed', 'archived'])
     );
@@ -108,6 +146,14 @@ class ContractResource extends Resource
                 ->trueIcon('heroicon-o-document-text')
                 ->falseIcon('heroicon-o-minus')
                 ->tooltip(fn (Contract $record) => $record->sharepoint_url)
+                ->toggleable(isToggledHiddenByDefault: true),
+            Tables\Columns\IconColumn::make('is_restricted')
+                ->label('Locked')
+                ->boolean()
+                ->trueIcon('heroicon-o-lock-closed')
+                ->falseIcon('heroicon-o-lock-open')
+                ->trueColor('danger')
+                ->falseColor('gray')
                 ->toggleable(isToggledHiddenByDefault: true),
         ])
         ->filters([
@@ -373,6 +419,11 @@ class ContractResource extends Resource
         }
 
         return $relations;
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->hasAnyRole(['system_admin', 'legal', 'commercial', 'finance', 'operations', 'audit']) ?? false;
     }
 
     public static function canCreate(): bool

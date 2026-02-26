@@ -10,8 +10,8 @@ use Laravel\Scout\Searchable;
 class Contract extends Model
 {
     use HasFactory, HasUuidPrimaryKey, Searchable;
-    protected $fillable = ['region_id', 'entity_id', 'project_id', 'counterparty_id', 'parent_contract_id', 'contract_type', 'title', 'storage_path', 'file_name', 'file_version', 'sharepoint_url', 'sharepoint_version', 'expiry_date', 'created_by', 'updated_by'];
-    protected $casts = ['file_version' => 'integer', 'workflow_state' => 'string', 'signing_status' => 'string', 'expiry_date' => 'date'];
+    protected $fillable = ['region_id', 'entity_id', 'project_id', 'counterparty_id', 'parent_contract_id', 'contract_type', 'title', 'storage_path', 'file_name', 'file_version', 'sharepoint_url', 'sharepoint_version', 'expiry_date', 'created_by', 'updated_by', 'is_restricted'];
+    protected $casts = ['file_version' => 'integer', 'workflow_state' => 'string', 'signing_status' => 'string', 'expiry_date' => 'date', 'is_restricted' => 'boolean'];
 
     public function region(): BelongsTo { return $this->belongsTo(Region::class); }
     public function entity(): BelongsTo { return $this->belongsTo(Entity::class); }
@@ -39,6 +39,13 @@ class Contract extends Model
     public function kycPack(): \Illuminate\Database\Eloquent\Relations\HasOne { return $this->hasOne(KycPack::class); }
     public function signingSessions(): HasMany { return $this->hasMany(SigningSession::class); }
     public function activeSigningSession() { return $this->hasOne(SigningSession::class)->where('status', 'active'); }
+    public function accessGrants(): HasMany { return $this->hasMany(ContractUserAccess::class); }
+    public function authorizedUsers(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'contract_user_access')
+            ->withPivot('access_level', 'granted_by')
+            ->withTimestamps();
+    }
 
     public function toSearchableArray(): array
     {

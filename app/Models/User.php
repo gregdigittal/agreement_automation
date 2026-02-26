@@ -5,6 +5,7 @@ use App\Traits\HasUuidPrimaryKey;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -21,6 +22,18 @@ class User extends Authenticatable implements FilamentUser
     protected $casts = [
         'notification_preferences' => 'array',
     ];
+
+    public function storedSignatures(): HasMany
+    {
+        return $this->hasMany(StoredSignature::class);
+    }
+
+    public function accessibleContracts(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Contract::class, 'contract_user_access')
+            ->withPivot('access_level', 'granted_by')
+            ->withTimestamps();
+    }
 
     public function canAccessPanel(Panel $panel): bool
     {

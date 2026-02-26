@@ -26,7 +26,18 @@ class MerchantAgreementResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->where('contract_type', 'Merchant');
+        $query = parent::getEloquentQuery()->where('contract_type', 'Merchant');
+
+        $user = auth()->user();
+        if ($user && !$user->hasRole('system_admin')) {
+            $userId = $user->id;
+            $query->where(function (Builder $q) use ($userId) {
+                $q->where('is_restricted', false)
+                  ->orWhereHas('authorizedUsers', fn (Builder $sub) => $sub->where('users.id', $userId));
+            });
+        }
+
+        return $query;
     }
 
     public static function form(Form $form): Form
@@ -96,6 +107,11 @@ class MerchantAgreementResource extends Resource
                     \Filament\Notifications\Notification::make()->title('DOCX generated')->success()->send();
                 }),
         ]);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->hasAnyRole(['system_admin', 'legal', 'commercial']) ?? false;
     }
 
     public static function canCreate(): bool

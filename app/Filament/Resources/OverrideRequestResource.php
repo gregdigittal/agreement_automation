@@ -111,6 +111,11 @@ class OverrideRequestResource extends Resource
         ]);
     }
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->hasAnyRole(['system_admin', 'legal']) ?? false;
+    }
+
     public static function canCreate(): bool
     {
         return auth()->user()?->hasAnyRole(['system_admin', 'legal']) ?? false;
