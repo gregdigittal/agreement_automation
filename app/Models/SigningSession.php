@@ -16,11 +16,14 @@ class SigningSession extends Model
         'contract_id', 'initiated_by', 'signing_order', 'status',
         'document_hash', 'final_document_hash', 'final_storage_path',
         'expires_at', 'completed_at',
+        'require_all_pages_viewed', 'require_page_initials',
     ];
 
     protected $casts = [
         'expires_at' => 'datetime',
         'completed_at' => 'datetime',
+        'require_all_pages_viewed' => 'boolean',
+        'require_page_initials' => 'boolean',
     ];
 
     public function contract(): BelongsTo { return $this->belongsTo(Contract::class); }

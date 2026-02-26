@@ -21,9 +21,21 @@ class ProjectResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable(),
-            Forms\Components\TextInput::make('name')->required()->maxLength(255),
-            Forms\Components\TextInput::make('code')->maxLength(50),
+            Forms\Components\Select::make('entity_id')
+                ->relationship('entity', 'name')
+                ->required()
+                ->searchable()
+                ->preload()
+                ->helperText('The entity this project belongs to.'),
+            Forms\Components\TextInput::make('name')
+                ->required()
+                ->maxLength(255)
+                ->placeholder('e.g. TiTo Platform v2')
+                ->helperText('A descriptive name for this project.'),
+            Forms\Components\TextInput::make('code')
+                ->maxLength(50)
+                ->placeholder('e.g. PRJ-001')
+                ->helperText('Short project code used in CSV uploads and contract filters.'),
         ]);
     }
 
@@ -34,6 +46,11 @@ class ProjectResource extends Resource
             Tables\Columns\TextColumn::make('code')->sortable(),
             Tables\Columns\TextColumn::make('entity.name')->sortable(),
         ])->actions([Tables\Actions\EditAction::make()]);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->hasRole('system_admin') ?? false;
     }
 
     public static function canCreate(): bool

@@ -21,13 +21,26 @@ class NotificationResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\TextInput::make('recipient_email')->email()->required()->maxLength(255),
-            Forms\Components\TextInput::make('subject')->required()->maxLength(255),
-            Forms\Components\Textarea::make('body')->required()->rows(5),
+            Forms\Components\TextInput::make('recipient_email')
+                ->email()
+                ->required()
+                ->maxLength(255)
+                ->placeholder('e.g. user@digittal.io')
+                ->helperText('The email address of the notification recipient.'),
+            Forms\Components\TextInput::make('subject')
+                ->required()
+                ->maxLength(255)
+                ->placeholder('e.g. Contract Review Required')
+                ->helperText('A concise subject line for the notification.'),
+            Forms\Components\Textarea::make('body')
+                ->required()
+                ->rows(5)
+                ->helperText('The full message body of the notification.'),
             Forms\Components\Select::make('channel')
                 ->options(['email' => 'Email', 'in_app' => 'In-App', 'teams' => 'Teams'])
                 ->default('email')
-                ->required(),
+                ->required()
+                ->helperText('How this notification will be delivered.'),
         ]);
     }
 
@@ -47,6 +60,11 @@ class NotificationResource extends Resource
         ])
         ->defaultSort('created_at', 'desc')
         ->actions([Tables\Actions\EditAction::make()]);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->hasAnyRole(['system_admin', 'legal', 'commercial', 'finance', 'operations', 'audit']) ?? false;
     }
 
     public static function canCreate(): bool

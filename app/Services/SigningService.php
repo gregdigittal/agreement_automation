@@ -9,6 +9,8 @@ use App\Models\SigningAuditLog;
 use App\Models\SigningField;
 use App\Models\SigningSession;
 use App\Models\SigningSessionSigner;
+use App\Models\TemplateSigningField;
+use App\Models\WikiContract;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -18,10 +20,12 @@ class SigningService
 {
     /**
      * Create a new signing session for a contract.
+     *
+     * @param array $options Optional settings: wiki_contract_id, require_all_pages_viewed, require_page_initials
      */
-    public function createSession(Contract $contract, array $signers, string $order = 'sequential'): SigningSession
+    public function createSession(Contract $contract, array $signers, string $order = 'sequential', array $options = []): SigningSession
     {
-        return DB::transaction(function () use ($contract, $signers, $order) {
+        return DB::transaction(function () use ($contract, $signers, $order, $options) {
             // Compute SHA-256 hash of the contract's PDF
             $fileService = app(ContractFileService::class);
             $fileContents = $fileService->download($contract->storage_path);
@@ -34,10 +38,13 @@ class SigningService
                 'status' => 'active',
                 'document_hash' => $documentHash,
                 'expires_at' => now()->addDays(30),
+                'require_all_pages_viewed' => $options['require_all_pages_viewed'] ?? false,
+                'require_page_initials' => $options['require_page_initials'] ?? false,
             ]);
 
+            $createdSigners = [];
             foreach ($signers as $index => $signerData) {
-                SigningSessionSigner::create([
+                $createdSigners[] = SigningSessionSigner::create([
                     'signing_session_id' => $session->id,
                     'signer_name' => $signerData['name'],
                     'signer_email' => $signerData['email'],
@@ -47,6 +54,11 @@ class SigningService
                 ]);
             }
 
+            // Copy template signing fields if a wiki contract template is specified
+            if (!empty($options['wiki_contract_id'])) {
+                $this->copyTemplateFieldsToSession($session, $options['wiki_contract_id'], $createdSigners);
+            }
+
             SigningAuditLog::create([
                 'signing_session_id' => $session->id,
                 'event' => 'created',
@@ -54,6 +66,9 @@ class SigningService
                     'signing_order' => $order,
                     'signer_count' => count($signers),
                     'initiated_by' => auth()->user()?->name,
+                    'wiki_contract_id' => $options['wiki_contract_id'] ?? null,
+                    'require_all_pages_viewed' => $options['require_all_pages_viewed'] ?? false,
+                    'require_page_initials' => $options['require_page_initials'] ?? false,
                 ],
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),
@@ -62,6 +77,64 @@ class SigningService
 
             return $session;
         });
+    }
+
+    /**
+     * Copy signing field definitions from a WikiContract template to a signing session.
+     * Maps signer_role to actual signers based on their type.
+     */
+    private function copyTemplateFieldsToSession(SigningSession $session, string $wikiContractId, array $signers): void
+    {
+        $templateFields = TemplateSigningField::where('wiki_contract_id', $wikiContractId)
+            ->orderBy('sort_order')
+            ->get();
+
+        if ($templateFields->isEmpty()) {
+            return;
+        }
+
+        // Build a role-to-signer mapping
+        $roleMap = [];
+        foreach ($signers as $signer) {
+            if ($signer->signer_type === 'internal' && !isset($roleMap['company'])) {
+                $roleMap['company'] = $signer->id;
+            } elseif ($signer->signer_type === 'external' && !isset($roleMap['counterparty'])) {
+                $roleMap['counterparty'] = $signer->id;
+            }
+        }
+
+        // Assign witnesses by order (skip signers already mapped to company/counterparty)
+        $mappedSignerIds = array_values($roleMap);
+        $witnessIndex = 1;
+        foreach ($signers as $signer) {
+            if (in_array($signer->id, $mappedSignerIds)) {
+                continue;
+            }
+            $roleKey = "witness_{$witnessIndex}";
+            $roleMap[$roleKey] = $signer->id;
+            $witnessIndex++;
+        }
+
+        foreach ($templateFields as $tf) {
+            $assignedSignerId = $roleMap[$tf->signer_role] ?? ($signers[0]->id ?? null);
+
+            if (!$assignedSignerId) {
+                continue;
+            }
+
+            SigningField::create([
+                'signing_session_id' => $session->id,
+                'assigned_to_signer_id' => $assignedSignerId,
+                'field_type' => $tf->field_type,
+                'label' => $tf->label,
+                'page_number' => $tf->page_number,
+                'x_position' => $tf->x_position,
+                'y_position' => $tf->y_position,
+                'width' => $tf->width,
+                'height' => $tf->height,
+                'is_required' => $tf->is_required,
+            ]);
+        }
     }
 
     /**

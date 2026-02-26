@@ -36,6 +36,8 @@
              class="border border-gray-300 rounded-lg bg-gray-50 overflow-auto"
              style="max-height: 600px;"
              data-pdf-url="{{ route('signing.document', $rawToken) }}"
+             data-require-all-pages="{{ $session->require_all_pages_viewed ? '1' : '0' }}"
+             data-require-page-initials="{{ $session->require_page_initials ? '1' : '0' }}"
              role="document"
              aria-label="Contract PDF viewer">
             <div id="pdf-loading" class="flex items-center justify-center py-20 text-gray-500" role="status" aria-label="Loading document">
@@ -107,6 +109,35 @@
         </div>
         @endif
 
+        {{-- Stored Signatures --}}
+        @if (isset($storedSignatures) && $storedSignatures->isNotEmpty())
+        <div class="mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-3">Saved Signatures</h2>
+            <p class="text-sm text-gray-500 mb-3">Click a saved signature to use it, or create a new one below.</p>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                @foreach ($storedSignatures as $stored)
+                @php $storedImageUrl = $stored->getImageUrl(); @endphp
+                <div class="stored-signature-item border border-gray-200 rounded-lg p-3 cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
+                     data-image-src="{{ $storedImageUrl }}"
+                     data-sig-type="{{ $stored->type }}">
+                    <div class="bg-white border border-gray-100 rounded p-2 flex items-center justify-center mb-2" style="min-height: 60px;">
+                        <img src="{{ $storedImageUrl }}"
+                             alt="{{ $stored->label }}"
+                             class="max-h-14 max-w-full object-contain"
+                             onerror="this.style.display='none'">
+                    </div>
+                    <div class="text-xs text-gray-600 truncate">
+                        {{ $stored->label ?? ucfirst($stored->type) }}
+                        @if ($stored->is_default)
+                            <span class="text-indigo-600 font-medium">(default)</span>
+                        @endif
+                    </div>
+                </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
         {{-- Signature Area --}}
         <div class="mb-8">
             <h2 class="text-lg font-semibold text-gray-800 mb-3">Your Signature</h2>
@@ -136,6 +167,14 @@
                         aria-selected="false"
                         aria-controls="tab-panel-upload">
                     Upload
+                </button>
+                <button type="button"
+                        class="signature-tab tab-inactive px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                        data-method="webcam"
+                        role="tab"
+                        aria-selected="false"
+                        aria-controls="tab-panel-webcam">
+                    Camera
                 </button>
             </div>
 
@@ -184,9 +223,65 @@
                 </div>
             </div>
 
+            {{-- Webcam Panel --}}
+            <div id="tab-panel-webcam" class="signature-panel hidden" role="tabpanel">
+                <div id="webcam-start" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <button type="button" id="start-camera-btn" class="mt-3 text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+                        Start Camera
+                    </button>
+                    <p class="mt-1 text-xs text-gray-400">Hold your signature on white paper up to the camera</p>
+                </div>
+                <div id="webcam-active" class="hidden">
+                    <video id="webcam-video" autoplay playsinline class="w-full max-w-lg rounded-lg border border-gray-300"></video>
+                    <div class="flex items-center space-x-3 mt-2">
+                        <button type="button" id="capture-btn" class="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700">
+                            Capture
+                        </button>
+                        <button type="button" id="stop-camera-btn" class="text-sm text-gray-600 hover:text-gray-800 font-medium">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+                <div id="webcam-captured" class="hidden">
+                    <p class="text-sm font-medium text-gray-700 mb-2">Captured Signature:</p>
+                    <div class="bg-white border border-gray-200 rounded p-2 inline-block">
+                        <img id="webcam-preview" class="max-h-24" alt="Captured signature">
+                    </div>
+                    <div class="flex items-center space-x-3 mt-2">
+                        <button type="button" id="accept-capture-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700">
+                            Use This Signature
+                        </button>
+                        <button type="button" id="retake-btn" class="text-sm text-gray-600 hover:text-gray-800 font-medium">
+                            Retake
+                        </button>
+                    </div>
+                </div>
+                <canvas id="webcam-canvas" class="hidden" width="640" height="480"></canvas>
+                <canvas id="webcam-process-canvas" class="hidden" width="640" height="480"></canvas>
+            </div>
+
             {{-- Hidden inputs for form submission --}}
             <input type="hidden" name="signature_image" id="signature-image-input">
             <input type="hidden" name="signature_method" id="signature-method-input" value="draw">
+            @if (isset($storedSignatures))
+                @php $defaultInitials = $storedSignatures->where('type', 'initials')->where('is_default', true)->first(); @endphp
+                @if ($defaultInitials)
+                    <input type="hidden" id="stored-initials-data" value="auto">
+                @endif
+            @endif
+        </div>
+
+        {{-- Save for future use --}}
+        <div class="mb-6">
+            <label class="flex items-center space-x-2 cursor-pointer">
+                <input type="checkbox" name="save_signature" value="1"
+                       class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                <span class="text-sm text-gray-600">Save this signature for future use</span>
+            </label>
         </div>
 
         {{-- Actions --}}

@@ -16,6 +16,11 @@ class AuditLogResource extends Resource
     protected static ?int $navigationSort = 30;
     protected static ?string $navigationGroup = 'Admin';
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->hasAnyRole(['system_admin', 'legal', 'audit']) ?? false;
+    }
+
     public static function canCreate(): bool
     {
         return false;

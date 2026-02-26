@@ -74,6 +74,11 @@ class MerchantAgreementRequestResource extends Resource
         ]);
     }
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->hasAnyRole(['system_admin', 'legal', 'commercial']) ?? false;
+    }
+
     public static function canCreate(): bool
     {
         return auth()->user()?->hasAnyRole(['system_admin', 'legal', 'commercial']) ?? false;

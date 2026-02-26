@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\SigningAuditLog;
+use App\Models\StoredSignature;
+use App\Models\User;
 use App\Services\SigningService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +28,14 @@ class SigningController extends Controller
         // Pass the raw token (from URL) so views can build signing URLs without exposing the hash
         $rawToken = $token;
 
-        return view('signing.show', compact('signer', 'session', 'contract', 'rawToken'));
+        // Load stored signatures for this signer (by user_id or email)
+        $userId = User::where('email', $signer->signer_email)->value('id');
+        $storedSignatures = StoredSignature::forSigner($userId, $signer->signer_email)
+            ->orderByDesc('is_default')
+            ->orderByDesc('created_at')
+            ->get();
+
+        return view('signing.show', compact('signer', 'session', 'contract', 'rawToken', 'storedSignatures'));
     }
 
     public function submit(Request $request, string $token)
@@ -39,10 +48,11 @@ class SigningController extends Controller
 
         $request->validate([
             'signature_image' => 'required|string|max:500000', // C4: ~375KB decoded limit
-            'signature_method' => 'required|in:draw,type,upload',
+            'signature_method' => 'required|in:draw,type,upload,webcam',
             'fields' => 'array',
             'fields.*.id' => 'required|string',
             'fields.*.value' => 'nullable|string',
+            'save_signature' => 'nullable|in:1',
         ]);
 
         $this->signingService->captureSignature(
@@ -50,6 +60,25 @@ class SigningController extends Controller
             $request->input('fields', []),
             $request->input('signature_image'),
         );
+
+        // Save signature for future use if requested
+        if ($request->input('save_signature')) {
+            $decoded = base64_decode($request->input('signature_image'), true);
+            if ($decoded && @getimagesizefromstring($decoded)) {
+                $path = 'stored-signatures/external/' . \Illuminate\Support\Str::uuid() . '.png';
+                $disk = config('ccrs.contracts_disk', 's3');
+                Storage::disk($disk)->put($path, $decoded);
+
+                StoredSignature::create([
+                    'signer_email' => $signer->signer_email,
+                    'label' => 'Saved from signing session',
+                    'type' => 'signature',
+                    'capture_method' => $request->input('signature_method', 'draw'),
+                    'image_path' => $path,
+                    'is_default' => true,
+                ]);
+            }
+        }
 
         $this->signingService->advanceSession($signer->session);
 

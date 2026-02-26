@@ -15,6 +15,7 @@ class WikiContract extends Model
 
     public function region(): BelongsTo { return $this->belongsTo(Region::class); }
     public function merchantAgreementInputs(): HasMany { return $this->hasMany(MerchantAgreementInput::class, 'template_id'); }
+    public function signingFields(): HasMany { return $this->hasMany(TemplateSigningField::class); }
     public function toSearchableArray(): array
     {
         return [
