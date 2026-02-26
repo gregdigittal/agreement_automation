@@ -22,6 +22,13 @@ class User extends Authenticatable implements FilamentUser
         'notification_preferences' => 'array',
     ];
 
+    public function accessibleContracts(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Contract::class, 'contract_user_access')
+            ->withPivot('access_level', 'granted_by')
+            ->withTimestamps();
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
         // Any authenticated user with at least one CCRS role can access the admin panel

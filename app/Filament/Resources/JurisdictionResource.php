@@ -26,19 +26,23 @@ class JurisdictionResource extends Resource
                     ->required()
                     ->maxLength(255)
                     ->unique(ignoreRecord: true)
-                    ->placeholder('UAE - DIFC'),
-                Forms\Components\TextInput::make('country_code')
+                    ->placeholder('e.g. UAE - DIFC')
+                    ->helperText('A descriptive name for this jurisdiction, typically Country - Zone.'),
+                Forms\Components\Select::make('country_code')
                     ->required()
-                    ->maxLength(2)
-                    ->placeholder('AE')
-                    ->helperText('ISO 3166-1 alpha-2 country code'),
+                    ->searchable()
+                    ->options(\App\Helpers\CountryCodes::options())
+                    ->helperText('ISO 3166-1 alpha-2 country code for this jurisdiction.'),
                 Forms\Components\TextInput::make('regulatory_body')
                     ->maxLength(255)
-                    ->placeholder('DIFC Authority'),
+                    ->placeholder('e.g. DIFC Authority')
+                    ->helperText('The regulatory authority governing this jurisdiction.'),
                 Forms\Components\Textarea::make('notes')
-                    ->rows(3),
+                    ->rows(3)
+                    ->helperText('Any additional notes about this jurisdiction.'),
                 Forms\Components\Toggle::make('is_active')
-                    ->default(true),
+                    ->default(true)
+                    ->helperText('Inactive jurisdictions will not appear in dropdown selections.'),
             ])->columns(2),
         ]);
     }
@@ -64,6 +68,11 @@ class JurisdictionResource extends Resource
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([]);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->hasRole('system_admin') ?? false;
     }
 
     public static function canCreate(): bool

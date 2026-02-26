@@ -13,6 +13,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\HtmlString;
 
 class WorkflowTemplateResource extends Resource
 {
@@ -29,15 +30,46 @@ class WorkflowTemplateResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\TextInput::make('name')->required()->maxLength(255),
-            Forms\Components\Select::make('contract_type')->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant'])->required(),
-            Forms\Components\Select::make('region_id')->relationship('region', 'name')->searchable(),
-            Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->searchable(),
-            Forms\Components\Select::make('project_id')->relationship('project', 'name')->searchable(),
+            Forms\Components\TextInput::make('name')
+                ->required()
+                ->maxLength(255)
+                ->placeholder('e.g. Commercial Standard Review')
+                ->helperText('A descriptive name for this workflow template.'),
+            Forms\Components\Select::make('contract_type')
+                ->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant'])
+                ->required()
+                ->helperText('Determines which contracts this workflow applies to.'),
+            Forms\Components\Select::make('region_id')
+                ->relationship('region', 'name')
+                ->searchable()
+                ->preload()
+                ->helperText('Optionally scope this workflow to a specific region.')
+                ->hint(fn () => \App\Models\Region::count() === 0
+                    ? new HtmlString('<span class="text-warning-600 dark:text-warning-400">No regions exist yet. <a href="/admin/regions/create" class="underline">Create one first</a>.</span>')
+                    : null),
+            Forms\Components\Select::make('entity_id')
+                ->relationship('entity', 'name')
+                ->searchable()
+                ->preload()
+                ->helperText('Optionally scope this workflow to a specific entity.')
+                ->hint(fn () => \App\Models\Entity::count() === 0
+                    ? new HtmlString('<span class="text-warning-600 dark:text-warning-400">No entities exist yet. <a href="/admin/entities/create" class="underline">Create one first</a>.</span>')
+                    : null),
+            Forms\Components\Select::make('project_id')
+                ->relationship('project', 'name')
+                ->searchable()
+                ->preload()
+                ->helperText('Optionally scope this workflow to a specific project.')
+                ->hint(fn () => \App\Models\Project::count() === 0
+                    ? new HtmlString('<span class="text-warning-600 dark:text-warning-400">No projects exist yet. <a href="/admin/projects/create" class="underline">Create one first</a>.</span>')
+                    : null),
             WorkflowBuilderField::make('stages')
             ->label('Workflow Stages')
             ->columnSpanFull(),
-            Forms\Components\Select::make('status')->options(['draft' => 'Draft', 'published' => 'Published', 'deprecated' => 'Deprecated'])->default('draft'),
+            Forms\Components\Select::make('status')
+                ->options(['draft' => 'Draft', 'published' => 'Published', 'deprecated' => 'Deprecated'])
+                ->default('draft')
+                ->helperText('Only published templates are assigned to new contracts.'),
         ]);
     }
 
@@ -89,6 +121,11 @@ class WorkflowTemplateResource extends Resource
     public static function getRelationManagers(): array
     {
         return [EscalationRulesRelationManager::class];
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->hasRole('system_admin') ?? false;
     }
 
     public static function canCreate(): bool
