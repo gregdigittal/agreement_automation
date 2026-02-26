@@ -62,10 +62,8 @@ it('org visualization page renders', function () {
 it('analytics dashboard renders when feature enabled', function () {
     config(['features.advanced_analytics' => true]);
 
-    // Known bug: AnalyticsDashboardPage::getVisibleWidgets not implemented
-    // Page renders but throws 500 due to missing method in blade template
-    $this->get('/admin/analytics-dashboard-page')->assertStatus(500);
-})->skip('AnalyticsDashboardPage has pre-existing getVisibleWidgets bug');
+    $this->get('/admin/analytics-dashboard-page')->assertSuccessful();
+});
 
 it('analytics dashboard blocked when feature disabled', function () {
     config(['features.advanced_analytics' => false]);

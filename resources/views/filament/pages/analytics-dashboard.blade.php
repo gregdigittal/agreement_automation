@@ -5,8 +5,8 @@
         </div>
     @else
         <x-filament-widgets::widgets
-            :widgets="$this->getVisibleWidgets()"
-            :columns="$this->getColumns()"
+            :widgets="$this->getVisibleHeaderWidgets()"
+            :columns="$this->getHeaderWidgetsColumns()"
         />
     @endif
 </x-filament-panels::page>
