@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     anthropic_api_key: str
+    openai_api_key: str
     ai_model: str = "claude-sonnet-4-6"
     ai_agent_model: str = "claude-sonnet-4-6"
     ai_max_budget_usd: float = 5.0
