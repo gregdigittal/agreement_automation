@@ -26,10 +26,13 @@ it('help guide page contains key sections', function () {
     $response = $this->get('/admin/help-guide-page');
     $response->assertSuccessful();
     $response->assertSee('Getting Started');
-    $response->assertSee('Organisation Structure');
+    $response->assertSee('Organization Setup');
     $response->assertSee('Contract Lifecycle');
     $response->assertSee('Role Permissions');
     $response->assertSee('Frequently Asked Questions');
+    $response->assertSee('E-Signatures');
+    $response->assertSee('Redlining');
+    $response->assertSee('Vendor Portal');
 });
 
 it('help guide page contains role permissions table', function () {
