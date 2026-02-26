@@ -21,7 +21,7 @@ class ProcessContractBatchTest extends TestCase
 
     public function test_processes_row_and_creates_contract(): void
     {
-        Storage::fake('s3');
+        Storage::fake(config('ccrs.contracts_disk'));
 
         $region = Region::factory()->create();
         $entity = Entity::factory()->create(['region_id' => $region->id]);
@@ -52,7 +52,7 @@ class ProcessContractBatchTest extends TestCase
             'status' => 'pending',
         ]);
 
-        Storage::disk('s3')->put('bulk_uploads/files/doc.pdf', 'fake pdf content');
+        Storage::disk(config('ccrs.contracts_disk'))->put('bulk_uploads/files/doc.pdf', 'fake pdf content');
 
         ProcessContractBatch::dispatchSync($rowId);
 

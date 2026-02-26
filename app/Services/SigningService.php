@@ -248,7 +248,7 @@ class SigningService
 
         // Store signature image
         $path = "signing/{$signer->signing_session_id}/{$signer->id}.png";
-        $disk = config('ccrs.contracts_disk', 's3');
+        $disk = config('ccrs.contracts_disk', 'database');
         Storage::disk($disk)->put($path, $imageData);
 
         $signer->update([
@@ -379,7 +379,7 @@ class SigningService
         $pdfService->generateAuditCertificate($session);
 
         // --- 3. Compute final document hash -----------------------------------
-        $finalContent = Storage::disk(config('ccrs.contracts_disk', 's3'))
+        $finalContent = Storage::disk(config('ccrs.contracts_disk', 'database'))
             ->get($finalStoragePath);
         $finalHash = $pdfService->computeHash($finalContent);
 

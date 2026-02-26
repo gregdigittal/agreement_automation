@@ -36,7 +36,7 @@ class VendorDocumentResource extends Resource
                 ->required()->default('supporting'),
             Forms\Components\FileUpload::make('storage_path')->label('Document File')
                 ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png'])
-                ->disk('s3')->directory(fn () => 'vendor_documents/' . $counterpartyId)->maxSize(20480)->required()->live()
+                ->disk(config('ccrs.contracts_disk'))->directory(fn () => 'vendor_documents/' . $counterpartyId)->maxSize(20480)->required()->live()
                 ->afterStateUpdated(fn ($state, callable $set) => $set('filename', $state ? basename($state) : null)),
             Forms\Components\Hidden::make('filename'),
             Forms\Components\Hidden::make('counterparty_id')->default($counterpartyId),

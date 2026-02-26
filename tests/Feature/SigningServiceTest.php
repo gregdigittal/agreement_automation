@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
     Mail::fake();
-    Storage::fake('s3');
+    Storage::fake(config('ccrs.contracts_disk'));
 
     $this->user = User::factory()->create();
     $this->actingAs($this->user);
@@ -29,7 +29,7 @@ beforeEach(function () {
     $cp = Counterparty::create(['legal_name' => 'Test CP', 'status' => 'Active']);
 
     // Upload a fake PDF so ContractFileService::download works
-    Storage::disk('s3')->put('contracts/test.pdf', '%PDF-1.4 fake pdf content');
+    Storage::disk(config('ccrs.contracts_disk'))->put('contracts/test.pdf', '%PDF-1.4 fake pdf content');
 
     $this->contract = Contract::create([
         'region_id' => $region->id,
@@ -171,7 +171,7 @@ it('captures signature and updates signer', function () {
     expect($signer->signed_at)->not->toBeNull();
 
     // Verify signature image was stored
-    Storage::disk('s3')->assertExists($signer->signature_image_path);
+    Storage::disk(config('ccrs.contracts_disk'))->assertExists($signer->signature_image_path);
 });
 
 it('rejects invalid base64 signature data', function () {
@@ -197,7 +197,7 @@ it('completes session when all signers done', function () {
     app()->instance(PdfService::class, $mockPdf);
 
     // Place a fake final PDF so Storage::get works during hash computation
-    Storage::disk('s3')->put('contracts/signed/final.pdf', '%PDF-sealed-content');
+    Storage::disk(config('ccrs.contracts_disk'))->put('contracts/signed/final.pdf', '%PDF-sealed-content');
 
     $session = $this->service->createSession($this->contract, [
         ['name' => 'Alice', 'email' => 'alice@example.com', 'type' => 'external', 'order' => 0],
@@ -319,7 +319,7 @@ it('creates audit log entries for each action', function () {
     $mockPdf->shouldReceive('computeHash')->andReturn(hash('sha256', 'audit-test'));
     app()->instance(PdfService::class, $mockPdf);
 
-    Storage::disk('s3')->put('contracts/signed/audit-test.pdf', '%PDF-audit-test');
+    Storage::disk(config('ccrs.contracts_disk'))->put('contracts/signed/audit-test.pdf', '%PDF-audit-test');
 
     // 1. Create session — should log 'created'
     $session = $this->service->createSession($this->contract, [

@@ -11,7 +11,7 @@ use App\Services\AiWorkerClient;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
-    Storage::fake('s3');
+    Storage::fake(config('ccrs.contracts_disk'));
     $region = Region::factory()->create();
     $entity = Entity::factory()->create(['region_id' => $region->id]);
     $project = Project::factory()->create(['entity_id' => $entity->id]);
@@ -22,7 +22,7 @@ beforeEach(function () {
         'storage_path' => 'contracts/test.pdf',
         'file_name' => 'test.pdf',
     ]);
-    Storage::disk('s3')->put('contracts/test.pdf', 'fake pdf content');
+    Storage::disk(config('ccrs.contracts_disk'))->put('contracts/test.pdf', 'fake pdf content');
     $this->contractId = $contract->id;
 });
 

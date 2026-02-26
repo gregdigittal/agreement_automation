@@ -87,7 +87,7 @@ class ProcessRedlineAnalysis implements ShouldQueue
      */
     private function extractText(string $storagePath): string
     {
-        $disk = config('ccrs.contracts_disk', 's3');
+        $disk = config('ccrs.contracts_disk', 'database');
         $contents = Storage::disk($disk)->get($storagePath);
 
         if (!$contents) {

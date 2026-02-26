@@ -49,7 +49,7 @@ class MerchantAgreementService
                 }
                 $processor->saveAs($outputPath);
 
-                $disk = config('ccrs.contracts_disk', 's3');
+                $disk = config('ccrs.contracts_disk', 'database');
                 $s3Path = "contracts/{$contract->id}/merchant-agreement-" . now()->format('YmdHis') . ".docx";
                 Storage::disk($disk)->put($s3Path, file_get_contents($outputPath));
 
@@ -96,12 +96,13 @@ class MerchantAgreementService
             ->orderByDesc('created_at')
             ->firstOrFail();
 
-        $templateS3Key = config('ccrs.merchant_agreement_template_s3_key');
+        $templateKey = config('ccrs.merchant_agreement_template_key');
         $tempTemplatePath = tempnam(sys_get_temp_dir(), 'ma_template_') . '.docx';
 
-        $templateContent = Storage::disk('s3')->get($templateS3Key);
+        $disk = config('ccrs.contracts_disk', 'database');
+        $templateContent = Storage::disk($disk)->get($templateKey);
         if (! $templateContent) {
-            throw new \RuntimeException("Master template not found at S3 key: {$templateS3Key}");
+            throw new \RuntimeException("Master template not found at storage key: {$templateKey}");
         }
         file_put_contents($tempTemplatePath, $templateContent);
 
@@ -131,7 +132,7 @@ class MerchantAgreementService
             $counterparty->id,
             now()->format('Ymd_His') . '_' . Str::random(6)
         );
-        Storage::disk('s3')->put($s3OutputKey, file_get_contents($outputTempPath));
+        Storage::disk($disk)->put($s3OutputKey, file_get_contents($outputTempPath));
 
         @unlink($tempTemplatePath);
         @unlink($outputTempPath);

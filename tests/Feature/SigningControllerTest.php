@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
     Mail::fake();
-    Storage::fake('s3');
+    Storage::fake(config('ccrs.contracts_disk'));
     $this->withoutVite();
 
     $this->user = User::factory()->create();
@@ -23,7 +23,7 @@ beforeEach(function () {
     $project = Project::create(['entity_id' => $entity->id, 'name' => 'Ctrl Test Project']);
     $cp = Counterparty::create(['legal_name' => 'Ctrl Test CP', 'status' => 'Active']);
 
-    Storage::disk('s3')->put('contracts/ctrl-test.pdf', '%PDF-1.4 fake controller test pdf');
+    Storage::disk(config('ccrs.contracts_disk'))->put('contracts/ctrl-test.pdf', '%PDF-1.4 fake controller test pdf');
 
     $this->contract = Contract::create([
         'region_id' => $region->id,
@@ -88,7 +88,7 @@ it('submits signature via POST /sign/{token}/submit', function () {
     $mockPdf->shouldReceive('generateAuditCertificate')->andReturn('contracts/audit/cert.pdf');
     $mockPdf->shouldReceive('computeHash')->andReturn(hash('sha256', 'ctrl-test'));
     app()->instance(\App\Services\PdfService::class, $mockPdf);
-    Storage::disk('s3')->put('contracts/signed/ctrl-final.pdf', '%PDF-sealed');
+    Storage::disk(config('ccrs.contracts_disk'))->put('contracts/signed/ctrl-final.pdf', '%PDF-sealed');
 
     $response = $this->post(route('signing.submit', ['token' => $this->rawToken]), [
         'signature_image' => $base64Png,

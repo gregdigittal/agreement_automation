@@ -33,7 +33,7 @@ class ContractLanguagesRelationManager extends RelationManager
             Forms\Components\FileUpload::make('file')
                 ->label('Contract File (PDF / DOCX)')
                 ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
-                ->disk('s3')->directory('contract_languages')
+                ->disk(config('ccrs.contracts_disk'))->directory('contract_languages')
                 ->required()->live()
                 ->afterStateUpdated(function ($state, callable $set) {
                     if ($state) $set('file_name', basename($state));

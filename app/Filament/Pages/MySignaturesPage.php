@@ -112,7 +112,7 @@ class MySignaturesPage extends Page implements HasForms
         }
 
         $path = "stored-signatures/{$user->id}/" . \Illuminate\Support\Str::uuid() . '.png';
-        $disk = config('ccrs.contracts_disk', 's3');
+        $disk = config('ccrs.contracts_disk', 'database');
         Storage::disk($disk)->put($path, $decoded);
 
         // Clear default if setting this as default
@@ -178,7 +178,7 @@ class MySignaturesPage extends Page implements HasForms
         }
 
         $path = "stored-signatures/{$user->id}/" . \Illuminate\Support\Str::uuid() . '.png';
-        $disk = config('ccrs.contracts_disk', 's3');
+        $disk = config('ccrs.contracts_disk', 'database');
         Storage::disk($disk)->put($path, $imageData);
 
         // Clean up local temp
@@ -245,7 +245,7 @@ class MySignaturesPage extends Page implements HasForms
         }
 
         // Delete image from storage
-        $disk = config('ccrs.contracts_disk', 's3');
+        $disk = config('ccrs.contracts_disk', 'database');
         Storage::disk($disk)->delete($signature->image_path);
 
         $signature->delete();

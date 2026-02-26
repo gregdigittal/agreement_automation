@@ -70,7 +70,7 @@ class KycPackRelationManager extends RelationManager
                                 Forms\Components\FileUpload::make('file_path')
                                     ->label($record->label)
                                     ->required()
-                                    ->disk('s3')
+                                    ->disk(config('ccrs.contracts_disk'))
                                     ->directory('kyc'),
                             ],
                             'text' => [

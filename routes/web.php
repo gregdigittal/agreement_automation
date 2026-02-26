@@ -21,6 +21,12 @@ Route::get('/health/ready', function () {
     }
 })->name('health.ready');
 
+// Database file storage — signed URL serving (replaces S3 pre-signed URLs)
+Route::get('/storage/serve/{path}', \App\Http\Controllers\StorageServeController::class)
+    ->where('path', '.*')
+    ->middleware('signed')
+    ->name('storage.serve');
+
 Route::get('/', function () {
     return redirect(auth()->check() ? '/admin' : '/admin/login');
 });

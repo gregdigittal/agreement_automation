@@ -3,7 +3,9 @@
 namespace App\Providers;
 
 use App\Services\AiWorkerClient;
+use App\Storage\DatabaseAdapter;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -35,6 +37,14 @@ class AppServiceProvider extends ServiceProvider
         // C2: Rate-limit public signing routes to prevent brute-force / spam
         \Illuminate\Support\Facades\RateLimiter::for('signing', function ($request) {
             return \Illuminate\Cache\RateLimiting\Limit::perMinute(10)->by($request->ip());
+        });
+
+        // Register 'database' filesystem driver for MySQL BLOB storage
+        Storage::extend('database', function ($app, $config) {
+            $adapter = new DatabaseAdapter();
+            $flysystem = new \League\Flysystem\Filesystem($adapter);
+
+            return new \Illuminate\Filesystem\FilesystemAdapter($flysystem, $adapter, $config);
         });
     }
 }

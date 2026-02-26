@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
     Mail::fake();
-    Storage::fake('s3');
+    Storage::fake(config('ccrs.contracts_disk'));
     $this->withoutVite();
 
     $this->user = User::factory()->create();
@@ -27,7 +27,7 @@ beforeEach(function () {
     $project = Project::create(['entity_id' => $entity->id, 'name' => 'Parallel Test Project']);
     $cp = Counterparty::create(['legal_name' => 'Parallel Test CP', 'status' => 'Active']);
 
-    Storage::disk('s3')->put('contracts/parallel-test.pdf', '%PDF-1.4 fake parallel test pdf');
+    Storage::disk(config('ccrs.contracts_disk'))->put('contracts/parallel-test.pdf', '%PDF-1.4 fake parallel test pdf');
 
     $this->contract = Contract::create([
         'region_id' => $region->id,
@@ -50,7 +50,7 @@ beforeEach(function () {
     $mockPdf->shouldReceive('generateAuditCertificate')->andReturn('contracts/audit/cert.pdf');
     $mockPdf->shouldReceive('computeHash')->andReturn(hash('sha256', 'parallel-sealed'));
     app()->instance(PdfService::class, $mockPdf);
-    Storage::disk('s3')->put('contracts/signed/parallel-final.pdf', '%PDF-sealed');
+    Storage::disk(config('ccrs.contracts_disk'))->put('contracts/signed/parallel-final.pdf', '%PDF-sealed');
 });
 
 it('completes parallel signing flow when all signers sign', function () {

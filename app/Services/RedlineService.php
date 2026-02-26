@@ -178,7 +178,7 @@ class RedlineService
         $contractId = $session->contract_id;
         $s3Path = "contracts/{$contractId}/redline-final-{$session->id}.docx";
 
-        $disk = config('ccrs.contracts_disk', 's3');
+        $disk = config('ccrs.contracts_disk', 'database');
         Storage::disk($disk)->put($s3Path, file_get_contents($tempPath));
         @unlink($tempPath);
 

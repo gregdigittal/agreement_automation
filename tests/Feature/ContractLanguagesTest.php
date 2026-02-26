@@ -15,7 +15,7 @@ class ContractLanguagesTest extends TestCase
 
     public function test_can_attach_language_versions_to_contract(): void
     {
-        Storage::fake('s3');
+        Storage::fake(config('ccrs.contracts_disk'));
 
         $contract = Contract::factory()->create();
 

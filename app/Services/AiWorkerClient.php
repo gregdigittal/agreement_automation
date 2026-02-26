@@ -37,7 +37,7 @@ class AiWorkerClient
             'analysis_type' => $analysisType,
         ]);
         try {
-            $disk = config('ccrs.contracts_disk', 's3');
+            $disk = config('ccrs.contracts_disk', 'database');
             $fileContent = Storage::disk($disk)->get($storagePath);
             if ($fileContent === null || $fileContent === false) {
                 throw new \RuntimeException("Could not download contract file from storage: {$storagePath}");

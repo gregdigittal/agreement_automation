@@ -70,7 +70,7 @@ class ContractResource extends Resource
             Forms\Components\TextInput::make('title')->maxLength(255)
                 ->placeholder('e.g. Master Services Agreement — Acme Corp')
                 ->helperText('A descriptive title for this contract.'),
-            Forms\Components\FileUpload::make('storage_path')->label('Contract File')->disk('s3')->directory('contracts')
+            Forms\Components\FileUpload::make('storage_path')->label('Contract File')->disk(config('ccrs.contracts_disk'))->directory('contracts')
                 ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
                 ->afterStateUpdated(function ($state, Set $set) {
                     if ($state instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
@@ -258,7 +258,7 @@ class ContractResource extends Resource
                     \Filament\Forms\Components\FileUpload::make('file')
                         ->label('File (PDF/DOCX)')
                         ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
-                        ->disk('s3')
+                        ->disk(config('ccrs.contracts_disk'))
                         ->directory('side_letters'),
                 ])
                 ->action(function (Contract $record, array $data) {

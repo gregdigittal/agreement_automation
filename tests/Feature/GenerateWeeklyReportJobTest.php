@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
-    Storage::fake('s3');
+    Storage::fake(config('ccrs.contracts_disk'));
 });
 
 it('skips when advanced_analytics feature is disabled', function () {
@@ -15,7 +15,7 @@ it('skips when advanced_analytics feature is disabled', function () {
     $job = new GenerateWeeklyReport();
     $job->handle();
 
-    Storage::disk('s3')->assertDirectoryEmpty('reports');
+    Storage::disk(config('ccrs.contracts_disk'))->assertDirectoryEmpty('reports');
 });
 
 it('generates PDF and stores to S3 when enabled', function () {
@@ -28,7 +28,7 @@ it('generates PDF and stores to S3 when enabled', function () {
     $job = new GenerateWeeklyReport();
     $job->handle();
 
-    $files = Storage::disk('s3')->allFiles('reports/weekly');
+    $files = Storage::disk(config('ccrs.contracts_disk'))->allFiles('reports/weekly');
     expect($files)->not->toBeEmpty();
 });
 
@@ -53,7 +53,7 @@ it('compiles report data without errors', function () {
     $job->handle();
 
     // PDF was generated and stored
-    $files = Storage::disk('s3')->allFiles('reports/weekly');
+    $files = Storage::disk(config('ccrs.contracts_disk'))->allFiles('reports/weekly');
     expect($files)->toHaveCount(1);
     expect($files[0])->toContain('ccrs-weekly-report-');
 });

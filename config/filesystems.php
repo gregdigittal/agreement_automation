@@ -59,6 +59,11 @@ return [
             'throw' => true,
         ],
 
+        'database' => [
+            'driver' => 'database',
+            'throw' => true,
+        ],
+
     ],
 
     /*

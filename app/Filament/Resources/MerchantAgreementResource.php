@@ -49,7 +49,7 @@ class MerchantAgreementResource extends Resource
             Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable(),
             Forms\Components\Hidden::make('contract_type')->default('Merchant'),
             Forms\Components\TextInput::make('title')->maxLength(255),
-            Forms\Components\FileUpload::make('storage_path')->label('Agreement File')->disk('s3')->directory('contracts')
+            Forms\Components\FileUpload::make('storage_path')->label('Agreement File')->disk(config('ccrs.contracts_disk'))->directory('contracts')
                 ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
                 ->afterStateUpdated(function ($state, Set $set) {
                     if ($state instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {

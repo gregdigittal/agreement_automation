@@ -112,7 +112,7 @@ class BulkContractUploadPage extends Page implements HasForms
                         continue;
                     }
                     $contents = $zip->getFromIndex($i);
-                    Storage::disk('s3')->put('bulk_uploads/files/' . $filename, $contents);
+                    Storage::disk(config('ccrs.contracts_disk', 'database'))->put('bulk_uploads/files/' . $filename, $contents);
                 }
                 $zip->close();
             }

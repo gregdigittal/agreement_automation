@@ -17,7 +17,7 @@ class VendorPortalTest extends TestCase
 
     public function test_document_upload_scoped_to_counterparty(): void
     {
-        Storage::fake('s3');
+        Storage::fake(config('ccrs.contracts_disk'));
         $counterpartyA = Counterparty::factory()->create();
         $counterpartyB = Counterparty::factory()->create();
         $vendorA = VendorUser::factory()->create(['counterparty_id' => $counterpartyA->id]);

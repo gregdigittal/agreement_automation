@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Storage;
 
 it('completes full signing flow with sequential signers', function () {
     Mail::fake();
-    Storage::fake('s3');
+    Storage::fake(config('ccrs.contracts_disk'));
 
     $user = User::factory()->create();
     $this->actingAs($user);
@@ -27,7 +27,7 @@ it('completes full signing flow with sequential signers', function () {
     $cp = Counterparty::create(['legal_name' => 'Integration CP', 'status' => 'Active']);
 
     // Upload a fake PDF so ContractFileService::download works
-    Storage::disk('s3')->put('contracts/integration-test.pdf', '%PDF-1.4 fake pdf for integration test');
+    Storage::disk(config('ccrs.contracts_disk'))->put('contracts/integration-test.pdf', '%PDF-1.4 fake pdf for integration test');
 
     $contract = Contract::create([
         'region_id' => $region->id,
@@ -48,7 +48,7 @@ it('completes full signing flow with sequential signers', function () {
     $mockPdf->shouldReceive('computeHash')->andReturn(hash('sha256', 'integration-sealed'));
     app()->instance(PdfService::class, $mockPdf);
 
-    Storage::disk('s3')->put('contracts/signed/integration-final.pdf', '%PDF-sealed-content');
+    Storage::disk(config('ccrs.contracts_disk'))->put('contracts/signed/integration-final.pdf', '%PDF-sealed-content');
 
     $service = app(SigningService::class);
 

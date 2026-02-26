@@ -40,7 +40,7 @@ class StoredSignature extends Model
             return null;
         }
 
-        $disk = config('ccrs.contracts_disk', 's3');
+        $disk = config('ccrs.contracts_disk', 'database');
 
         if (method_exists(Storage::disk($disk), 'temporaryUrl')) {
             try {

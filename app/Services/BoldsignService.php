@@ -113,9 +113,9 @@ class BoldsignService
             throw new \RuntimeException("Contract {$contract->id} has no uploaded document to countersign.");
         }
 
-        $documentContents = Storage::disk('s3')->get($storagePath);
+        $documentContents = Storage::disk(config('ccrs.contracts_disk', 'database'))->get($storagePath);
         if (!$documentContents) {
-            throw new \RuntimeException("Failed to download document from S3: {$storagePath}");
+            throw new \RuntimeException("Failed to download document from storage: {$storagePath}");
         }
 
         $signers = collect($internalSigners)->map(fn (array $signer, int $index) => [

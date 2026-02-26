@@ -31,7 +31,7 @@ class CountersignWorkflowTest extends TestCase
 
     public function test_countersign_envelope_created_with_only_internal_signers(): void
     {
-        Storage::fake('s3');
+        Storage::fake(config('ccrs.contracts_disk'));
         Http::fake([
             '*' => Http::response(['documentId' => 'boldsign-doc-123'], 200),
         ]);
@@ -43,7 +43,7 @@ class CountersignWorkflowTest extends TestCase
             'storage_path' => 'contracts/test-partially-signed.pdf',
             'workflow_state' => 'countersign',
         ]);
-        Storage::disk('s3')->put('contracts/test-partially-signed.pdf', 'fake-pdf-content');
+        Storage::disk(config('ccrs.contracts_disk'))->put('contracts/test-partially-signed.pdf', 'fake-pdf-content');
 
         // Mock the service to avoid Guzzle multipart serialization issues in tests
         $this->mock(BoldsignService::class, function ($mock) use ($contract, $user) {

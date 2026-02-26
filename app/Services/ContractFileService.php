@@ -14,7 +14,7 @@ class ContractFileService
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     ];
 
-    public function upload(UploadedFile $file, string $contractId, string $disk = 's3'): array
+    public function upload(UploadedFile $file, string $contractId, string $disk = 'database'): array
     {
         if (!in_array($file->getMimeType(), self::ALLOWED_MIMES, true)) {
             throw new \InvalidArgumentException('File must be PDF or DOCX');
@@ -39,6 +39,6 @@ class ContractFileService
 
     public function download(string $storagePath): string
     {
-        return Storage::disk(config('ccrs.contracts_disk', 's3'))->get($storagePath);
+        return Storage::disk(config('ccrs.contracts_disk', 'database'))->get($storagePath);
     }
 }

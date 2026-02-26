@@ -66,7 +66,7 @@ class SigningController extends Controller
             $decoded = base64_decode($request->input('signature_image'), true);
             if ($decoded && @getimagesizefromstring($decoded)) {
                 $path = 'stored-signatures/external/' . \Illuminate\Support\Str::uuid() . '.png';
-                $disk = config('ccrs.contracts_disk', 's3');
+                $disk = config('ccrs.contracts_disk', 'database');
                 Storage::disk($disk)->put($path, $decoded);
 
                 StoredSignature::create([
@@ -98,7 +98,7 @@ class SigningController extends Controller
 
         $contract = $signer->session->contract;
         $storagePath = $contract->storage_path;
-        $disk = config('ccrs.contracts_disk', 's3');
+        $disk = config('ccrs.contracts_disk', 'database');
 
         if (!$storagePath || !Storage::disk($disk)->exists($storagePath)) {
             abort(404, 'Document not found');

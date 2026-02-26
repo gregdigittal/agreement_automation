@@ -21,7 +21,7 @@ class StorageHelper
             default   => 10,
         };
 
-        $disk = config('ccrs.contracts_disk', 's3');
+        $disk = config('ccrs.contracts_disk', 'database');
         return Storage::disk($disk)->temporaryUrl($path, now()->addMinutes($minutes));
     }
 }

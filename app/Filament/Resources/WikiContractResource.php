@@ -42,7 +42,7 @@ class WikiContractResource extends Resource
                 ->options(['draft' => 'Draft', 'review' => 'Review', 'published' => 'Published', 'deprecated' => 'Deprecated'])
                 ->default('draft')
                 ->helperText('Only published templates are available for use in contracts.'),
-            Forms\Components\FileUpload::make('storage_path')->label('Template File')->disk('s3')->directory('wiki-contracts')
+            Forms\Components\FileUpload::make('storage_path')->label('Template File')->disk(config('ccrs.contracts_disk'))->directory('wiki-contracts')
                 ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']),
 
             Forms\Components\Section::make('Signing Blocks')

@@ -21,7 +21,7 @@ class MerchantAgreementGenerationTest extends TestCase
 
     public function test_generates_docx_and_creates_contract(): void
     {
-        Storage::fake('s3');
+        Storage::fake(config('ccrs.contracts_disk'));
 
         $templatePath = tempnam(sys_get_temp_dir(), 'test_ma_') . '.docx';
         $phpWord = new \PhpOffice\PhpWord\PhpWord();
@@ -30,7 +30,7 @@ class MerchantAgreementGenerationTest extends TestCase
         $objWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007');
         $objWriter->save($templatePath);
 
-        Storage::disk('s3')->put('templates/merchant_agreement_master.docx', file_get_contents($templatePath));
+        Storage::disk(config('ccrs.contracts_disk'))->put('templates/merchant_agreement_master.docx', file_get_contents($templatePath));
         @unlink($templatePath);
 
         $region = Region::factory()->create();
@@ -59,6 +59,6 @@ class MerchantAgreementGenerationTest extends TestCase
         $this->assertNotNull($contract->id);
         $this->assertEquals('Merchant', $contract->contract_type);
         $this->assertNotNull($contract->storage_path);
-        Storage::disk('s3')->assertExists($contract->storage_path);
+        Storage::disk(config('ccrs.contracts_disk'))->assertExists($contract->storage_path);
     }
 }

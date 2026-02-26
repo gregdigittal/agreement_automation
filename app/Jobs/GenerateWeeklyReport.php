@@ -37,7 +37,7 @@ class GenerateWeeklyReport implements ShouldQueue
         $pdfContent = $pdf->output();
 
         $filename = 'reports/weekly/ccrs-weekly-report-'.now()->format('Y-m-d').'.pdf';
-        Storage::disk('s3')->put($filename, $pdfContent);
+        Storage::disk(config('ccrs.contracts_disk', 'database'))->put($filename, $pdfContent);
 
         $recipients = User::whereHas('roles', function ($q) {
             $q->whereIn('name', ['system_admin', 'legal']);
