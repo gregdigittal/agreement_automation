@@ -116,11 +116,12 @@
             <p class="text-sm text-gray-500 mb-3">Click a saved signature to use it, or create a new one below.</p>
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 @foreach ($storedSignatures as $stored)
+                @php $storedImageUrl = $stored->getImageUrl(); @endphp
                 <div class="stored-signature-item border border-gray-200 rounded-lg p-3 cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
-                     data-image-src="{{ $stored->getImageUrl() }}"
+                     data-image-src="{{ $storedImageUrl }}"
                      data-sig-type="{{ $stored->type }}">
                     <div class="bg-white border border-gray-100 rounded p-2 flex items-center justify-center mb-2" style="min-height: 60px;">
-                        <img src="{{ $stored->getImageUrl() }}"
+                        <img src="{{ $storedImageUrl }}"
                              alt="{{ $stored->label }}"
                              class="max-h-14 max-w-full object-contain"
                              onerror="this.style.display='none'">
@@ -266,6 +267,21 @@
             {{-- Hidden inputs for form submission --}}
             <input type="hidden" name="signature_image" id="signature-image-input">
             <input type="hidden" name="signature_method" id="signature-method-input" value="draw">
+            @if (isset($storedSignatures))
+                @php $defaultInitials = $storedSignatures->where('type', 'initials')->where('is_default', true)->first(); @endphp
+                @if ($defaultInitials)
+                    <input type="hidden" id="stored-initials-data" value="auto">
+                @endif
+            @endif
+        </div>
+
+        {{-- Save for future use --}}
+        <div class="mb-6">
+            <label class="flex items-center space-x-2 cursor-pointer">
+                <input type="checkbox" name="save_signature" value="1"
+                       class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                <span class="text-sm text-gray-600">Save this signature for future use</span>
+            </label>
         </div>
 
         {{-- Actions --}}

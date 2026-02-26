@@ -169,6 +169,14 @@ class MySignaturesPage extends Page implements HasForms
         $localPath = Storage::disk('local')->path($data['upload_file']);
         $imageData = file_get_contents($localPath);
 
+        // Validate uploaded file is a real image
+        $imageInfo = @getimagesizefromstring($imageData);
+        if ($imageInfo === false || !in_array($imageInfo['mime'], ['image/png', 'image/jpeg'])) {
+            Storage::disk('local')->delete($data['upload_file']);
+            Notification::make()->title('Uploaded file is not a valid image.')->danger()->send();
+            return;
+        }
+
         $path = "stored-signatures/{$user->id}/" . \Illuminate\Support\Str::uuid() . '.png';
         $disk = config('ccrs.contracts_disk', 's3');
         Storage::disk($disk)->put($path, $imageData);

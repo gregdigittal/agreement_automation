@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\CounterpartyResource\Pages;
 use App\Filament\Resources\CounterpartyResource\RelationManagers\ContactsRelationManager;
+use App\Filament\Resources\CounterpartyResource\RelationManagers\StoredSignaturesRelationManager;
 use App\Filament\Resources\CounterpartyResource\RelationManagers\VendorDocumentsRelationManager;
 use App\Models\Counterparty;
 use App\Models\CounterpartyMerge;
@@ -140,6 +141,7 @@ class CounterpartyResource extends Resource
         return [
             ContactsRelationManager::class,
             VendorDocumentsRelationManager::class,
+            StoredSignaturesRelationManager::class,
         ];
     }
 

@@ -58,6 +58,10 @@ class StoredSignature extends Model
      */
     public function scopeForSigner(Builder $query, ?string $userId = null, ?string $email = null): Builder
     {
+        if (!$userId && !$email) {
+            return $query->whereRaw('1 = 0');
+        }
+
         return $query->where(function (Builder $q) use ($userId, $email) {
             if ($userId) {
                 $q->orWhere('user_id', $userId);

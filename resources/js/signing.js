@@ -27,6 +27,7 @@ let totalPages = 0;
 let viewedPages = new Set();
 let requireAllPagesViewed = false;
 let requirePageInitials = false;
+let initialedPages = new Set();
 
 function initPdfViewer() {
     const viewer = document.getElementById('pdf-viewer');
@@ -78,6 +79,24 @@ function initPdfViewer() {
                     pageLabel.className = 'absolute top-2 right-2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-70';
                     pageLabel.textContent = 'Page ' + pageNum + ' of ' + pdf.numPages;
                     wrapper.appendChild(pageLabel);
+
+                    // Add per-page initials overlay if enforcement is active
+                    if (requirePageInitials) {
+                        const initialsOverlay = document.createElement('div');
+                        initialsOverlay.className = 'page-initials-overlay absolute bottom-2 left-2 flex items-center space-x-2';
+                        initialsOverlay.dataset.pageNumber = pageNum;
+
+                        const initialsBtn = document.createElement('button');
+                        initialsBtn.type = 'button';
+                        initialsBtn.className = 'page-initials-btn bg-amber-100 border border-amber-400 text-amber-800 text-xs px-2 py-1 rounded hover:bg-amber-200 transition-colors';
+                        initialsBtn.textContent = 'Initial Page ' + pageNum;
+                        initialsBtn.dataset.pageNumber = pageNum;
+                        initialsBtn.addEventListener('click', function () {
+                            openPageInitialsCapture(pageNum, initialsOverlay);
+                        });
+                        initialsOverlay.appendChild(initialsBtn);
+                        wrapper.appendChild(initialsOverlay);
+                    }
 
                     pagesContainer.appendChild(wrapper);
 
@@ -194,10 +213,98 @@ function updateSubmitButtonState() {
     if (requireAllPagesViewed && viewedPages.size < totalPages) {
         submitBtn.disabled = true;
         submitBtn.title = 'Please view all pages before submitting (' + viewedPages.size + '/' + totalPages + ')';
+    } else if (requirePageInitials && initialedPages.size < totalPages) {
+        submitBtn.disabled = true;
+        submitBtn.title = 'Please initial all pages before submitting (' + initialedPages.size + '/' + totalPages + ')';
     } else {
         submitBtn.disabled = false;
         submitBtn.title = '';
     }
+}
+
+// ---------------------------------------------------------------------------
+// Per-Page Initials Capture
+// ---------------------------------------------------------------------------
+
+function openPageInitialsCapture(pageNum, overlayEl) {
+    // Check if stored initials are available and auto-apply
+    const storedInitialsEl = document.getElementById('stored-initials-data');
+    if (storedInitialsEl && storedInitialsEl.value) {
+        applyPageInitials(pageNum, overlayEl, storedInitialsEl.value);
+        return;
+    }
+
+    // Create inline initials capture mini-canvas
+    const existingCapture = overlayEl.querySelector('.initials-capture-area');
+    if (existingCapture) return; // Already open
+
+    const captureArea = document.createElement('div');
+    captureArea.className = 'initials-capture-area flex items-center space-x-2 bg-white border border-gray-300 rounded p-2 shadow-lg';
+
+    const miniCanvas = document.createElement('canvas');
+    miniCanvas.width = 120;
+    miniCanvas.height = 40;
+    miniCanvas.className = 'border border-gray-200 rounded cursor-crosshair';
+    miniCanvas.style.touchAction = 'none';
+
+    const miniPad = createSimpleSignaturePad(miniCanvas);
+
+    const applyBtn = document.createElement('button');
+    applyBtn.type = 'button';
+    applyBtn.className = 'bg-green-600 text-white text-xs px-2 py-1 rounded hover:bg-green-700';
+    applyBtn.textContent = 'Apply';
+    applyBtn.addEventListener('click', function () {
+        if (miniPad.isEmpty()) {
+            return;
+        }
+        var initialsData = miniPad.toDataURL('image/png').replace(/^data:image\/\w+;base64,/, '');
+        applyPageInitials(pageNum, overlayEl, initialsData);
+        captureArea.remove();
+    });
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'text-gray-500 text-xs px-2 py-1 hover:text-gray-700';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.addEventListener('click', function () {
+        captureArea.remove();
+    });
+
+    captureArea.appendChild(miniCanvas);
+    captureArea.appendChild(applyBtn);
+    captureArea.appendChild(cancelBtn);
+    overlayEl.appendChild(captureArea);
+}
+
+function applyPageInitials(pageNum, overlayEl, initialsBase64) {
+    initialedPages.add(pageNum);
+
+    // Replace the button with a checkmark
+    overlayEl.innerHTML = '';
+    const badge = document.createElement('span');
+    badge.className = 'inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700';
+    badge.innerHTML = '&#10003; Page ' + pageNum + ' initialed';
+    overlayEl.appendChild(badge);
+
+    // Store initials data in a hidden input for submission
+    var input = document.getElementById('page-initials-' + pageNum);
+    if (!input) {
+        input = document.createElement('input');
+        input.type = 'hidden';
+        input.id = 'page-initials-' + pageNum;
+        input.name = 'page_initials[' + pageNum + ']';
+        var form = document.getElementById('signing-form');
+        if (form) form.appendChild(input);
+    }
+    input.value = initialsBase64;
+
+    // Update progress and badge
+    var pageBadge = document.querySelector('.page-badge[data-page-number="' + pageNum + '"]');
+    if (pageBadge && initialedPages.has(pageNum)) {
+        pageBadge.className = 'page-badge inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700';
+    }
+
+    updateSubmitButtonState();
 }
 
 // ---------------------------------------------------------------------------
@@ -607,6 +714,11 @@ function initFormSubmission() {
             return;
         }
 
+        if (requirePageInitials && initialedPages.size < totalPages) {
+            alert('Please initial all pages before submitting. You have initialed ' + initialedPages.size + ' of ' + totalPages + ' pages.');
+            return;
+        }
+
         const method = document.getElementById('signature-method-input')?.value || 'draw';
         const imageInput = document.getElementById('signature-image-input');
         let signatureData = null;
@@ -687,7 +799,7 @@ function initFormSubmission() {
     }
 
     // Initial submit button state
-    if (requireAllPagesViewed) {
+    if (requireAllPagesViewed || requirePageInitials) {
         updateSubmitButtonState();
     }
 }

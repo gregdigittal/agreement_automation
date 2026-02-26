@@ -103,14 +103,16 @@ class SigningService
             }
         }
 
-        // Assign witnesses by order
+        // Assign witnesses by order (skip signers already mapped to company/counterparty)
+        $mappedSignerIds = array_values($roleMap);
         $witnessIndex = 1;
         foreach ($signers as $signer) {
-            $roleKey = "witness_{$witnessIndex}";
-            if (!isset($roleMap[$roleKey])) {
-                $roleMap[$roleKey] = $signer->id;
-                $witnessIndex++;
+            if (in_array($signer->id, $mappedSignerIds)) {
+                continue;
             }
+            $roleKey = "witness_{$witnessIndex}";
+            $roleMap[$roleKey] = $signer->id;
+            $witnessIndex++;
         }
 
         foreach ($templateFields as $tf) {
