@@ -15,7 +15,7 @@ env:
 jobs:
   deploy:
     runs-on: self-hosted
-    timeout-minutes: 35
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
