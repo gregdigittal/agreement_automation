@@ -27,6 +27,8 @@ jobs:
           echo "AI_WORKER_IMAGE_TAG=${{ env.REGISTRY }}/sandbox/ccrs-ai-worker:${{ github.run_number }}" >> $GITHUB_ENV
 
       - name: Build Docker images
+        env:
+          DOCKER_BUILDKIT: "0"
         run: |
           docker build -t ${{ env.IMAGE_TAG }} .
           docker tag ${{ env.IMAGE_TAG }} ${{ env.REGISTRY }}/sandbox/${{ env.APP_NAME }}:latest
