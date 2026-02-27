@@ -18,6 +18,11 @@ class ReportsPage extends Page implements HasTable
     protected static ?string $title = 'Reports';
     protected static string $view = 'filament.pages.reports-page';
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->hasAnyRole(['system_admin', 'legal', 'finance', 'audit']) ?? false;
+    }
+
     public function getHeaderActions(): array
     {
         return [

@@ -81,7 +81,15 @@ class ContractResource extends Resource
                         ->helperText('The project or business unit this contract relates to.'),
                     Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable()
                         ->placeholder('Search for a counterparty...')
-                        ->helperText('The external party entering into this agreement.'),
+                        ->helperText('The external party entering into this agreement.')
+                        ->rules([
+                            fn () => function (string $attribute, $value, \Closure $fail) {
+                                $cp = \App\Models\Counterparty::find($value);
+                                if ($cp && in_array($cp->status, ['Suspended', 'Blacklisted'])) {
+                                    $fail("Cannot create contract with a {$cp->status} counterparty.");
+                                }
+                            },
+                        ]),
                     Forms\Components\Select::make('contract_type')->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant'])->required()
                         ->placeholder('Select contract type')
                         ->helperText('Determines which workflow template will be applied.'),
