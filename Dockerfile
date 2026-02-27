@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 # ============================================================
 # Stage 1: Build frontend assets
 # ============================================================
@@ -9,7 +10,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 
 # Copy source files needed for build
 COPY resources ./resources
@@ -49,7 +50,9 @@ WORKDIR /app
 COPY composer.json composer.lock ./
 
 # Install dependencies without dev packages
-RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
+RUN --mount=type=cache,target=/tmp/composer-cache \
+    COMPOSER_CACHE_DIR=/tmp/composer-cache \
+    composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 
 # Copy application code
 COPY . .
@@ -107,11 +110,11 @@ COPY docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 WORKDIR /var/www/html
 
 # Copy application from builder stages
-COPY --from=composer-builder /app/vendor ./vendor
-COPY --from=node-builder /app/public/build ./public/build
+COPY --from=composer-builder --chown=www-data:www-data /app/vendor ./vendor
+COPY --from=node-builder --chown=www-data:www-data /app/public/build ./public/build
 
 # Copy application code
-COPY . .
+COPY --chown=www-data:www-data . .
 
 # Create runtime directories and set permissions (while still root)
 RUN mkdir -p /var/www/html/storage/framework/{sessions,views,cache} \
@@ -119,7 +122,7 @@ RUN mkdir -p /var/www/html/storage/framework/{sessions,views,cache} \
     && mkdir -p /var/www/html/bootstrap/cache \
     && mkdir -p /var/log/supervisor /var/log/php /var/log/nginx \
     && mkdir -p /var/lib/nginx/tmp /var/lib/nginx/proxy /var/lib/nginx/fastcgi \
-    && chown -R www-data:www-data /var/www/html \
+    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chown -R www-data:www-data /var/log/supervisor /var/log/php /var/log/nginx \
     && chown -R www-data:www-data /var/lib/nginx \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache

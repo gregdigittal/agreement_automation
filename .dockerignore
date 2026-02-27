@@ -1,6 +1,8 @@
 .git
+.github
 .env
 .env.*
+.cursor
 node_modules
 vendor
 storage/logs/*
@@ -14,5 +16,7 @@ apps
 supabase
 deploy
 *.md
+Jenkinsfile
+docker-compose.yml
 .idea
 .vscode

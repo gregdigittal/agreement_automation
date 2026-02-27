@@ -28,12 +28,24 @@ jobs:
 
       - name: Build Docker images
         env:
-          DOCKER_BUILDKIT: "0"
+          DOCKER_BUILDKIT: "1"
         run: |
-          docker build -t ${{ env.IMAGE_TAG }} .
-          docker tag ${{ env.IMAGE_TAG }} ${{ env.REGISTRY }}/sandbox/${{ env.APP_NAME }}:latest
-          docker build -t ${{ env.AI_WORKER_IMAGE_TAG }} ./ai-worker
-          docker tag ${{ env.AI_WORKER_IMAGE_TAG }} ${{ env.REGISTRY }}/sandbox/ccrs-ai-worker:latest
+          docker pull ${{ env.REGISTRY }}/sandbox/${{ env.APP_NAME }}:latest || true
+          docker pull ${{ env.REGISTRY }}/sandbox/ccrs-ai-worker:latest || true
+
+          docker build \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --cache-from ${{ env.REGISTRY }}/sandbox/${{ env.APP_NAME }}:latest \
+            -t ${{ env.IMAGE_TAG }} \
+            -t ${{ env.REGISTRY }}/sandbox/${{ env.APP_NAME }}:latest \
+            .
+
+          docker build \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --cache-from ${{ env.REGISTRY }}/sandbox/ccrs-ai-worker:latest \
+            -t ${{ env.AI_WORKER_IMAGE_TAG }} \
+            -t ${{ env.REGISTRY }}/sandbox/ccrs-ai-worker:latest \
+            ./ai-worker
 
       - name: Push to registry
         run: |
@@ -107,4 +119,3 @@ jobs:
       - name: Cleanup kubeconfig
         if: always()
         run: rm -f $HOME/.kube/config
-
