@@ -3,6 +3,7 @@ name: Deploy to Sandbox
 on:
   push:
     branches: [sandbox]
+  workflow_dispatch:
 
 env:
   APP_NAME: digittal-ccrs
