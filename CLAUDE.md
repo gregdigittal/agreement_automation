@@ -32,13 +32,14 @@ The following files are **owned by the CTO** and control the sandbox infrastruct
 **Why**: The sandbox runs on a specific Hetzner K8s cluster with:
 - A MySQL sidecar container (not external MySQL)
 - A Redis sidecar for cache/session/queue (localhost:6379)
+- An AI worker sidecar for document/AI operations (localhost:8001)
 - A phpMyAdmin sidecar for database access
 - Cloudflare SSL termination (no TLS in K8s)
 - A specific Docker registry (repo-de.digittal.mobi)
 - GitHub Actions CI/CD with self-hosted runner
 - PersistentVolumeClaim with `local-path` StorageClass
 
-If you rewrite these files for a "production" pattern (external MySQL, Redis, HPA, queue workers, AI workers, etc.), **it will break the sandbox** because none of that infrastructure exists.
+If you rewrite these files for a "production" pattern (external MySQL, external Redis, HPA, separate worker Deployments, etc.), **it will break the sandbox** because that infrastructure is not provisioned here.
 
 ### What To Do If You Need Infrastructure Changes
 Describe what you need in a comment or message. The CTO will make the change. Examples:
@@ -47,7 +48,7 @@ Describe what you need in a comment or message. The CTO will make the change. Ex
 - "I need a new sidecar container" → CTO adds it to deployment.yaml
 
 ### Do NOT Create These Files
-- `deploy/k8s/ai-worker.yaml` — no AI worker infrastructure exists
+- `deploy/k8s/ai-worker.yaml` — AI worker is already defined as a sidecar in `deploy/k8s/deployment.yaml`; do not create a separate AI worker deployment unless CTO requests it
 - `deploy/k8s/queue-worker.yaml` — no separate queue worker in sandbox
 - `deploy/k8s/hpa.yaml` — no HPA in sandbox (single node)
 - `deploy/k8s/pdb.yaml` — no PDB needed (1 replica)
@@ -78,11 +79,12 @@ Email notifications are sent to greg@digittal.io and mike@digittal.io on success
 ## Sandbox Environment Details
 
 ### Architecture (DO NOT CHANGE)
-The sandbox pod runs 4 containers:
+The sandbox pod runs 5 containers:
 1. **App container** — Laravel + Filament (port 8080)
 2. **MySQL sidecar** — MySQL 8.0 (port 3306, localhost access only)
 3. **Redis sidecar** — Redis 7 Alpine (port 6379, localhost access only)
-4. **phpMyAdmin sidecar** — Database management UI (port 8888)
+4. **AI worker sidecar** — FastAPI worker (port 8001, localhost access only)
+5. **phpMyAdmin sidecar** — Database management UI (port 8888)
 
 ### URLs
 - **App**: https://ccrs-sandbox.digittal.mobi
@@ -107,6 +109,10 @@ REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
 ```
 Redis is available as a sidecar container on localhost:6379. Horizon is installed for queue management.
+
+### Build Performance Guardrail (IMPORTANT)
+- Do not disable BuildKit in `.github/workflows/deploy.yml`
+- Do not add `--no-cache` to Docker builds in CI unless explicitly requested by the CTO for troubleshooting
 
 ---
 
