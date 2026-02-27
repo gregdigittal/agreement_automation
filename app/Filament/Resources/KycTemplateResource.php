@@ -15,8 +15,8 @@ class KycTemplateResource extends Resource
 {
     protected static ?string $model = KycTemplate::class;
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
-    protected static ?string $navigationGroup = 'KYC';
-    protected static ?int $navigationSort = 1;
+    protected static ?string $navigationGroup = 'Counterparties';
+    protected static ?int $navigationSort = 5;
     protected static ?string $navigationLabel = 'KYC Templates';
 
     public static function form(Form $form): Form

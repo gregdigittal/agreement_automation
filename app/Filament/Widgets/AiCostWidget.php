@@ -7,6 +7,11 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class AiCostWidget extends StatsOverviewWidget
 {
+    protected ?string $heading = 'AI Usage (30 days)';
+    protected ?string $description = 'Token costs for AI contract analysis';
+    protected static ?int $sort = 5;
+    protected int|string|array $columnSpan = 'full';
+
     protected function getStats(): array
     {
         $thirtyDays = now()->subDays(30);

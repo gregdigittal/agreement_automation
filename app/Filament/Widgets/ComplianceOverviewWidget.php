@@ -9,7 +9,8 @@ class ComplianceOverviewWidget extends ChartWidget
 {
     protected static ?string $heading = 'Compliance Overview';
     protected static ?string $description = 'Aggregate compliance findings across all active contracts';
-    protected static ?int $sort = 3;
+    protected static ?int $sort = 7;
+    protected int|string|array $columnSpan = 1;
 
     public static function canView(): bool
     {

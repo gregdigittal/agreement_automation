@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 class ObligationTrackerWidget extends Widget
 {
     protected static ?string $heading = 'Obligation Tracker';
-    protected static ?int $sort = 4;
+    protected static ?int $sort = 6;
     protected static string $view = 'filament.widgets.obligation-tracker';
     protected int|string|array $columnSpan = 'full';
 

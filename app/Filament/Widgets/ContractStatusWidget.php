@@ -7,6 +7,11 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class ContractStatusWidget extends StatsOverviewWidget
 {
+    protected ?string $heading = 'Contract Overview';
+    protected ?string $description = 'Current contract counts by workflow stage';
+    protected static ?int $sort = 1;
+    protected int|string|array $columnSpan = 'full';
+
     protected function getStats(): array
     {
         return [

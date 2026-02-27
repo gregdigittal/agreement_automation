@@ -24,4 +24,38 @@ class VendorDashboard extends Dashboard
             'unread_notifications' => VendorNotification::where('vendor_user_id', auth('vendor')->id())->whereNull('read_at')->count(),
         ];
     }
+
+    public function getRecentActivity(): array
+    {
+        $cpId = auth('vendor')->user()?->counterparty_id;
+        $vendorUserId = auth('vendor')->id();
+
+        $contracts = Contract::where('counterparty_id', $cpId)
+            ->latest('updated_at')
+            ->limit(3)
+            ->get(['id', 'title', 'workflow_state', 'updated_at'])
+            ->map(fn ($c) => [
+                'icon' => 'heroicon-o-document-text',
+                'color' => 'text-blue-500',
+                'description' => "Contract \"{$c->title}\" is now {$c->workflow_state}",
+                'time' => $c->updated_at->diffForHumans(),
+            ]);
+
+        $documents = VendorDocument::where('counterparty_id', $cpId)
+            ->latest('created_at')
+            ->limit(2)
+            ->get(['id', 'document_type', 'created_at'])
+            ->map(fn ($d) => [
+                'icon' => 'heroicon-o-arrow-up-tray',
+                'color' => 'text-emerald-500',
+                'description' => ucwords(str_replace('_', ' ', $d->document_type)) . ' document uploaded',
+                'time' => $d->created_at->diffForHumans(),
+            ]);
+
+        return $contracts->merge($documents)
+            ->sortByDesc(fn ($item) => $item['time'])
+            ->take(5)
+            ->values()
+            ->toArray();
+    }
 }

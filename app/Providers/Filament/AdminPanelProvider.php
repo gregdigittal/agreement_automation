@@ -9,6 +9,7 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
+use Filament\Navigation\NavigationGroup;
 use Filament\Support\Colors\Color;
 use Filament\Widgets;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -34,14 +35,43 @@ class AdminPanelProvider extends PanelProvider
             ->loginRouteSlug('login')
             ->globalSearch(true)
             ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
+            ->navigationGroups([
+                NavigationGroup::make('Contracts'),
+                NavigationGroup::make('Counterparties'),
+                NavigationGroup::make('Workflows'),
+                NavigationGroup::make('Organization')
+                    ->collapsed(),
+                NavigationGroup::make('Reports'),
+                NavigationGroup::make('Compliance')
+                    ->collapsed(),
+                NavigationGroup::make('Settings')
+                    ->collapsed(),
+                NavigationGroup::make('Administration')
+                    ->collapsed(),
+            ])
             ->colors([
-                'primary' => Color::Blue,
+                'primary' => [
+                    50 => '239, 246, 255',
+                    100 => '219, 234, 254',
+                    200 => '191, 219, 254',
+                    300 => '147, 197, 253',
+                    400 => '96, 165, 250',
+                    500 => '59, 130, 246',
+                    600 => '37, 99, 235',
+                    700 => '29, 78, 216',
+                    800 => '30, 64, 175',
+                    900 => '30, 58, 138',
+                    950 => '23, 37, 84',
+                ],
                 'danger' => Color::Red,
                 'gray' => Color::Zinc,
                 'info' => Color::Sky,
                 'success' => Color::Green,
                 'warning' => Color::Amber,
             ])
+            ->darkMode(true)
+            ->favicon(asset('images/Digittal_logo-2.png'))
+            ->font('Inter')
             ->renderHook(
                 \Filament\View\PanelsRenderHook::BODY_START,
                 fn (): string => '<a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:rounded-md">Skip to main content</a>'

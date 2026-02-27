@@ -7,6 +7,11 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class PendingWorkflowsWidget extends StatsOverviewWidget
 {
+    protected ?string $heading = 'Pending Approvals';
+    protected ?string $description = 'Items awaiting your action';
+    protected static ?int $sort = 3;
+    protected int|string|array $columnSpan = 1;
+
     protected function getStats(): array
     {
         $userRole = auth()->user()?->roles?->first()?->name;

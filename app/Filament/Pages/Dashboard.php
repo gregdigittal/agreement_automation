@@ -14,6 +14,11 @@ class Dashboard extends BaseDashboard
 {
     protected static ?string $navigationIcon = 'heroicon-o-home';
 
+    public function getColumns(): int|string|array
+    {
+        return 2;
+    }
+
     public function getWidgets(): array
     {
         $widgets = [

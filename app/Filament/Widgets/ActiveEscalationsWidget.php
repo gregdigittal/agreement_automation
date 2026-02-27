@@ -7,6 +7,11 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class ActiveEscalationsWidget extends StatsOverviewWidget
 {
+    protected ?string $heading = 'Active Escalations';
+    protected ?string $description = 'Unresolved escalation events';
+    protected static ?int $sort = 4;
+    protected int|string|array $columnSpan = 1;
+
     protected function getStats(): array
     {
         return [

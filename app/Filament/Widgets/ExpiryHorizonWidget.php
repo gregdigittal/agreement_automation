@@ -7,6 +7,11 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class ExpiryHorizonWidget extends StatsOverviewWidget
 {
+    protected ?string $heading = 'Expiry Horizon';
+    protected ?string $description = 'Contracts approaching expiration';
+    protected static ?int $sort = 2;
+    protected int|string|array $columnSpan = 'full';
+
     protected function getStats(): array
     {
         $now = now();

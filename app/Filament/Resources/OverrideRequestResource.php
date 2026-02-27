@@ -20,6 +20,17 @@ class OverrideRequestResource extends Resource
     protected static ?int $navigationSort = 21;
     protected static ?string $navigationGroup = 'Counterparties';
 
+    public static function getNavigationBadge(): ?string
+    {
+        $count = static::getModel()::where('status', 'pending')->count();
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): string|array|null
+    {
+        return 'danger';
+    }
+
     public static function form(Form $form): Form
     {
         return $form->schema([

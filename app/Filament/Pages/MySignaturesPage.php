@@ -19,6 +19,7 @@ class MySignaturesPage extends Page implements HasForms
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-pencil-square';
+    protected static ?string $navigationGroup = 'Settings';
     protected static string $view = 'filament.pages.my-signatures';
     protected static ?int $navigationSort = 95;
     protected static ?string $title = 'My Signatures';

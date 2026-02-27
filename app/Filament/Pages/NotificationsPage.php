@@ -16,9 +16,26 @@ class NotificationsPage extends Page implements HasTable
     use InteractsWithTable;
 
     protected static ?string $navigationIcon = 'heroicon-o-bell-alert';
-    protected static ?string $navigationGroup = 'Admin';
+    protected static ?string $navigationGroup = 'Administration';
     protected static ?string $title = 'Notifications';
     protected static string $view = 'filament.pages.notifications-page';
+
+    public static function getNavigationBadge(): ?string
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return null;
+        }
+        $count = Notification::where(fn (Builder $q) => $q->where('recipient_user_id', $user->id)->orWhere('recipient_email', $user->email))
+            ->whereNull('read_at')
+            ->count();
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): string|array|null
+    {
+        return 'info';
+    }
 
     public function table(Table $table): Table
     {

@@ -27,6 +27,17 @@ class ContractResource extends Resource
     protected static ?string $navigationGroup = 'Contracts';
     protected static ?int $navigationSort = 1;
 
+    public static function getNavigationBadge(): ?string
+    {
+        $count = static::getModel()::whereIn('workflow_state', ['review', 'approval'])->count();
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): string|array|null
+    {
+        return 'warning';
+    }
+
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery()
@@ -55,33 +66,38 @@ class ContractResource extends Resource
                         ->content(fn (Contract $record) => $record->parentLinks->first() ? 'Link type: ' . $record->parentLinks->first()->link_type . ' | Parent: ' . ($record->parentLinks->first()->parentContract?->title ?? $record->parentLinks->first()->parent_contract_id) : ''),
                 ])
                 ->columns(1),
-                        Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->live()
-                ->placeholder('Select region...')
-                ->helperText('The organisational region this contract falls under.'),
-            Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->live()
-                ->placeholder('Select entity...')
-                ->helperText('The legal entity entering into this contract.'),
-            Forms\Components\Select::make('project_id')->relationship('project', 'name')->required()->searchable()
-                ->placeholder('Select project...')
-                ->helperText('The project or business unit this contract relates to.'),
-            Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable()
-                ->placeholder('Search for a counterparty...')
-                ->helperText('The external party entering into this agreement.'),
-            Forms\Components\Select::make('contract_type')->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant'])->required()
-                ->placeholder('Select contract type')
-                ->helperText('Determines which workflow template will be applied.'),
-            Forms\Components\TextInput::make('title')->maxLength(255)
-                ->placeholder('e.g. Master Services Agreement — Acme Corp')
-                ->helperText('A descriptive title for this contract.'),
-            Forms\Components\FileUpload::make('storage_path')->label('Contract File')->disk(config('ccrs.contracts_disk'))->directory('contracts')
-                ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
-                ->helperText('Upload the contract document. Accepted formats: PDF, DOCX.')
-                ->afterStateUpdated(function ($state, Set $set) {
-                    if ($state instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
-                        $set('file_name', $state->getClientOriginalName());
-                    }
-                }),
-            Forms\Components\Hidden::make('file_name'),
+            Forms\Components\Section::make('Contract Details')
+                ->icon('heroicon-o-document-text')
+                ->columns(2)
+                ->schema([
+                    Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->live()
+                        ->placeholder('Select region...')
+                        ->helperText('The organisational region this contract falls under.'),
+                    Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->live()
+                        ->placeholder('Select entity...')
+                        ->helperText('The legal entity entering into this contract.'),
+                    Forms\Components\Select::make('project_id')->relationship('project', 'name')->required()->searchable()
+                        ->placeholder('Select project...')
+                        ->helperText('The project or business unit this contract relates to.'),
+                    Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable()
+                        ->placeholder('Search for a counterparty...')
+                        ->helperText('The external party entering into this agreement.'),
+                    Forms\Components\Select::make('contract_type')->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant'])->required()
+                        ->placeholder('Select contract type')
+                        ->helperText('Determines which workflow template will be applied.'),
+                    Forms\Components\TextInput::make('title')->maxLength(255)->columnSpanFull()
+                        ->placeholder('e.g. Master Services Agreement — Acme Corp')
+                        ->helperText('A descriptive title for this contract.'),
+                    Forms\Components\FileUpload::make('storage_path')->label('Contract File')->disk(config('ccrs.contracts_disk'))->directory('contracts')->columnSpanFull()
+                        ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
+                        ->helperText('Upload the contract document. Accepted formats: PDF, DOCX.')
+                        ->afterStateUpdated(function ($state, Set $set) {
+                            if ($state instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+                                $set('file_name', $state->getClientOriginalName());
+                            }
+                        }),
+                    Forms\Components\Hidden::make('file_name'),
+                ]),
             Forms\Components\Section::make('SharePoint Collaboration')
                 ->description('Link the SharePoint document URL for collaborative review and track the version.')
                 ->collapsed()
@@ -398,6 +414,26 @@ class ContractResource extends Resource
                         'session' => $session->id,
                     ]));
                 }),
+        ])
+        ->bulkActions([
+            Tables\Actions\BulkAction::make('export')
+                ->label('Export Selected')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->action(function (\Illuminate\Database\Eloquent\Collection $records) {
+                    $csv = "Title,Type,State,Counterparty,Region,Created\n";
+                    foreach ($records as $record) {
+                        $csv .= '"' . str_replace('"', '""', $record->title) . '","' . $record->contract_type . '","' . $record->workflow_state . '","' . str_replace('"', '""', $record->counterparty?->legal_name ?? '') . '","' . ($record->region?->name ?? '') . '","' . $record->created_at->format('Y-m-d') . "\"\n";
+                    }
+                    return response()->streamDownload(fn () => print($csv), 'contracts_export.csv', ['Content-Type' => 'text/csv']);
+                }),
+            Tables\Actions\DeleteBulkAction::make(),
+        ])
+        ->emptyStateHeading('No contracts yet')
+        ->emptyStateDescription('Create your first contract to get started.')
+        ->emptyStateIcon('heroicon-o-document-text')
+        ->emptyStateActions([
+            Tables\Actions\CreateAction::make()
+                ->label('Create Contract'),
         ]);
     }
 

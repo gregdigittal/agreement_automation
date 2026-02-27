@@ -138,6 +138,26 @@ class CounterpartyResource extends Resource
                     });
                     \Filament\Notifications\Notification::make()->title('Counterparties merged')->success()->send();
                 }),
+        ])
+        ->bulkActions([
+            Tables\Actions\BulkAction::make('export')
+                ->label('Export Selected')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->action(function (\Illuminate\Database\Eloquent\Collection $records) {
+                    $csv = "Legal Name,Registration Number,Jurisdiction,Status,Language\n";
+                    foreach ($records as $record) {
+                        $csv .= '"' . str_replace('"', '""', $record->legal_name) . '","' . ($record->registration_number ?? '') . '","' . ($record->jurisdiction ?? '') . '","' . $record->status . '","' . ($record->preferred_language ?? '') . "\"\n";
+                    }
+                    return response()->streamDownload(fn () => print($csv), 'counterparties_export.csv', ['Content-Type' => 'text/csv']);
+                }),
+            Tables\Actions\DeleteBulkAction::make(),
+        ])
+        ->emptyStateHeading('No counterparties')
+        ->emptyStateDescription('Add counterparties to manage vendor relationships.')
+        ->emptyStateIcon('heroicon-o-building-office-2')
+        ->emptyStateActions([
+            Tables\Actions\CreateAction::make()
+                ->label('Add Counterparty'),
         ]);
     }
 
