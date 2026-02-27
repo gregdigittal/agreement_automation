@@ -28,7 +28,7 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login(\App\Filament\Pages\AzureLoginPage::class)
             ->brandName('CCRS')
-            ->brandLogo(asset('images/digittal-logo.png'))
+            ->brandLogo(asset('images/Digittal_logo-2.png'))
             ->brandLogoHeight('2.5rem')
             ->authGuard('web')
             ->loginRouteSlug('login')
