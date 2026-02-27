@@ -26,17 +26,23 @@ class JurisdictionsRelationManager extends RelationManager
                     ->preloadRecordSelect()
                     ->form(fn (Tables\Actions\AttachAction $action): array => [
                         $action->getRecordSelect(),
-                        Forms\Components\TextInput::make('license_number')->maxLength(100),
-                        Forms\Components\DatePicker::make('license_expiry'),
-                        Forms\Components\Toggle::make('is_primary')->default(false),
+                        Forms\Components\TextInput::make('license_number')->maxLength(100)
+                            ->helperText('Trade license or regulatory license number for this jurisdiction.'),
+                        Forms\Components\DatePicker::make('license_expiry')
+                            ->helperText('Date when this license expires and needs renewal.'),
+                        Forms\Components\Toggle::make('is_primary')->default(false)
+                            ->helperText('Whether this is the entity\'s primary operating jurisdiction.'),
                     ]),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
                     ->form([
-                        Forms\Components\TextInput::make('license_number')->maxLength(100),
-                        Forms\Components\DatePicker::make('license_expiry'),
-                        Forms\Components\Toggle::make('is_primary')->default(false),
+                        Forms\Components\TextInput::make('license_number')->maxLength(100)
+                            ->helperText('Trade license or regulatory license number for this jurisdiction.'),
+                        Forms\Components\DatePicker::make('license_expiry')
+                            ->helperText('Date when this license expires and needs renewal.'),
+                        Forms\Components\Toggle::make('is_primary')->default(false)
+                            ->helperText('Whether this is the entity\'s primary operating jurisdiction.'),
                     ]),
                 Tables\Actions\DetachAction::make(),
             ]);

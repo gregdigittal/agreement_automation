@@ -26,12 +26,18 @@ class MerchantAgreementRequestResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable(),
-            Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->live(),
-            Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->live(),
-            Forms\Components\Select::make('project_id')->relationship('project', 'name')->required()->searchable(),
-            Forms\Components\TextInput::make('merchant_fee')->numeric()->prefix('$'),
-            Forms\Components\Textarea::make('region_terms')->rows(3),
+            Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable()
+                ->helperText('The merchant or vendor this agreement is for.'),
+            Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->live()
+                ->helperText('Region determines which template and terms are applied.'),
+            Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->live()
+                ->helperText('The Digittal entity that will sign this agreement.'),
+            Forms\Components\Select::make('project_id')->relationship('project', 'name')->required()->searchable()
+                ->helperText('The project this agreement will be allocated to.'),
+            Forms\Components\TextInput::make('merchant_fee')->numeric()->prefix('$')
+                ->helperText('Fee percentage or fixed amount for the merchant agreement.'),
+            Forms\Components\Textarea::make('region_terms')->rows(3)
+                ->helperText('Any region-specific terms to be inserted into the generated agreement.'),
         ]);
     }
 

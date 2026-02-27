@@ -27,7 +27,7 @@ class VendorProfilePage extends Page implements HasForms
     public function form(Form $form): Form
     {
         return $form->schema([
-            TextInput::make('name')->label('Full Name')->required()->maxLength(255),
+            TextInput::make('name')->label('Full Name')->required()->maxLength(255)->helperText('Your display name as shown across the vendor portal.'),
             TextInput::make('email')->label('Email Address')->email()->disabled()->helperText('Email cannot be changed.'),
         ])->statePath('data');
     }

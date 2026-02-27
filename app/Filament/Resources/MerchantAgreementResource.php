@@ -43,14 +43,20 @@ class MerchantAgreementResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->live(),
-            Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->live(),
-            Forms\Components\Select::make('project_id')->relationship('project', 'name')->required()->searchable(),
-            Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable(),
+            Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->live()
+                ->helperText('The organisational region this agreement falls under.'),
+            Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->live()
+                ->helperText('The legal entity entering into this agreement.'),
+            Forms\Components\Select::make('project_id')->relationship('project', 'name')->required()->searchable()
+                ->helperText('The project or business unit this agreement relates to.'),
+            Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable()
+                ->helperText('The merchant or vendor party to this agreement.'),
             Forms\Components\Hidden::make('contract_type')->default('Merchant'),
-            Forms\Components\TextInput::make('title')->maxLength(255),
+            Forms\Components\TextInput::make('title')->maxLength(255)
+                ->helperText('A descriptive title for this merchant agreement.'),
             Forms\Components\FileUpload::make('storage_path')->label('Agreement File')->disk(config('ccrs.contracts_disk'))->directory('contracts')
                 ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
+                ->helperText('Upload the agreement document. Accepted formats: PDF, DOCX.')
                 ->afterStateUpdated(function ($state, Set $set) {
                     if ($state instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
                         $set('file_name', $state->getClientOriginalName());

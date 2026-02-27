@@ -49,7 +49,8 @@ class MySignaturesPage extends Page implements HasForms
                         'initials' => 'Initials',
                     ])
                     ->default('signature')
-                    ->required(),
+                    ->required()
+                    ->helperText('Full signature for signing pages; initials for page-by-page acknowledgement.'),
 
                 Select::make('capture_method')
                     ->label('Capture Method')
@@ -61,20 +62,23 @@ class MySignaturesPage extends Page implements HasForms
                     ])
                     ->default('draw')
                     ->required()
-                    ->live(),
+                    ->live()
+                    ->helperText('How you want to create this signature.'),
 
                 TextInput::make('typed_text')
                     ->label('Type your signature')
                     ->visible(fn ($get) => $get('capture_method') === 'type')
                     ->placeholder('Type your full name')
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->helperText('Your typed name will be rendered in a signature font.'),
 
                 FileUpload::make('upload_file')
                     ->label('Upload signature image')
                     ->visible(fn ($get) => $get('capture_method') === 'upload')
                     ->acceptedFileTypes(['image/png', 'image/jpeg'])
                     ->disk('local')
-                    ->directory('temp-signatures'),
+                    ->directory('temp-signatures')
+                    ->helperText('Upload a PNG or JPEG image of your signature.'),
 
                 Toggle::make('is_default')
                     ->label('Set as default')

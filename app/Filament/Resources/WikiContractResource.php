@@ -43,7 +43,8 @@ class WikiContractResource extends Resource
                 ->default('draft')
                 ->helperText('Only published templates are available for use in contracts.'),
             Forms\Components\FileUpload::make('storage_path')->label('Template File')->disk(config('ccrs.contracts_disk'))->directory('wiki-contracts')
-                ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']),
+                ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
+                ->helperText('Upload the master template document. Accepted formats: PDF, DOCX.'),
 
             Forms\Components\Section::make('Signing Blocks')
                 ->description('Define where signature and initials fields should appear when this template is used for signing. Positions are in mm from the top-left of the page.')
@@ -61,7 +62,8 @@ class WikiContractResource extends Resource
                                         'text' => 'Text',
                                         'date' => 'Date',
                                     ])
-                                    ->required(),
+                                    ->required()
+                                    ->helperText('Type of signing field to place on the document.'),
                                 Forms\Components\Select::make('signer_role')
                                     ->options([
                                         'company' => 'Company (Internal)',
@@ -73,14 +75,16 @@ class WikiContractResource extends Resource
                                     ->helperText('Who this field is assigned to.'),
                                 Forms\Components\TextInput::make('label')
                                     ->placeholder('e.g. Company Signature')
-                                    ->maxLength(255),
+                                    ->maxLength(255)
+                                    ->helperText('Display label for this signing field.'),
                             ]),
                             Forms\Components\Grid::make(5)->schema([
                                 Forms\Components\TextInput::make('page_number')
                                     ->numeric()
                                     ->required()
                                     ->minValue(1)
-                                    ->default(1),
+                                    ->default(1)
+                                    ->helperText('PDF page where this field appears.'),
                                 Forms\Components\TextInput::make('x_position')
                                     ->label('X (mm)')
                                     ->numeric()
@@ -104,7 +108,8 @@ class WikiContractResource extends Resource
                             ]),
                             Forms\Components\Toggle::make('is_required')
                                 ->default(true)
-                                ->inline(),
+                                ->inline()
+                                ->helperText('Whether signers must complete this field.'),
                         ])
                         ->defaultItems(0)
                         ->addActionLabel('Add Signing Block')

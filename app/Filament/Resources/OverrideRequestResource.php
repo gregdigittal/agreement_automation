@@ -27,20 +27,26 @@ class OverrideRequestResource extends Resource
                 ->relationship('counterparty', 'legal_name')
                 ->required()
                 ->searchable()
-                ->disabled(fn (string $operation): bool => $operation === 'edit'),
-            Forms\Components\TextInput::make('contract_title')->maxLength(255),
-            Forms\Components\Textarea::make('reason')->required()->rows(4),
+                ->disabled(fn (string $operation): bool => $operation === 'edit')
+                ->helperText('The counterparty this override request relates to.'),
+            Forms\Components\TextInput::make('contract_title')->maxLength(255)
+                ->helperText('Optional: the specific contract title this override is for.'),
+            Forms\Components\Textarea::make('reason')->required()->rows(4)
+                ->helperText('Explain why this counterparty override is needed.'),
             Forms\Components\Select::make('status')
                 ->options(['pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected'])
                 ->default('pending')
                 ->required()
                 ->disabled(fn (string $operation): bool => $operation === 'create')
-                ->dehydrated(),
+                ->dehydrated()
+                ->helperText('Current approval status of this override request.'),
             Forms\Components\TextInput::make('decided_by')->maxLength(255)
                 ->disabled()
-                ->dehydrated(false),
+                ->dehydrated(false)
+                ->helperText('The user who approved or rejected this request.'),
             Forms\Components\Textarea::make('comment')->rows(3)
-                ->disabled(fn (string $operation): bool => $operation === 'create'),
+                ->disabled(fn (string $operation): bool => $operation === 'create')
+                ->helperText('Approver or rejector comments about the decision.'),
         ]);
     }
 

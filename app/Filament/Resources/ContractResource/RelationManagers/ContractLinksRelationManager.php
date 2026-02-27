@@ -24,13 +24,15 @@ class ContractLinksRelationManager extends RelationManager
                     'side_letter' => 'Side Letter',
                     'addendum' => 'Addendum',
                 ])
-                ->required(),
+                ->required()
+                ->helperText('Relationship between contracts (amendment, renewal, side letter).'),
             Forms\Components\Select::make('child_contract_id')
                 ->label('Linked Contract')
                 ->relationship('childContract', 'title')
                 ->searchable()
                 ->preload()
-                ->required(),
+                ->required()
+                ->helperText('The related contract to link.'),
         ]);
     }
 

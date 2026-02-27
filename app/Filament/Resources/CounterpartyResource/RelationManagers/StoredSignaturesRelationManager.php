@@ -18,25 +18,30 @@ class StoredSignaturesRelationManager extends RelationManager
         return $form->schema([
             Forms\Components\TextInput::make('label')
                 ->maxLength(100)
-                ->placeholder('e.g. Company signature'),
+                ->placeholder('e.g. Company signature')
+                ->helperText('A descriptive name for this signature (e.g. CEO Signature).'),
 
             Forms\Components\TextInput::make('signer_email')
                 ->email()
                 ->maxLength(255)
-                ->placeholder('contact@company.com'),
+                ->placeholder('contact@company.com')
+                ->helperText('Email of the person this signature belongs to.'),
 
             Forms\Components\Select::make('type')
                 ->options(['signature' => 'Signature', 'initials' => 'Initials'])
                 ->default('signature')
-                ->required(),
+                ->required()
+                ->helperText('Signature appearance style (drawn, typed, or uploaded image).'),
 
             Forms\Components\Select::make('capture_method')
                 ->options(['draw' => 'Draw', 'type' => 'Type', 'upload' => 'Upload', 'webcam' => 'Camera'])
                 ->default('upload')
-                ->required(),
+                ->required()
+                ->helperText('How this signature was originally captured.'),
 
             Forms\Components\Toggle::make('is_default')
-                ->label('Default'),
+                ->label('Default')
+                ->helperText('Use this signature by default when signing contracts.'),
         ]);
     }
 

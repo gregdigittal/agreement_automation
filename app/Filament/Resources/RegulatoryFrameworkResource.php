@@ -61,11 +61,13 @@ class RegulatoryFrameworkResource extends Resource
                     Forms\Components\TextInput::make('framework_name')
                         ->required()
                         ->maxLength(255)
-                        ->placeholder('e.g. GDPR — Data Processing Requirements'),
+                        ->placeholder('e.g. GDPR — Data Processing Requirements')
+                        ->helperText('Official name of the regulatory framework or standard.'),
 
                     Forms\Components\Textarea::make('description')
                         ->rows(3)
-                        ->placeholder('Brief description of what this framework covers...'),
+                        ->placeholder('Brief description of what this framework covers...')
+                        ->helperText('Summarise the scope and purpose of this framework.'),
 
                     Forms\Components\Toggle::make('is_active')
                         ->label('Active')
@@ -90,7 +92,8 @@ class RegulatoryFrameworkResource extends Resource
                                 ->label('Requirement Text')
                                 ->required()
                                 ->rows(2)
-                                ->placeholder('Describe the specific requirement the contract must address...'),
+                                ->placeholder('Describe the specific requirement the contract must address...')
+                                ->helperText('The clause or obligation that contracts must satisfy.'),
 
                             Forms\Components\Select::make('category')
                                 ->options([
@@ -104,7 +107,8 @@ class RegulatoryFrameworkResource extends Resource
                                     'termination' => 'Termination',
                                     'other' => 'Other',
                                 ])
-                                ->required(),
+                                ->required()
+                                ->helperText('Legal category this requirement belongs to.'),
 
                             Forms\Components\Select::make('severity')
                                 ->options([
@@ -114,7 +118,8 @@ class RegulatoryFrameworkResource extends Resource
                                     'low' => 'Low',
                                 ])
                                 ->required()
-                                ->default('medium'),
+                                ->default('medium')
+                                ->helperText('Impact level if this requirement is not met.'),
                         ])
                         ->columns(2)
                         ->collapsible()

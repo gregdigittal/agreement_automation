@@ -39,21 +39,26 @@ class CounterpartyResource extends Resource
                 ->placeholder('e.g. TL-2024-12345')
                 ->helperText('TiTo-validated trade license number.'),
             Forms\Components\Textarea::make('address')
-                ->placeholder('Registered business address...'),
+                ->placeholder('Registered business address...')
+                ->helperText('Official registered address of the counterparty.'),
             Forms\Components\TextInput::make('jurisdiction')->maxLength(255)
-                ->placeholder('e.g. UAE, UK, USA'),
+                ->placeholder('e.g. UAE, UK, USA')
+                ->helperText('Country or territory where the counterparty is legally registered.'),
             Forms\Components\Select::make('status')
                 ->options(['Active' => 'Active', 'Suspended' => 'Suspended', 'Blacklisted' => 'Blacklisted'])
                 ->required()
-                ->live(),
+                ->live()
+                ->helperText('Current trading status. Suspended/Blacklisted counterparties cannot enter new contracts.'),
             Forms\Components\Textarea::make('status_reason')
-                ->visible(fn (\Filament\Forms\Get $get) => $get('status') !== 'Active'),
+                ->visible(fn (\Filament\Forms\Get $get) => $get('status') !== 'Active')
+                ->helperText('Explain why this counterparty has been suspended or blacklisted.'),
             Forms\Components\Select::make('preferred_language')
                 ->options([
                     'en' => 'English', 'fr' => 'French', 'ar' => 'Arabic', 'es' => 'Spanish',
                     'zh' => 'Chinese', 'pt' => 'Portuguese', 'de' => 'German',
                 ])
-                ->default('en'),
+                ->default('en')
+                ->helperText('Language preference for communications and contract documents.'),
             Forms\Components\Hidden::make('duplicate_acknowledged')->default(false),
             Forms\Components\Actions::make([
                 Forms\Components\Actions\Action::make('check_duplicates')->label('Check for Duplicates')->color('warning')->icon('heroicon-o-magnifying-glass')->action(function (array $data, \Filament\Forms\Set $set) {

@@ -56,11 +56,14 @@ class ContractResource extends Resource
                 ])
                 ->columns(1),
                         Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->live()
-                ->placeholder('Select region...'),
+                ->placeholder('Select region...')
+                ->helperText('The organisational region this contract falls under.'),
             Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->live()
-                ->placeholder('Select entity...'),
+                ->placeholder('Select entity...')
+                ->helperText('The legal entity entering into this contract.'),
             Forms\Components\Select::make('project_id')->relationship('project', 'name')->required()->searchable()
-                ->placeholder('Select project...'),
+                ->placeholder('Select project...')
+                ->helperText('The project or business unit this contract relates to.'),
             Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable()
                 ->placeholder('Search for a counterparty...')
                 ->helperText('The external party entering into this agreement.'),
@@ -72,6 +75,7 @@ class ContractResource extends Resource
                 ->helperText('A descriptive title for this contract.'),
             Forms\Components\FileUpload::make('storage_path')->label('Contract File')->disk(config('ccrs.contracts_disk'))->directory('contracts')
                 ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
+                ->helperText('Upload the contract document. Accepted formats: PDF, DOCX.')
                 ->afterStateUpdated(function ($state, Set $set) {
                     if ($state instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
                         $set('file_name', $state->getClientOriginalName());
@@ -86,11 +90,13 @@ class ContractResource extends Resource
                         ->label('SharePoint URL')
                         ->url()
                         ->maxLength(2048)
-                        ->placeholder('https://digittalgroup.sharepoint.com/sites/legal/...'),
+                        ->placeholder('https://digittalgroup.sharepoint.com/sites/legal/...')
+                        ->helperText('Link to the document on SharePoint for collaborative editing.'),
                     Forms\Components\TextInput::make('sharepoint_version')
                         ->label('SharePoint Version')
                         ->maxLength(50)
-                        ->placeholder('e.g. 2.3'),
+                        ->placeholder('e.g. 2.3')
+                        ->helperText('Track the current SharePoint document version number.'),
                 ])
                 ->columns(2),
             Forms\Components\Section::make('Access Control')

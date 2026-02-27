@@ -25,7 +25,8 @@ class ContractLanguagesRelationManager extends RelationManager
                     'es' => 'Spanish', 'pt' => 'Portuguese', 'zh' => 'Chinese',
                     'de' => 'German', 'it' => 'Italian', 'ru' => 'Russian', 'ja' => 'Japanese',
                 ])
-                ->searchable()->required(),
+                ->searchable()->required()
+                ->helperText('ISO language code for this translation.'),
             Forms\Components\Toggle::make('is_primary')
                 ->label('Primary Language Version')
                 ->default(false)
@@ -35,6 +36,7 @@ class ContractLanguagesRelationManager extends RelationManager
                 ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
                 ->disk(config('ccrs.contracts_disk'))->directory('contract_languages')
                 ->required()->live()
+                ->helperText('Upload the translated contract document (PDF or DOCX).')
                 ->afterStateUpdated(function ($state, callable $set) {
                     if ($state) $set('file_name', basename($state));
                 }),

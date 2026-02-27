@@ -30,14 +30,17 @@ class VendorDocumentResource extends Resource
         $counterpartyId = auth('vendor')->user()?->counterparty_id;
         return $form->schema([
             Forms\Components\Select::make('contract_id')->label('Related Agreement (Optional)')
-                ->options(Contract::where('counterparty_id', $counterpartyId)->pluck('title', 'id'))->searchable()->nullable(),
+                ->options(Contract::where('counterparty_id', $counterpartyId)->pluck('title', 'id'))->searchable()->nullable()
+                ->helperText('Link this document to a specific agreement, or leave blank for general uploads.'),
             Forms\Components\Select::make('document_type')->label('Document Type')
                 ->options(['supporting' => 'Supporting Document', 'certificate' => 'Certificate', 'insurance' => 'Insurance Certificate', 'compliance' => 'Compliance Document', 'registration' => 'Company Registration', 'id' => 'Director ID / Passport', 'financial' => 'Financial Statement', 'other' => 'Other'])
-                ->required()->default('supporting'),
+                ->required()->default('supporting')
+                ->helperText('Classify this document so Digittal can process it correctly.'),
             Forms\Components\FileUpload::make('storage_path')->label('Document File')
                 ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png'])
                 ->disk(config('ccrs.contracts_disk'))->directory(fn () => 'vendor_documents/' . $counterpartyId)->maxSize(20480)->required()->live()
-                ->afterStateUpdated(fn ($state, callable $set) => $set('filename', $state ? basename($state) : null)),
+                ->afterStateUpdated(fn ($state, callable $set) => $set('filename', $state ? basename($state) : null))
+                ->helperText('Upload PDF, DOCX, JPEG, or PNG. Maximum file size: 20 MB.'),
             Forms\Components\Hidden::make('filename'),
             Forms\Components\Hidden::make('counterparty_id')->default($counterpartyId),
             Forms\Components\Hidden::make('uploaded_by_vendor_user_id')->default(fn () => auth('vendor')->id()),

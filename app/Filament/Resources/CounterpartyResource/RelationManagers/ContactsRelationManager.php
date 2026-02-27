@@ -16,10 +16,14 @@ class ContactsRelationManager extends RelationManager
     public function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\TextInput::make('name')->required()->maxLength(255),
-            Forms\Components\TextInput::make('email')->email()->required(),
-            Forms\Components\TextInput::make('role')->maxLength(100),
-            Forms\Components\Toggle::make('is_signer')->label('Is Signer')->default(false),
+            Forms\Components\TextInput::make('name')->required()->maxLength(255)
+                ->helperText('Full name of the contact person.'),
+            Forms\Components\TextInput::make('email')->email()->required()
+                ->helperText('Contact email address.'),
+            Forms\Components\TextInput::make('role')->maxLength(100)
+                ->helperText('Job title or role within the counterparty organisation.'),
+            Forms\Components\Toggle::make('is_signer')->label('Is Signer')->default(false)
+                ->helperText('Whether this contact is authorised to sign contracts.'),
         ]);
     }
 

@@ -71,51 +71,60 @@ class KycPackRelationManager extends RelationManager
                                     ->label($record->label)
                                     ->required()
                                     ->disk(config('ccrs.contracts_disk'))
-                                    ->directory('kyc'),
+                                    ->directory('kyc')
+                                    ->helperText('Upload the required KYC document.'),
                             ],
                             'text' => [
                                 Forms\Components\TextInput::make('value')
                                     ->label($record->label)
-                                    ->required(),
+                                    ->required()
+                                    ->helperText('Enter the requested information as text.'),
                             ],
                             'textarea' => [
                                 Forms\Components\Textarea::make('value')
                                     ->label($record->label)
                                     ->required()
-                                    ->rows(4),
+                                    ->rows(4)
+                                    ->helperText('Provide a detailed response for this checklist item.'),
                             ],
                             'number' => [
                                 Forms\Components\TextInput::make('value')
                                     ->label($record->label)
                                     ->required()
-                                    ->numeric(),
+                                    ->numeric()
+                                    ->helperText('Enter a numeric value.'),
                             ],
                             'date' => [
                                 Forms\Components\DatePicker::make('value')
                                     ->label($record->label)
-                                    ->required(),
+                                    ->required()
+                                    ->helperText('Select the relevant date for this item.'),
                             ],
                             'yes_no' => [
                                 Forms\Components\Toggle::make('value')
                                     ->label($record->label)
-                                    ->required(),
+                                    ->required()
+                                    ->helperText('Toggle on for Yes, off for No.'),
                             ],
                             'select' => [
                                 Forms\Components\Select::make('value')
                                     ->label($record->label)
                                     ->options($record->options ?? [])
-                                    ->required(),
+                                    ->required()
+                                    ->helperText('Choose the appropriate option from the list.'),
                             ],
                             'attestation' => [
                                 Forms\Components\Checkbox::make('attested')
                                     ->label('I attest to: ' . $record->label)
                                     ->required()
-                                    ->accepted(),
+                                    ->accepted()
+                                    ->helperText('Check to confirm your attestation of this statement.'),
                             ],
                             default => [
                                 Forms\Components\TextInput::make('value')
                                     ->label($record->label)
-                                    ->required(),
+                                    ->required()
+                                    ->helperText('Enter the requested information.'),
                             ],
                         };
                     })

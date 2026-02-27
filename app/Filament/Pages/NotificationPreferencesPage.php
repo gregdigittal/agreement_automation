@@ -46,8 +46,10 @@ class NotificationPreferencesPage extends Page implements HasForms
             Section::make('Global Toggles')
                 ->description('Master switches for each notification channel.')
                 ->schema([
-                    Toggle::make('email_enabled')->label('Email notifications'),
-                    Toggle::make('teams_enabled')->label('Microsoft Teams notifications'),
+                    Toggle::make('email_enabled')->label('Email notifications')
+                        ->helperText('Enable or disable all email notifications.'),
+                    Toggle::make('teams_enabled')->label('Microsoft Teams notifications')
+                        ->helperText('Enable or disable all Microsoft Teams notifications.'),
                 ]),
 
             Section::make('Per-Category Channels')
@@ -55,16 +57,20 @@ class NotificationPreferencesPage extends Page implements HasForms
                 ->schema([
                     CheckboxList::make('workflow_actions')
                         ->label('Workflow Actions (approvals, rejections, rework)')
-                        ->options(['email' => 'Email', 'teams' => 'Teams']),
+                        ->options(['email' => 'Email', 'teams' => 'Teams'])
+                        ->helperText('Notifications when contracts are approved, rejected, or sent for rework.'),
                     CheckboxList::make('escalations')
                         ->label('SLA Escalations')
-                        ->options(['email' => 'Email', 'teams' => 'Teams']),
+                        ->options(['email' => 'Email', 'teams' => 'Teams'])
+                        ->helperText('Alerts when workflow stages breach their SLA deadlines.'),
                     CheckboxList::make('reminders')
                         ->label('Key Date Reminders')
-                        ->options(['email' => 'Email', 'teams' => 'Teams', 'calendar' => 'Calendar (ICS)']),
+                        ->options(['email' => 'Email', 'teams' => 'Teams', 'calendar' => 'Calendar (ICS)'])
+                        ->helperText('Advance reminders for upcoming contract dates (expiry, renewal, etc.).'),
                     CheckboxList::make('contract_status')
                         ->label('Contract Status Changes')
-                        ->options(['email' => 'Email', 'teams' => 'Teams']),
+                        ->options(['email' => 'Email', 'teams' => 'Teams'])
+                        ->helperText('Notifications when contracts move between workflow stages.'),
                 ]),
         ]);
     }

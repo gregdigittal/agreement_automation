@@ -59,7 +59,8 @@ class EntityResource extends Resource
                     )
                     ->searchable()
                     ->preload()
-                    ->placeholder('None (top-level entity)'),
+                    ->placeholder('None (top-level entity)')
+                    ->helperText('Select a parent entity to build the organisational hierarchy.'),
             ])->columns(2),
         ]);
     }

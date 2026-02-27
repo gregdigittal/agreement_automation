@@ -16,10 +16,14 @@ class KeyDatesRelationManager extends RelationManager
     public function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\TextInput::make('date_type')->required()->maxLength(100),
-            Forms\Components\DatePicker::make('date_value')->required(),
-            Forms\Components\Textarea::make('description'),
-            Forms\Components\TagsInput::make('reminder_days')->placeholder('Add days'),
+            Forms\Components\TextInput::make('date_type')->required()->maxLength(100)
+                ->helperText('Type of date milestone (e.g. execution, expiry, renewal).'),
+            Forms\Components\DatePicker::make('date_value')->required()
+                ->helperText('The actual date for this milestone.'),
+            Forms\Components\Textarea::make('description')
+                ->helperText('Additional notes about this key date.'),
+            Forms\Components\TagsInput::make('reminder_days')->placeholder('Add days')
+                ->helperText('Days before the date to send reminders (e.g. 30, 14, 7).'),
         ]);
     }
 

@@ -64,14 +64,18 @@ class SigningSessionsRelationManager extends RelationManager
                         Forms\Components\Select::make('signing_order')
                             ->options(['sequential' => 'Sequential', 'parallel' => 'Parallel'])
                             ->default('sequential')
-                            ->required(),
+                            ->required()
+                            ->helperText('Whether signers sign in sequence or all at once.'),
                         Forms\Components\Repeater::make('signers')
                             ->schema([
-                                Forms\Components\TextInput::make('name')->required(),
-                                Forms\Components\TextInput::make('email')->email()->required(),
+                                Forms\Components\TextInput::make('name')->required()
+                                    ->helperText('Full name of the signer.'),
+                                Forms\Components\TextInput::make('email')->email()->required()
+                                    ->helperText('Email address for signing invitation.'),
                                 Forms\Components\Select::make('type')
                                     ->options(['internal' => 'Internal', 'external' => 'External'])
-                                    ->default('external'),
+                                    ->default('external')
+                                    ->helperText('Role in the signing process (company or counterparty).'),
                             ])
                             ->minItems(1)
                             ->columns(3),

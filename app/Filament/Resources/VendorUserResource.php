@@ -25,9 +25,12 @@ class VendorUserResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\TextInput::make('name')->required()->maxLength(255),
-            Forms\Components\TextInput::make('email')->email()->required()->unique(ignoreRecord: true),
-            Forms\Components\Select::make('counterparty_id')->label('Counterparty')->relationship('counterparty', 'legal_name')->searchable()->preload()->required(),
+            Forms\Components\TextInput::make('name')->required()->maxLength(255)
+                ->helperText('Full name of the vendor portal user.'),
+            Forms\Components\TextInput::make('email')->email()->required()->unique(ignoreRecord: true)
+                ->helperText('Email address used for magic link login to the vendor portal.'),
+            Forms\Components\Select::make('counterparty_id')->label('Counterparty')->relationship('counterparty', 'legal_name')->searchable()->preload()->required()
+                ->helperText('The counterparty organisation this user belongs to.'),
         ]);
     }
 

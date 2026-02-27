@@ -32,12 +32,14 @@ class KycTemplateResource extends Resource
                     ->relationship('entity', 'name')
                     ->searchable()
                     ->preload()
-                    ->placeholder('All entities'),
+                    ->placeholder('All entities')
+                    ->helperText('Restrict this template to a specific entity, or leave blank for all.'),
                 Forms\Components\Select::make('jurisdiction_id')
                     ->relationship('jurisdiction', 'name')
                     ->searchable()
                     ->preload()
-                    ->placeholder('All jurisdictions'),
+                    ->placeholder('All jurisdictions')
+                    ->helperText('Restrict this template to a specific jurisdiction, or leave blank for all.'),
                 Forms\Components\Select::make('contract_type_pattern')
                     ->options(fn () => array_merge(
                         ['*' => 'All Types (*)'],
@@ -48,7 +50,8 @@ class KycTemplateResource extends Resource
                             ->toArray()
                     ))
                     ->default('*')
-                    ->required(),
+                    ->required()
+                    ->helperText('Which contract types this KYC template applies to.'),
                 Forms\Components\Select::make('status')
                     ->options([
                         'draft' => 'Draft',
@@ -56,7 +59,8 @@ class KycTemplateResource extends Resource
                         'archived' => 'Archived',
                     ])
                     ->required()
-                    ->default('draft'),
+                    ->default('draft')
+                    ->helperText('Only active templates are applied to new contracts.'),
             ])->columns(2),
 
             Forms\Components\Section::make('Checklist Items')->schema([
@@ -66,10 +70,12 @@ class KycTemplateResource extends Resource
                         Forms\Components\TextInput::make('label')
                             ->required()
                             ->maxLength(255)
-                            ->columnSpan(2),
+                            ->columnSpan(2)
+                            ->helperText('Display label shown to the user filling in the checklist.'),
                         Forms\Components\Textarea::make('description')
                             ->rows(2)
-                            ->columnSpan(2),
+                            ->columnSpan(2)
+                            ->helperText('Additional instructions or guidance for this checklist item.'),
                         Forms\Components\Select::make('field_type')
                             ->options([
                                 'text' => 'Text',
@@ -82,12 +88,15 @@ class KycTemplateResource extends Resource
                                 'attestation' => 'Attestation',
                             ])
                             ->required()
-                            ->default('text'),
+                            ->default('text')
+                            ->helperText('How this item will be presented on the KYC form.'),
                         Forms\Components\Toggle::make('is_required')
-                            ->default(true),
+                            ->default(true)
+                            ->helperText('Whether this item must be completed before submission.'),
                         Forms\Components\KeyValue::make('options')
                             ->columnSpan(2)
-                            ->visible(fn (Forms\Get $get) => $get('field_type') === 'select'),
+                            ->visible(fn (Forms\Get $get) => $get('field_type') === 'select')
+                            ->helperText('Key-value pairs for dropdown options (key = stored value, value = display label).'),
                     ])
                     ->orderColumn('sort_order')
                     ->collapsible()

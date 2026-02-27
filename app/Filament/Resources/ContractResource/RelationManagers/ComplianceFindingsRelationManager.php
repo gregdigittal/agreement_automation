@@ -121,7 +121,8 @@ class ComplianceFindingsRelationManager extends RelationManager
                                 'unclear' => 'Unclear',
                                 'not_applicable' => 'Not Applicable',
                             ])
-                            ->required(),
+                            ->required()
+                            ->helperText('Updated compliance status for this finding.'),
                     ])
                     ->action(function ($record, array $data): void {
                         $service = app(RegulatoryComplianceService::class);
