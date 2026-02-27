@@ -14,7 +14,7 @@ env:
 jobs:
   deploy:
     runs-on: self-hosted
-    timeout-minutes: 25
+    timeout-minutes: 35
 
     steps:
       - name: Checkout
@@ -27,9 +27,9 @@ jobs:
 
       - name: Build Docker images
         run: |
-          docker build --no-cache -t ${{ env.IMAGE_TAG }} .
+          docker build -t ${{ env.IMAGE_TAG }} .
           docker tag ${{ env.IMAGE_TAG }} ${{ env.REGISTRY }}/sandbox/${{ env.APP_NAME }}:latest
-          docker build --no-cache -t ${{ env.AI_WORKER_IMAGE_TAG }} ./ai-worker
+          docker build -t ${{ env.AI_WORKER_IMAGE_TAG }} ./ai-worker
           docker tag ${{ env.AI_WORKER_IMAGE_TAG }} ${{ env.REGISTRY }}/sandbox/ccrs-ai-worker:latest
 
       - name: Push to registry
@@ -66,6 +66,7 @@ jobs:
 
           kubectl create secret generic ai-worker-secrets \
             --from-literal=anthropic-api-key='${{ secrets.ANTHROPIC_API_KEY }}' \
+            --from-literal=openai-api-key='${{ secrets.OPENAI_API_KEY }}' \
             --from-literal=worker-secret='${{ secrets.AI_WORKER_SECRET }}' \
             -n ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
 
