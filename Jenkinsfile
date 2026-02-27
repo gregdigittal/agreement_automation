@@ -112,7 +112,7 @@ pipeline {
                         // Verify rollout (generous timeout — entrypoint runs migrations + seeders)
                         sh """
                             kubectl rollout status deployment/${APP_NAME} \
-                                -n ${NAMESPACE} --timeout=600s
+                                -n ${NAMESPACE} --timeout=900s
                         """
                     }
                 }
