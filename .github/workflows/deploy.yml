@@ -105,3 +105,4 @@ jobs:
       - name: Cleanup kubeconfig
         if: always()
         run: rm -f $HOME/.kube/config
+
