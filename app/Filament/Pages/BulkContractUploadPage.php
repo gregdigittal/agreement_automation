@@ -13,6 +13,7 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BulkContractUploadPage extends Page implements HasForms
 {
@@ -164,5 +165,17 @@ class BulkContractUploadPage extends Page implements HasForms
                 'contract_id' => $r->contract_id,
             ])->toArray(),
         ];
+    }
+
+    public function downloadTemplate(): StreamedResponse
+    {
+        $headers = ['title', 'contract_type', 'region_code', 'entity_code', 'project_code', 'counterparty_registration', 'file_path'];
+        $example = ['Service Agreement - Acme Corp', 'service', 'AE', 'ENT001', 'PRJ001', 'REG-12345', 'acme_contract.pdf'];
+
+        $csv = implode(',', $headers) . "\n" . implode(',', $example) . "\n";
+
+        return response()->streamDownload(function () use ($csv) {
+            echo $csv;
+        }, 'bulk_contract_upload_template.csv', ['Content-Type' => 'text/csv']);
     }
 }

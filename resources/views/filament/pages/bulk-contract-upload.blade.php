@@ -8,9 +8,15 @@
         <form wire:submit="submit" class="space-y-6">
             {{ $this->form }}
 
-            <x-filament::button type="submit" color="primary">
-                Start Upload
-            </x-filament::button>
+            <div class="flex gap-3">
+                <x-filament::button type="submit" color="primary">
+                    Start Upload
+                </x-filament::button>
+
+                <x-filament::button type="button" color="gray" wire:click="downloadTemplate">
+                    Download CSV Template
+                </x-filament::button>
+            </div>
         </form>
     </x-filament::section>
 
