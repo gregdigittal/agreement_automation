@@ -1,19 +1,6 @@
 <?php
 
 use App\Models\User;
-use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Http;
-
-beforeEach(function () {
-    Config::set('ccrs.azure_ad.group_map', [
-        'legal-group-id' => 'legal',
-        'commercial-group-id' => 'commercial',
-        'finance-group-id' => 'finance',
-        'operations-group-id' => 'operations',
-        'audit-group-id' => 'audit',
-        'system-admin-group-id' => 'system_admin',
-    ]);
-});
 
 // ── 1. Redirect to Azure OAuth endpoint ──────────────────────────────────────
 
@@ -34,20 +21,12 @@ it('GET /auth/azure/redirect returns a redirect to Microsoft OAuth endpoint', fu
     expect($response->headers->get('Location'))->toContain('login.microsoftonline.com');
 });
 
-// ── 2. Callback with legal group creates user and assigns role ───────────────
+// ── 2. First-time SSO user is created with pending status ────────────────────
 
-it('Azure AD callback with email matching legal group creates User with role legal and authenticates them', function () {
-    $azureId = 'azure-legal-' . uniqid();
-    $email = 'legal-user@example.com';
-    $name = 'Legal Test User';
-
-    Http::fake([
-        'https://graph.microsoft.com/v1.0/me/memberOf*' => Http::response([
-            'value' => [
-                ['id' => 'legal-group-id', 'displayName' => 'Legal Team'],
-            ],
-        ], 200),
-    ]);
+it('first-time SSO user is created with pending status and shown pending-approval view', function () {
+    $azureId = 'azure-new-' . uniqid();
+    $email = 'new-user@example.com';
+    $name = 'New Test User';
 
     $mockSocialiteUser = new class($azureId, $email, $name) implements \Laravel\Socialite\Contracts\User {
         public function __construct(
@@ -71,36 +50,29 @@ it('Azure AD callback with email matching legal group creates User with role leg
 
     $response = $this->get(route('azure.callback'));
 
-    $response->assertStatus(302);
-    expect(str_contains($response->headers->get('Location') ?? '', 'admin'))->toBeTrue();
+    $response->assertStatus(200);
+    $response->assertViewIs('auth.pending-approval');
 
-    $user = User::where('id', $azureId)->first();
+    $user = User::find($azureId);
     expect($user)->not->toBeNull();
     expect($user->email)->toBe($email);
     expect($user->name)->toBe($name);
-    expect($user->hasRole('legal'))->toBeTrue();
+    expect($user->status)->toBe('pending');
+    expect($user->roles()->count())->toBe(0);
 });
 
-// ── 3. Callback for existing user does not create duplicate ──────────────────
+// ── 3. Existing active user with role logs in normally ───────────────────────
 
-it('callback for existing user does not create duplicate and authenticates existing record', function () {
-    $azureId = 'azure-existing-' . uniqid();
-    $email = 'existing@example.com';
-    $name = 'Existing User';
+it('existing active user with role logs in and is redirected to admin', function () {
+    $azureId = 'azure-active-' . uniqid();
+    $email = 'active@example.com';
+    $name = 'Active User';
 
-    // Pre-create the user
-    $existingUser = new User(['email' => $email, 'name' => $name]);
+    // Pre-create the user as active with a role
+    $existingUser = new User(['email' => $email, 'name' => $name, 'status' => 'active']);
     $existingUser->id = $azureId;
     $existingUser->save();
     $existingUser->assignRole('legal');
-
-    Http::fake([
-        'https://graph.microsoft.com/v1.0/me/memberOf*' => Http::response([
-            'value' => [
-                ['id' => 'legal-group-id', 'displayName' => 'Legal Team'],
-            ],
-        ], 200),
-    ]);
 
     $mockSocialiteUser = new class($azureId, 'updated-email@example.com', 'Updated Name') implements \Laravel\Socialite\Contracts\User {
         public function __construct(
@@ -124,134 +96,38 @@ it('callback for existing user does not create duplicate and authenticates exist
 
     $response = $this->get(route('azure.callback'));
 
-    $response->assertStatus(302);
-    expect(User::where('id', $azureId)->count())->toBe(1);
+    $response->assertRedirect('/admin');
 
     // Verify user details were updated
     $user = User::find($azureId);
     expect($user->email)->toBe('updated-email@example.com');
     expect($user->name)->toBe('Updated Name');
+
+    // Verify no duplicate created
+    expect(User::where('id', $azureId)->count())->toBe(1);
+
+    // Verify authenticated
+    $this->assertAuthenticatedAs($user);
 });
 
-// ── 4. Role mapping: Azure AD groups map to CCRS roles ───────────────────────
+// ── 4. Existing pending user is shown pending-approval view ──────────────────
 
-it('maps system_admin Azure AD group to system_admin role', function () {
-    $azureId = 'azure-sysadmin-' . uniqid();
+it('existing pending user is shown pending-approval view on re-login', function () {
+    $azureId = 'azure-pending-' . uniqid();
+    $email = 'pending@example.com';
+    $name = 'Pending User';
 
-    Http::fake([
-        'https://graph.microsoft.com/v1.0/me/memberOf*' => Http::response([
-            'value' => [
-                ['id' => 'system-admin-group-id', 'displayName' => 'System Admins'],
-            ],
-        ], 200),
-    ]);
+    // Pre-create user as pending (as if they logged in before but admin hasn't approved)
+    $existingUser = new User(['email' => $email, 'name' => $name, 'status' => 'pending']);
+    $existingUser->id = $azureId;
+    $existingUser->save();
 
-    $mockSocialiteUser = new class($azureId, 'admin@example.com', 'Admin') implements \Laravel\Socialite\Contracts\User {
-        public function __construct(private string $id, private string $email, private string $name) {}
-        public function getId() { return $this->id; }
-        public function getNickname() { return null; }
-        public function getName() { return $this->name; }
-        public function getEmail() { return $this->email; }
-        public function getAvatar() { return null; }
-        public $token = 'fake-token';
-    };
-
-    \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
-        ->with('azure')
-        ->andReturnSelf()
-        ->shouldReceive('user')
-        ->andReturn($mockSocialiteUser);
-
-    $this->get(route('azure.callback'));
-
-    $user = User::find($azureId);
-    expect($user)->not->toBeNull();
-    expect($user->hasRole('system_admin'))->toBeTrue();
-});
-
-it('maps commercial Azure AD group to commercial role', function () {
-    $azureId = 'azure-commercial-' . uniqid();
-
-    Http::fake([
-        'https://graph.microsoft.com/v1.0/me/memberOf*' => Http::response([
-            'value' => [
-                ['id' => 'commercial-group-id', 'displayName' => 'Commercial Team'],
-            ],
-        ], 200),
-    ]);
-
-    $mockSocialiteUser = new class($azureId, 'commercial@example.com', 'Commercial User') implements \Laravel\Socialite\Contracts\User {
-        public function __construct(private string $id, private string $email, private string $name) {}
-        public function getId() { return $this->id; }
-        public function getNickname() { return null; }
-        public function getName() { return $this->name; }
-        public function getEmail() { return $this->email; }
-        public function getAvatar() { return null; }
-        public $token = 'fake-token';
-    };
-
-    \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
-        ->with('azure')
-        ->andReturnSelf()
-        ->shouldReceive('user')
-        ->andReturn($mockSocialiteUser);
-
-    $this->get(route('azure.callback'));
-
-    $user = User::find($azureId);
-    expect($user)->not->toBeNull();
-    expect($user->hasRole('commercial'))->toBeTrue();
-});
-
-it('maps finance Azure AD group to finance role', function () {
-    $azureId = 'azure-finance-' . uniqid();
-
-    Http::fake([
-        'https://graph.microsoft.com/v1.0/me/memberOf*' => Http::response([
-            'value' => [
-                ['id' => 'finance-group-id', 'displayName' => 'Finance Team'],
-            ],
-        ], 200),
-    ]);
-
-    $mockSocialiteUser = new class($azureId, 'finance@example.com', 'Finance User') implements \Laravel\Socialite\Contracts\User {
-        public function __construct(private string $id, private string $email, private string $name) {}
-        public function getId() { return $this->id; }
-        public function getNickname() { return null; }
-        public function getName() { return $this->name; }
-        public function getEmail() { return $this->email; }
-        public function getAvatar() { return null; }
-        public $token = 'fake-token';
-    };
-
-    \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
-        ->with('azure')
-        ->andReturnSelf()
-        ->shouldReceive('user')
-        ->andReturn($mockSocialiteUser);
-
-    $this->get(route('azure.callback'));
-
-    $user = User::find($azureId);
-    expect($user)->not->toBeNull();
-    expect($user->hasRole('finance'))->toBeTrue();
-});
-
-// ── 5. User with unmapped group gets rejected ────────────────────────────────
-
-it('user whose Azure AD group does not map to any CCRS role gets rejected and no User record created', function () {
-    $azureId = 'azure-unknown-' . uniqid();
-
-    Http::fake([
-        'https://graph.microsoft.com/v1.0/me/memberOf*' => Http::response([
-            'value' => [
-                ['id' => 'unknown-group-id', 'displayName' => 'Random Team'],
-            ],
-        ], 200),
-    ]);
-
-    $mockSocialiteUser = new class($azureId, 'unknown@example.com', 'Unknown User') implements \Laravel\Socialite\Contracts\User {
-        public function __construct(private string $id, private string $email, private string $name) {}
+    $mockSocialiteUser = new class($azureId, $email, $name) implements \Laravel\Socialite\Contracts\User {
+        public function __construct(
+            private string $id,
+            private string $email,
+            private string $name,
+        ) {}
         public function getId() { return $this->id; }
         public function getNickname() { return null; }
         public function getName() { return $this->name; }
@@ -268,27 +144,31 @@ it('user whose Azure AD group does not map to any CCRS role gets rejected and no
 
     $response = $this->get(route('azure.callback'));
 
-    $response->assertRedirect();
-    expect(str_contains($response->headers->get('Location') ?? '', 'login'))->toBeTrue();
-    $response->assertSessionHasErrors('auth');
+    $response->assertStatus(200);
+    $response->assertViewIs('auth.pending-approval');
 
-    // The user record IS created (controller creates it before role check),
-    // but has no roles assigned — canAccessPanel returns false
-    $user = User::find($azureId);
-    if ($user) {
-        expect($user->roles()->count())->toBe(0);
-    }
+    // User should NOT be authenticated
+    $this->assertGuest();
 });
 
-it('user with empty group membership gets rejected', function () {
-    $azureId = 'azure-empty-' . uniqid();
+// ── 5. Suspended user is redirected with error ───────────────────────────────
 
-    Http::fake([
-        'https://graph.microsoft.com/v1.0/me/memberOf*' => Http::response(['value' => []], 200),
-    ]);
+it('suspended user is redirected to login with suspension error', function () {
+    $azureId = 'azure-suspended-' . uniqid();
+    $email = 'suspended@example.com';
+    $name = 'Suspended User';
 
-    $mockSocialiteUser = new class($azureId, 'nogroups@example.com', 'No Groups') implements \Laravel\Socialite\Contracts\User {
-        public function __construct(private string $id, private string $email, private string $name) {}
+    // Pre-create user as suspended
+    $existingUser = new User(['email' => $email, 'name' => $name, 'status' => 'suspended']);
+    $existingUser->id = $azureId;
+    $existingUser->save();
+
+    $mockSocialiteUser = new class($azureId, $email, $name) implements \Laravel\Socialite\Contracts\User {
+        public function __construct(
+            private string $id,
+            private string $email,
+            private string $name,
+        ) {}
         public function getId() { return $this->id; }
         public function getNickname() { return null; }
         public function getName() { return $this->name; }
@@ -305,26 +185,85 @@ it('user with empty group membership gets rejected', function () {
 
     $response = $this->get(route('azure.callback'));
 
-    $response->assertRedirect();
-    expect(str_contains($response->headers->get('Location') ?? '', 'login'))->toBeTrue();
+    $response->assertRedirect('/admin/login');
     $response->assertSessionHasErrors('auth');
 });
 
-// ── 6. After successful callback user has session and can access /admin ───────
+// ── 6. Active user without roles is redirected with no-access error ──────────
 
-it('after successful callback user has active session and can access /admin', function () {
+it('active user without any roles is redirected to login with no-access error', function () {
+    $azureId = 'azure-norole-' . uniqid();
+    $email = 'norole@example.com';
+    $name = 'No Role User';
+
+    // Pre-create user as active but with no roles
+    $existingUser = new User(['email' => $email, 'name' => $name, 'status' => 'active']);
+    $existingUser->id = $azureId;
+    $existingUser->save();
+
+    $mockSocialiteUser = new class($azureId, $email, $name) implements \Laravel\Socialite\Contracts\User {
+        public function __construct(
+            private string $id,
+            private string $email,
+            private string $name,
+        ) {}
+        public function getId() { return $this->id; }
+        public function getNickname() { return null; }
+        public function getName() { return $this->name; }
+        public function getEmail() { return $this->email; }
+        public function getAvatar() { return null; }
+        public $token = 'fake-token';
+    };
+
+    \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
+        ->with('azure')
+        ->andReturnSelf()
+        ->shouldReceive('user')
+        ->andReturn($mockSocialiteUser);
+
+    $response = $this->get(route('azure.callback'));
+
+    $response->assertRedirect('/admin/login');
+    $response->assertSessionHasErrors('auth');
+
+    // User should NOT be authenticated
+    $this->assertGuest();
+});
+
+// ── 7. Azure AD failure is handled gracefully ────────────────────────────────
+
+it('handles Azure AD authentication failure gracefully', function () {
+    \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
+        ->with('azure')
+        ->andReturnSelf()
+        ->shouldReceive('user')
+        ->andThrow(new \Exception('OAuth token expired'));
+
+    $response = $this->get(route('azure.callback'));
+
+    $response->assertRedirect('/admin/login');
+    $response->assertSessionHasErrors('auth');
+});
+
+// ── 8. After successful callback active user can access /admin ───────────────
+
+it('after successful callback active user with role can access /admin', function () {
     $azureId = 'azure-session-' . uniqid();
+    $email = 'session-test@example.com';
+    $name = 'Session User';
 
-    Http::fake([
-        'https://graph.microsoft.com/v1.0/me/memberOf*' => Http::response([
-            'value' => [
-                ['id' => 'legal-group-id', 'displayName' => 'Legal Team'],
-            ],
-        ], 200),
-    ]);
+    // Pre-create user as active with role
+    $existingUser = new User(['email' => $email, 'name' => $name, 'status' => 'active']);
+    $existingUser->id = $azureId;
+    $existingUser->save();
+    $existingUser->assignRole('legal');
 
-    $mockSocialiteUser = new class($azureId, 'session-test@example.com', 'Session User') implements \Laravel\Socialite\Contracts\User {
-        public function __construct(private string $id, private string $email, private string $name) {}
+    $mockSocialiteUser = new class($azureId, $email, $name) implements \Laravel\Socialite\Contracts\User {
+        public function __construct(
+            private string $id,
+            private string $email,
+            private string $name,
+        ) {}
         public function getId() { return $this->id; }
         public function getNickname() { return null; }
         public function getName() { return $this->name; }
@@ -348,45 +287,4 @@ it('after successful callback user has active session and can access /admin', fu
 
     // Verify user is authenticated
     $this->assertAuthenticatedAs(User::find($azureId));
-});
-
-// ── Priority: when user belongs to multiple groups, highest priority wins ────
-
-it('when user belongs to multiple groups the highest priority role is assigned', function () {
-    $azureId = 'azure-multi-' . uniqid();
-
-    Http::fake([
-        'https://graph.microsoft.com/v1.0/me/memberOf*' => Http::response([
-            'value' => [
-                ['id' => 'finance-group-id', 'displayName' => 'Finance'],
-                ['id' => 'legal-group-id', 'displayName' => 'Legal'],
-                ['id' => 'audit-group-id', 'displayName' => 'Audit'],
-            ],
-        ], 200),
-    ]);
-
-    $mockSocialiteUser = new class($azureId, 'multi@example.com', 'Multi Role User') implements \Laravel\Socialite\Contracts\User {
-        public function __construct(private string $id, private string $email, private string $name) {}
-        public function getId() { return $this->id; }
-        public function getNickname() { return null; }
-        public function getName() { return $this->name; }
-        public function getEmail() { return $this->email; }
-        public function getAvatar() { return null; }
-        public $token = 'fake-token';
-    };
-
-    \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
-        ->with('azure')
-        ->andReturnSelf()
-        ->shouldReceive('user')
-        ->andReturn($mockSocialiteUser);
-
-    $this->get(route('azure.callback'));
-
-    $user = User::find($azureId);
-    expect($user)->not->toBeNull();
-    // Priority order: system_admin > legal > commercial > finance > operations > audit
-    // Legal is highest priority among the three groups
-    expect($user->hasRole('legal'))->toBeTrue();
-    expect($user->roles->count())->toBe(1);
 });
