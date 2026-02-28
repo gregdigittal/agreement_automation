@@ -1,13 +1,8 @@
 <?php
 
 use App\Models\User;
-use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
-    Config::set('ccrs.azure_ad.group_map', [
-        'legal-group-id' => 'legal',
-    ]);
     $this->seed(\Database\Seeders\RoleSeeder::class);
 });
 
@@ -26,18 +21,10 @@ it('redirects to Azure for login', function () {
     expect($response->headers->get('Location'))->toContain('login.microsoftonline.com');
 });
 
-it('creates user and assigns role on callback when user is in mapped group', function () {
+it('creates user with pending status on first-time SSO callback', function () {
     $azureId = 'azure-' . uniqid();
     $email = 'user@example.com';
     $name = 'Test User';
-
-    Http::fake([
-        'https://graph.microsoft.com/v1.0/me/memberOf*' => Http::response([
-            'value' => [
-                ['id' => 'legal-group-id', 'displayName' => 'Legal'],
-            ],
-        ], 200),
-    ]);
 
     $mockSocialiteUser = new class($azureId, $email, $name) implements \Laravel\Socialite\Contracts\User {
         public function __construct(
@@ -61,22 +48,23 @@ it('creates user and assigns role on callback when user is in mapped group', fun
 
     $response = $this->get(route('azure.callback'));
 
-    $response->assertStatus(302);
-    expect(str_contains($response->headers->get('Location') ?? '', 'admin'))->toBeTrue();
-    $user = User::where('id', $azureId)->first();
+    $response->assertStatus(200);
+    $response->assertViewIs('auth.pending-approval');
+
+    $user = User::find($azureId);
     expect($user)->not->toBeNull();
     expect($user->email)->toBe($email);
-    expect($user->hasRole('legal'))->toBeTrue();
+    expect($user->name)->toBe($name);
+    expect($user->status)->toBe('pending');
+    expect($user->roles()->count())->toBe(0);
 });
 
-it('rejects callback when user has no matching Azure group', function () {
+it('shows pending-approval view for first-time user regardless of Azure groups', function () {
     $azureId = 'azure-no-group';
-    Http::fake([
-        'https://graph.microsoft.com/v1.0/me/memberOf*' => Http::response(['value' => []], 200),
-    ]);
+    $email = 'nogroup@example.com';
+    $name = 'No Group';
 
-
-    $mockSocialiteUser = new class($azureId, 'nogroup@example.com', 'No Group') implements \Laravel\Socialite\Contracts\User {
+    $mockSocialiteUser = new class($azureId, $email, $name) implements \Laravel\Socialite\Contracts\User {
         public function __construct(private string $id, private string $email, private string $name) {}
         public function getId() { return $this->id; }
         public function getNickname() { return null; }
@@ -94,7 +82,14 @@ it('rejects callback when user has no matching Azure group', function () {
 
     $response = $this->get(route('azure.callback'));
 
-    $response->assertRedirect();
-    expect(str_contains($response->headers->get('Location') ?? '', 'login'))->toBeTrue();
-    $response->assertSessionHasErrors('auth');
+    $response->assertStatus(200);
+    $response->assertViewIs('auth.pending-approval');
+
+    $user = User::find($azureId);
+    expect($user)->not->toBeNull();
+    expect($user->status)->toBe('pending');
+    expect($user->roles()->count())->toBe(0);
+
+    // User should NOT be authenticated
+    $this->assertGuest();
 });

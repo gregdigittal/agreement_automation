@@ -108,7 +108,7 @@ it('fails project import with invalid entity code', function () {
 // ── User import ──────────────────────────────────────────────────────────
 
 it('imports users from CSV and assigns roles', function () {
-    $csv = "name,email,role\nJohn Doe,john@digittal.io,legal\nJane Smith,jane@digittal.io,commercial\n";
+    $csv = "name,email,roles\nJohn Doe,john@digittal.io,legal\nJane Smith,jane@digittal.io,commercial\n";
     $path = writeTempCsv($csv);
 
     $result = app(BulkDataImportService::class)->import('users', $path);
@@ -128,7 +128,7 @@ it('imports users from CSV and assigns roles', function () {
 });
 
 it('fails user import with invalid role', function () {
-    $csv = "name,email,role\nBad Role,bad@test.com,superadmin\n";
+    $csv = "name,email,roles\nBad Role,bad@test.com,superadmin\n";
     $path = writeTempCsv($csv);
 
     $result = app(BulkDataImportService::class)->import('users', $path);
@@ -143,14 +143,16 @@ it('fails user import with invalid role', function () {
 it('does not duplicate existing users on re-import', function () {
     User::factory()->create(['email' => 'existing@digittal.io', 'name' => 'Original']);
 
-    $csv = "name,email,role\nUpdated Name,existing@digittal.io,finance\n";
+    $csv = "name,email,roles\nUpdated Name,existing@digittal.io,finance\n";
     $path = writeTempCsv($csv);
 
     $result = app(BulkDataImportService::class)->import('users', $path);
 
-    expect($result['success'])->toBe(1);
+    expect($result['success'])->toBe(0);
+    expect($result['failed'])->toBe(1);
+    expect($result['errors'][0])->toContain('already exists');
     expect(User::where('email', 'existing@digittal.io')->count())->toBe(1);
-    // firstOrCreate keeps original name
+    // Original user is unchanged
     expect(User::where('email', 'existing@digittal.io')->first()->name)->toBe('Original');
 
     unlink($path);
@@ -243,6 +245,11 @@ it('generates CSV template for each type', function () {
     expect($service->generateTemplate('regions'))->toBe("name,code\n");
     expect($service->generateTemplate('entities'))->toBe("region_code,name,code,legal_name,registration_number\n");
     expect($service->generateTemplate('projects'))->toBe("entity_code,name,code\n");
-    expect($service->generateTemplate('users'))->toBe("name,email,role\n");
+
+    $usersTemplate = $service->generateTemplate('users');
+    expect($usersTemplate)->toContain("name,email,roles\n");
+    expect($usersTemplate)->toContain("Jane Smith,jane@company.com,legal\n");
+    expect($usersTemplate)->toContain("John Doe,john@company.com,\"commercial,finance\"\n");
+
     expect($service->generateTemplate('counterparties'))->toBe("legal_name,registration_number,address,jurisdiction,status\n");
 });
