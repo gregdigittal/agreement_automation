@@ -3,6 +3,7 @@ name: Deploy to Sandbox
 on:
   push:
     branches: [sandbox]
+  workflow_dispatch:
 
 env:
   APP_NAME: digittal-ccrs
@@ -14,7 +15,7 @@ env:
 jobs:
   deploy:
     runs-on: self-hosted
-    timeout-minutes: 25
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -26,11 +27,25 @@ jobs:
           echo "AI_WORKER_IMAGE_TAG=${{ env.REGISTRY }}/sandbox/ccrs-ai-worker:${{ github.run_number }}" >> $GITHUB_ENV
 
       - name: Build Docker images
+        env:
+          DOCKER_BUILDKIT: "1"
         run: |
-          docker build --no-cache -t ${{ env.IMAGE_TAG }} .
-          docker tag ${{ env.IMAGE_TAG }} ${{ env.REGISTRY }}/sandbox/${{ env.APP_NAME }}:latest
-          docker build --no-cache -t ${{ env.AI_WORKER_IMAGE_TAG }} ./ai-worker
-          docker tag ${{ env.AI_WORKER_IMAGE_TAG }} ${{ env.REGISTRY }}/sandbox/ccrs-ai-worker:latest
+          docker pull ${{ env.REGISTRY }}/sandbox/${{ env.APP_NAME }}:latest || true
+          docker pull ${{ env.REGISTRY }}/sandbox/ccrs-ai-worker:latest || true
+
+          docker build \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --cache-from ${{ env.REGISTRY }}/sandbox/${{ env.APP_NAME }}:latest \
+            -t ${{ env.IMAGE_TAG }} \
+            -t ${{ env.REGISTRY }}/sandbox/${{ env.APP_NAME }}:latest \
+            .
+
+          docker build \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --cache-from ${{ env.REGISTRY }}/sandbox/ccrs-ai-worker:latest \
+            -t ${{ env.AI_WORKER_IMAGE_TAG }} \
+            -t ${{ env.REGISTRY }}/sandbox/ccrs-ai-worker:latest \
+            ./ai-worker
 
       - name: Push to registry
         run: |
@@ -66,6 +81,7 @@ jobs:
 
           kubectl create secret generic ai-worker-secrets \
             --from-literal=anthropic-api-key='${{ secrets.ANTHROPIC_API_KEY }}' \
+            --from-literal=openai-api-key='${{ secrets.OPENAI_API_KEY }}' \
             --from-literal=worker-secret='${{ secrets.AI_WORKER_SECRET }}' \
             -n ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
 
@@ -85,7 +101,7 @@ jobs:
       - name: Wait for rollout
         run: |
           kubectl rollout status deployment/${{ env.APP_NAME }} \
-            -n ${{ env.NAMESPACE }} --timeout=600s
+            -n ${{ env.NAMESPACE }} --timeout=900s
 
       - name: Show app logs
         if: always()

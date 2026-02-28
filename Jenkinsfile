@@ -27,7 +27,7 @@ pipeline {
 
     options {
         buildDiscarder(logRotator(numToKeepStr: '10'))
-        timeout(time: 25, unit: 'MINUTES')
+        timeout(time: 60, unit: 'MINUTES')
         disableConcurrentBuilds()
     }
 
@@ -37,12 +37,12 @@ pipeline {
             steps {
                 script {
                     echo "Building ${IMAGE_TAG} ..."
-                    def app = docker.build("${IMAGE_TAG}", "--no-cache .")
+                    def app = docker.build("${IMAGE_TAG}", ".")
                     app.push()
                     app.push('latest')
 
                     echo "Building AI Worker ${AI_WORKER_IMAGE_TAG} ..."
-                    def aiWorker = docker.build("${AI_WORKER_IMAGE_TAG}", "--no-cache ./ai-worker")
+                    def aiWorker = docker.build("${AI_WORKER_IMAGE_TAG}", "./ai-worker")
                     aiWorker.push()
                     aiWorker.push('latest')
                 }
@@ -112,7 +112,7 @@ pipeline {
                         // Verify rollout (generous timeout — entrypoint runs migrations + seeders)
                         sh """
                             kubectl rollout status deployment/${APP_NAME} \
-                                -n ${NAMESPACE} --timeout=600s
+                                -n ${NAMESPACE} --timeout=900s
                         """
                     }
                 }

@@ -41,17 +41,23 @@ php artisan route:clear 2>/dev/null || true
 php artisan view:clear 2>/dev/null || true
 
 # Run migrations — if migrate fails (e.g. orphan tables from DDL auto-commit),
-# fall back to migrate:fresh which drops everything and re-runs cleanly.
-# This is safe for sandbox (no production data to lose).
+# optionally fall back to migrate:fresh only when explicitly enabled.
 echo "Running migrations..."
 if ! php artisan migrate --force 2>&1; then
-    echo "WARNING: migrate failed — falling back to migrate:fresh (sandbox only)"
-    php artisan migrate:fresh --force 2>&1 || echo "ERROR: migrate:fresh also failed"
+    if [ "${ALLOW_MIGRATE_FRESH_ON_FAIL:-false}" = "true" ]; then
+        echo "WARNING: migrate failed — ALLOW_MIGRATE_FRESH_ON_FAIL=true, running migrate:fresh"
+        php artisan migrate:fresh --force 2>&1 || echo "ERROR: migrate:fresh also failed"
+    else
+        echo "ERROR: migrate failed and ALLOW_MIGRATE_FRESH_ON_FAIL is false"
+        exit 1
+    fi
 fi
 
 # Run seeders (idempotent — uses firstOrCreate)
-echo "Running seeders..."
-php artisan db:seed --force 2>&1 || echo "WARNING: Seeder failed"
+if [ "${RUN_SEED_ON_BOOT:-true}" = "true" ]; then
+    echo "Running seeders..."
+    php artisan db:seed --force 2>&1 || echo "WARNING: Seeder failed"
+fi
 
 # Publish Filament assets (if Filament is installed)
 if php artisan list 2>/dev/null | grep -q "filament:assets"; then
