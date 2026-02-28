@@ -17,7 +17,7 @@ class User extends Authenticatable implements FilamentUser
     public $incrementing = false;
     protected string $guard_name = 'web';
 
-    protected $fillable = ['email', 'name', 'notification_preferences'];
+    protected $fillable = ['email', 'name', 'notification_preferences', 'status'];
 
     protected $casts = [
         'notification_preferences' => 'array',
@@ -37,8 +37,7 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
-        // Any authenticated user with at least one CCRS role can access the admin panel
-        return $this->roles()->exists();
+        return $this->status === 'active' && $this->roles()->exists();
     }
 
     /**

@@ -22,6 +22,7 @@ class UserFactory extends Factory
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'remember_token' => Str::random(10),
+            'status' => 'active',
         ];
     }
 }
