@@ -109,9 +109,9 @@ class BulkDataUploadPage extends Page implements HasForms
         $this->form->fill();
     }
 
-    public function downloadTemplate(): StreamedResponse
+    public function downloadTemplate(?string $type = null): StreamedResponse
     {
-        $type = $this->data['upload_type'] ?? 'regions';
+        $type = $type ?? $this->data['upload_type'] ?? 'regions';
         $service = app(BulkDataImportService::class);
         $csv = $service->generateTemplate($type);
 

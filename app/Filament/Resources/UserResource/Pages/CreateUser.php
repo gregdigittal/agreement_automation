@@ -23,7 +23,7 @@ class CreateUser extends CreateRecord
         $record->syncRoles($roles);
 
         Mail::to($record->email)
-            ->send(new UserInviteMail($record, $roles));
+            ->queue(new UserInviteMail($record, $roles));
 
         return $record;
     }

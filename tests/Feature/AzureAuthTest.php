@@ -2,10 +2,6 @@
 
 use App\Models\User;
 
-beforeEach(function () {
-    $this->seed(\Database\Seeders\RoleSeeder::class);
-});
-
 it('redirects to Azure for login', function () {
     $redirectUrl = 'https://login.microsoftonline.com/common/oauth2/authorize';
     \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
@@ -48,14 +44,14 @@ it('creates user with pending status on first-time SSO callback', function () {
 
     $response = $this->get(route('azure.callback'));
 
-    $response->assertStatus(200);
+    $response->assertStatus(403);
     $response->assertViewIs('auth.pending-approval');
 
     $user = User::find($azureId);
     expect($user)->not->toBeNull();
     expect($user->email)->toBe($email);
     expect($user->name)->toBe($name);
-    expect($user->status)->toBe('pending');
+    expect($user->status->value)->toBe('pending');
     expect($user->roles()->count())->toBe(0);
 });
 
@@ -82,12 +78,12 @@ it('shows pending-approval view for first-time user regardless of Azure groups',
 
     $response = $this->get(route('azure.callback'));
 
-    $response->assertStatus(200);
+    $response->assertStatus(403);
     $response->assertViewIs('auth.pending-approval');
 
     $user = User::find($azureId);
     expect($user)->not->toBeNull();
-    expect($user->status)->toBe('pending');
+    expect($user->status->value)->toBe('pending');
     expect($user->roles()->count())->toBe(0);
 
     // User should NOT be authenticated

@@ -42,7 +42,7 @@ it('blocks active user without roles from accessing panel', function () {
 it('defaults user status to active', function () {
     $user = User::factory()->create();
 
-    expect($user->status)->toBe('active');
+    expect($user->status)->toBe(\App\Enums\UserStatus::Active);
 });
 
 // 6. Invite mail is renderable

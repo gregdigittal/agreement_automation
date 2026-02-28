@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\UserStatus;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Facades\Log;
 
@@ -26,33 +28,43 @@ class AzureAdController extends Controller
             return redirect('/admin/login')->withErrors(['auth' => 'Azure AD authentication failed. Please try again.']);
         }
 
-        $user = User::find($socialiteUser->getId());
+        $email = $socialiteUser->getEmail();
+        $name = $socialiteUser->getName();
 
-        if ($user) {
-            // Existing user — update name/email
-            $user->update([
-                'email' => $socialiteUser->getEmail(),
-                'name' => $socialiteUser->getName(),
+        if (empty($email)) {
+            Log::warning('Azure AD callback: user has no email', ['azure_id' => $socialiteUser->getId()]);
+            return redirect('/admin/login')->withErrors([
+                'auth' => 'Your Azure AD account does not have an email address configured. Contact your IT administrator.',
             ]);
-        } else {
-            // First-time SSO user — create as pending
+        }
+
+        $user = DB::transaction(function () use ($socialiteUser, $email, $name) {
+            $user = User::lockForUpdate()->find($socialiteUser->getId());
+
+            if ($user) {
+                $user->update([
+                    'email' => $email,
+                    'name' => $name ?? $user->name,
+                ]);
+                return $user;
+            }
+
             $user = new User([
-                'email' => $socialiteUser->getEmail(),
-                'name' => $socialiteUser->getName(),
+                'email' => $email,
+                'name' => $name ?? $email,
                 'status' => 'pending',
             ]);
             $user->id = $socialiteUser->getId();
             $user->save();
 
-            return response()->view('auth.pending-approval', [], 200);
+            return $user;
+        });
+
+        if ($user->status === UserStatus::Pending) {
+            return response()->view('auth.pending-approval', [], 403);
         }
 
-        // Check status
-        if ($user->status === 'pending') {
-            return response()->view('auth.pending-approval', [], 200);
-        }
-
-        if ($user->status === 'suspended') {
+        if ($user->status === UserStatus::Suspended) {
             return redirect('/admin/login')->withErrors(['auth' => 'Your account has been suspended. Contact your administrator.']);
         }
 

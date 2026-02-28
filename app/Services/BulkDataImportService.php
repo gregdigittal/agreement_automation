@@ -8,6 +8,7 @@ use App\Models\Entity;
 use App\Models\Project;
 use App\Models\Region;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
@@ -32,9 +33,19 @@ class BulkDataImportService
 
     public function import(string $type, string $csvPath): array
     {
+        if (!array_key_exists($type, self::HEADERS)) {
+            return ['success' => 0, 'failed' => 0, 'errors' => ["Invalid import type: {$type}"]];
+        }
+
         $handle = fopen($csvPath, 'r');
         if (!$handle) {
             return ['success' => 0, 'failed' => 0, 'errors' => ['Could not open CSV file.']];
+        }
+
+        // Strip UTF-8 BOM if present
+        $bom = fread($handle, 3);
+        if ($bom !== "\xEF\xBB\xBF") {
+            rewind($handle);
         }
 
         $headers = fgetcsv($handle);
@@ -126,7 +137,7 @@ class BulkDataImportService
 
     private function importUser(array $row): void
     {
-        $validRoles = ['system_admin', 'legal', 'commercial', 'finance', 'operations', 'audit'];
+        $validRoles = Role::where('guard_name', 'web')->pluck('name')->toArray();
 
         // Parse comma-separated roles
         $roles = array_map('trim', array_map('strtolower', explode(',', $row['roles'])));
@@ -142,16 +153,20 @@ class BulkDataImportService
             throw new \RuntimeException("User with email '{$email}' already exists.");
         }
 
-        $user = User::create([
-            'name' => $row['name'],
-            'email' => $email,
-            'status' => 'active',
-        ]);
+        $user = DB::transaction(function () use ($row, $email, $roles) {
+            $user = User::create([
+                'name' => $row['name'],
+                'email' => $email,
+                'status' => 'active',
+            ]);
 
-        $user->syncRoles($roles);
+            $user->syncRoles($roles);
+
+            return $user;
+        });
 
         Mail::to($user->email)
-            ->send(new UserInviteMail($user, $roles));
+            ->queue(new UserInviteMail($user, $roles));
     }
 
     private function importCounterparty(array $row): void

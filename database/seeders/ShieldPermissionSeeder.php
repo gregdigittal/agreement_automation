@@ -85,5 +85,12 @@ class ShieldPermissionSeeder extends Seeder
             $permModels = Permission::whereIn('name', $permissions)->where('guard_name', self::GUARD)->get();
             $role->syncPermissions($permModels);
         }
+
+        // system_admin gets all permissions explicitly (in addition to Shield's Gate::before bypass).
+        $systemAdmin = Role::where('name', 'system_admin')->where('guard_name', self::GUARD)->first();
+        if ($systemAdmin) {
+            $allPerms = Permission::where('guard_name', self::GUARD)->get();
+            $systemAdmin->syncPermissions($allPerms);
+        }
     }
 }

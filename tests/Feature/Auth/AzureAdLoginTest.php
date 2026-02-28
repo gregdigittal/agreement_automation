@@ -50,14 +50,14 @@ it('first-time SSO user is created with pending status and shown pending-approva
 
     $response = $this->get(route('azure.callback'));
 
-    $response->assertStatus(200);
+    $response->assertStatus(403);
     $response->assertViewIs('auth.pending-approval');
 
     $user = User::find($azureId);
     expect($user)->not->toBeNull();
     expect($user->email)->toBe($email);
     expect($user->name)->toBe($name);
-    expect($user->status)->toBe('pending');
+    expect($user->status->value)->toBe('pending');
     expect($user->roles()->count())->toBe(0);
 });
 
@@ -144,7 +144,7 @@ it('existing pending user is shown pending-approval view on re-login', function 
 
     $response = $this->get(route('azure.callback'));
 
-    $response->assertStatus(200);
+    $response->assertStatus(403);
     $response->assertViewIs('auth.pending-approval');
 
     // User should NOT be authenticated

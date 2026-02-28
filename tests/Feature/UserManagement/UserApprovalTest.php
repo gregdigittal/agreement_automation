@@ -26,10 +26,10 @@ it('approves pending user with roles and sends email', function () {
         ]);
 
     $pending->refresh();
-    expect($pending->status)->toBe('active');
+    expect($pending->status->value)->toBe('active');
     expect($pending->hasRole('legal'))->toBeTrue();
 
-    Mail::assertSent(UserApprovedMail::class, function ($mail) {
+    Mail::assertQueued(UserApprovedMail::class, function ($mail) {
         return $mail->hasTo('pending@example.com');
     });
 });
@@ -43,7 +43,7 @@ it('suspends an active user', function () {
         ->callTableAction('suspend', $active);
 
     $active->refresh();
-    expect($active->status)->toBe('suspended');
+    expect($active->status->value)->toBe('suspended');
 });
 
 // 3. Reactivate action sets user back to active
@@ -55,7 +55,7 @@ it('reactivates a suspended user', function () {
         ->callTableAction('reactivate', $suspended);
 
     $suspended->refresh();
-    expect($suspended->status)->toBe('active');
+    expect($suspended->status->value)->toBe('active');
 });
 
 // 4. Reject action deletes the pending user

@@ -20,10 +20,10 @@ it('imports users with single role from CSV', function () {
 
     $user = User::where('email', 'alice@example.com')->first();
     expect($user)->not->toBeNull();
-    expect($user->status)->toBe('active');
+    expect($user->status->value)->toBe('active');
     expect($user->hasRole('legal'))->toBeTrue();
 
-    Mail::assertSent(\App\Mail\UserInviteMail::class, function ($mail) {
+    Mail::assertQueued(\App\Mail\UserInviteMail::class, function ($mail) {
         return $mail->hasTo('alice@example.com');
     });
 

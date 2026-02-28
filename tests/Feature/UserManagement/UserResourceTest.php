@@ -51,7 +51,7 @@ it('creates user with roles and sends invite email', function () {
     expect($user->hasRole('legal'))->toBeTrue();
     expect($user->hasRole('commercial'))->toBeTrue();
 
-    Mail::assertSent(\App\Mail\UserInviteMail::class, function ($mail) {
+    Mail::assertQueued(\App\Mail\UserInviteMail::class, function ($mail) {
         return $mail->hasTo('jane@example.com');
     });
 });
