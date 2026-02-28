@@ -130,12 +130,13 @@ it('entity import fails when region code does not exist', function () {
 it('does not duplicate existing users on re-import', function () {
     User::factory()->create(['email' => 'existing@digittal.io', 'name' => 'Original']);
 
-    $csv = "name,email,role\nUpdated Name,existing@digittal.io,finance\n";
+    $csv = "name,email,roles\nUpdated Name,existing@digittal.io,finance\n";
     $path = writeBulkOpsTempCsv($csv);
 
     $result = app(BulkDataImportService::class)->import('users', $path);
 
-    expect($result['success'])->toBe(1);
+    expect($result['failed'])->toBe(1);
+    expect($result['errors'][0])->toContain('already exists');
     expect(User::where('email', 'existing@digittal.io')->count())->toBe(1);
     expect(User::where('email', 'existing@digittal.io')->first()->name)->toBe('Original');
 
@@ -151,7 +152,9 @@ it('generates CSV template headers for each resource type', function () {
     expect($service->generateTemplate('regions'))->toBe("name,code\n");
     expect($service->generateTemplate('entities'))->toBe("region_code,name,code,legal_name,registration_number\n");
     expect($service->generateTemplate('projects'))->toBe("entity_code,name,code\n");
-    expect($service->generateTemplate('users'))->toBe("name,email,role\n");
+    $usersTemplate = $service->generateTemplate('users');
+    expect($usersTemplate)->toContain("name,email,roles\n");
+    expect($usersTemplate)->toContain('legal');
     expect($service->generateTemplate('counterparties'))->toBe("legal_name,registration_number,address,jurisdiction,status\n");
 });
 
@@ -382,7 +385,8 @@ it('bulk data upload page shows upload form content', function () {
 // 18. User import assigns roles correctly
 // ---------------------------------------------------------------------------
 it('user import assigns roles correctly', function () {
-    $csv = "name,email,role\nJohn Doe,john@digittal.io,legal\nJane Smith,jane@digittal.io,commercial\n";
+    Illuminate\Support\Facades\Mail::fake();
+    $csv = "name,email,roles\nJohn Doe,john@digittal.io,legal\nJane Smith,jane@digittal.io,commercial\n";
     $path = writeBulkOpsTempCsv($csv);
 
     $result = app(BulkDataImportService::class)->import('users', $path);
@@ -402,7 +406,7 @@ it('user import assigns roles correctly', function () {
 // 19. Invalid role is rejected on user import
 // ---------------------------------------------------------------------------
 it('rejects user import with invalid role', function () {
-    $csv = "name,email,role\nBad Role,bad@test.com,superadmin\n";
+    $csv = "name,email,roles\nBad Role,bad@test.com,superadmin\n";
     $path = writeBulkOpsTempCsv($csv);
 
     $result = app(BulkDataImportService::class)->import('users', $path);
