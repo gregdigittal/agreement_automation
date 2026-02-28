@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Socialite\Facades\Socialite;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class AzureAdController extends Controller
@@ -27,75 +26,43 @@ class AzureAdController extends Controller
             return redirect('/admin/login')->withErrors(['auth' => 'Azure AD authentication failed. Please try again.']);
         }
 
-        $role = $this->resolveRole($socialiteUser->token);
-
         $user = User::find($socialiteUser->getId());
+
         if ($user) {
+            // Existing user — update name/email
             $user->update([
                 'email' => $socialiteUser->getEmail(),
                 'name' => $socialiteUser->getName(),
             ]);
         } else {
+            // First-time SSO user — create as pending
             $user = new User([
                 'email' => $socialiteUser->getEmail(),
                 'name' => $socialiteUser->getName(),
+                'status' => 'pending',
             ]);
             $user->id = $socialiteUser->getId();
             $user->save();
+
+            return response()->view('auth.pending-approval', [], 200);
         }
 
-        if ($role) {
-            $user->syncRoles([$role]);
-        } else {
-            Log::warning('Azure AD user has no CCRS group membership', ['email' => $user->email]);
+        // Check status
+        if ($user->status === 'pending') {
+            return response()->view('auth.pending-approval', [], 200);
+        }
+
+        if ($user->status === 'suspended') {
+            return redirect('/admin/login')->withErrors(['auth' => 'Your account has been suspended. Contact your administrator.']);
+        }
+
+        // Active user with roles — log in
+        if (!$user->roles()->exists()) {
             return redirect('/admin/login')->withErrors(['auth' => 'You do not have access to CCRS. Contact your administrator.']);
         }
 
         Auth::login($user, remember: true);
 
         return redirect()->intended('/admin');
-    }
-
-    private function resolveRole(?string $accessToken): ?string
-    {
-        if (!$accessToken) {
-            return null;
-        }
-
-        try {
-            $response = Http::withToken($accessToken)
-                ->timeout(10)
-                ->get('https://graph.microsoft.com/v1.0/me/memberOf', [
-                    '$select' => 'id,displayName',
-                ]);
-
-            if (!$response->successful()) {
-                Log::warning('Microsoft Graph memberOf call failed', ['status' => $response->status()]);
-                return null;
-            }
-
-            $groups = $response->json('value', []);
-            $groupIds = array_column($groups, 'id');
-            $groupMap = array_filter(config('ccrs.azure_ad.group_map', []));
-
-            $priorityOrder = ['system_admin', 'legal', 'commercial', 'finance', 'operations', 'audit'];
-            $userRoles = [];
-            foreach ($groupMap as $groupId => $roleName) {
-                if (in_array($groupId, $groupIds, true)) {
-                    $userRoles[] = $roleName;
-                }
-            }
-
-            foreach ($priorityOrder as $role) {
-                if (in_array($role, $userRoles)) {
-                    return $role;
-                }
-            }
-
-            return null;
-        } catch (\Exception $e) {
-            Log::error('Failed to resolve Azure AD role', ['error' => $e->getMessage()]);
-            return null;
-        }
     }
 }
