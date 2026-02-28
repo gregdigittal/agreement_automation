@@ -1,5 +1,7 @@
 <?php
 
+use App\Mail\UserApprovedMail;
+use App\Mail\UserInviteMail;
 use App\Models\User;
 use Filament\Facades\Filament;
 
@@ -39,4 +41,24 @@ it('defaults user status to active', function () {
     $user = User::factory()->create();
 
     expect($user->status)->toBe('active');
+});
+
+// 6. Invite mail is renderable
+it('renders user invite mail', function () {
+    $user = User::factory()->create();
+    $mail = new UserInviteMail($user, ['legal', 'commercial']);
+
+    expect($mail->envelope()->subject)->toBe("You've been granted access to CCRS");
+    $rendered = $mail->render();
+    expect($rendered)->toContain('legal, commercial');
+});
+
+// 7. Approved mail is renderable
+it('renders user approved mail', function () {
+    $user = User::factory()->create();
+    $mail = new UserApprovedMail($user, ['legal']);
+
+    expect($mail->envelope()->subject)->toBe('Your CCRS access has been approved');
+    $rendered = $mail->render();
+    expect($rendered)->toContain('legal');
 });
