@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use App\Mail\UserInviteMail;
 use App\Models\Counterparty;
 use App\Models\Entity;
 use App\Models\Project;
 use App\Models\Region;
 use App\Models\User;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 
@@ -16,7 +18,7 @@ class BulkDataImportService
         'regions' => ['name', 'code'],
         'entities' => ['region_code', 'name', 'code', 'legal_name', 'registration_number'],
         'projects' => ['entity_code', 'name', 'code'],
-        'users' => ['name', 'email', 'role'],
+        'users' => ['name', 'email', 'roles'],
         'counterparties' => ['legal_name', 'registration_number', 'address', 'jurisdiction', 'status'],
     ];
 
@@ -24,7 +26,7 @@ class BulkDataImportService
         'regions' => ['name'],
         'entities' => ['region_code', 'name'],
         'projects' => ['entity_code', 'name'],
-        'users' => ['name', 'email', 'role'],
+        'users' => ['name', 'email', 'roles'],
         'counterparties' => ['legal_name'],
     ];
 
@@ -125,20 +127,31 @@ class BulkDataImportService
     private function importUser(array $row): void
     {
         $validRoles = ['system_admin', 'legal', 'commercial', 'finance', 'operations', 'audit'];
-        $role = strtolower(trim($row['role']));
-        if (!in_array($role, $validRoles)) {
-            throw new \RuntimeException("Invalid role '{$row['role']}'. Valid: " . implode(', ', $validRoles));
+
+        // Parse comma-separated roles
+        $roles = array_map('trim', array_map('strtolower', explode(',', $row['roles'])));
+        $invalid = array_diff($roles, $validRoles);
+        if (!empty($invalid)) {
+            throw new \RuntimeException("Invalid role(s): " . implode(', ', $invalid) . ". Valid: " . implode(', ', $validRoles));
         }
 
-        $user = User::firstOrCreate(
-            ['email' => strtolower(trim($row['email']))],
-            ['name' => $row['name']],
-        );
+        $email = strtolower(trim($row['email']));
 
-        if (!$user->hasRole($role)) {
-            $roleModel = Role::firstOrCreate(['name' => $role, 'guard_name' => 'web']);
-            $user->assignRole($roleModel);
+        // Skip existing users
+        if (User::where('email', $email)->exists()) {
+            throw new \RuntimeException("User with email '{$email}' already exists.");
         }
+
+        $user = User::create([
+            'name' => $row['name'],
+            'email' => $email,
+            'status' => 'active',
+        ]);
+
+        $user->syncRoles($roles);
+
+        Mail::to($user->email)
+            ->send(new UserInviteMail($user, $roles));
     }
 
     private function importCounterparty(array $row): void
@@ -155,6 +168,13 @@ class BulkDataImportService
     public function generateTemplate(string $type): string
     {
         $headers = self::HEADERS[$type] ?? [];
-        return implode(',', $headers) . "\n";
+        $csv = implode(',', $headers) . "\n";
+
+        if ($type === 'users') {
+            $csv .= "Jane Smith,jane@company.com,legal\n";
+            $csv .= "John Doe,john@company.com,\"commercial,finance\"\n";
+        }
+
+        return $csv;
     }
 }
