@@ -48,8 +48,16 @@ class ShieldPermissionSeeder extends Seeder
             ],
         ];
 
+        // User management permissions (system_admin only via wildcard).
+        $userPermissions = [
+            'view_any_user', 'view_user', 'create_user', 'update_user', 'delete_user',
+        ];
+
         // Create all permissions first (idempotent).
         $allPermissionNames = [];
+        foreach ($userPermissions as $name) {
+            $allPermissionNames[$name] = true;
+        }
         foreach ($rolePermissions as $roleName => $permissions) {
             if ($roleName === 'system_admin' || in_array('*', $permissions, true)) {
                 continue;
