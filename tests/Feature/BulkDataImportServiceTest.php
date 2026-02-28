@@ -108,6 +108,7 @@ it('fails project import with invalid entity code', function () {
 // ── User import ──────────────────────────────────────────────────────────
 
 it('imports users from CSV and assigns roles', function () {
+    Illuminate\Support\Facades\Mail::fake();
     $csv = "name,email,roles\nJohn Doe,john@digittal.io,legal\nJane Smith,jane@digittal.io,commercial\n";
     $path = writeTempCsv($csv);
 

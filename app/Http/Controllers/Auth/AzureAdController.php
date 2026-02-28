@@ -13,7 +13,7 @@ class AzureAdController extends Controller
     public function redirect()
     {
         return Socialite::driver('azure')
-            ->scopes(['openid', 'profile', 'email', 'User.Read', 'GroupMember.Read.All'])
+            ->scopes(['openid', 'profile', 'email', 'User.Read'])
             ->redirect();
     }
 
