@@ -9,8 +9,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
+# Install dependencies (compatible with legacy Docker builder and BuildKit)
+RUN npm ci --no-audit --no-fund
 
 # Copy source files needed for build
 COPY resources ./resources
@@ -49,10 +49,8 @@ WORKDIR /app
 # Copy composer files
 COPY composer.json composer.lock ./
 
-# Install dependencies without dev packages
-RUN --mount=type=cache,target=/tmp/composer-cache \
-    COMPOSER_CACHE_DIR=/tmp/composer-cache \
-    composer install --no-dev --no-scripts --no-autoloader --prefer-dist
+# Install dependencies without dev packages (compatible with legacy Docker builder and BuildKit)
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 
 # Copy application code
 COPY . .
