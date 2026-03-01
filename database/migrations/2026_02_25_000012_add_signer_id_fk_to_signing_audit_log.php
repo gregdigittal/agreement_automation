@@ -8,9 +8,13 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('signing_audit_log', function (Blueprint $table) {
-            $table->foreign('signer_id')->references('id')->on('signing_session_signers')->nullOnDelete();
-        });
+        try {
+            Schema::table('signing_audit_log', function (Blueprint $table) {
+                $table->foreign('signer_id')->references('id')->on('signing_session_signers')->nullOnDelete();
+            });
+        } catch (\Illuminate\Database\QueryException $e) {
+            // FK already exists — skip
+        }
     }
 
     public function down(): void

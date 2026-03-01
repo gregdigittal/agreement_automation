@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasColumn('contracts', 'expiry_date')) {
+            return;
+        }
+
         Schema::table('contracts', function (Blueprint $table) {
             $table->date('expiry_date')->nullable()->after('sharepoint_version');
         });

@@ -9,19 +9,25 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('contracts', function (Blueprint $table) {
-            $table->index(['workflow_state', 'created_at']);
-            $table->index(['counterparty_id', 'workflow_state']);
-            // Note: ['region_id', 'entity_id', 'project_id'] index already exists in create_contracts migration
+            if (! Schema::hasIndex('contracts', 'contracts_workflow_state_created_at_index')) {
+                $table->index(['workflow_state', 'created_at']);
+            }
+            if (! Schema::hasIndex('contracts', 'contracts_counterparty_id_workflow_state_index')) {
+                $table->index(['counterparty_id', 'workflow_state']);
+            }
         });
 
         Schema::table('audit_log', function (Blueprint $table) {
-            $table->index(['actor_id', 'at']);
+            if (! Schema::hasIndex('audit_log', 'audit_log_actor_id_at_index')) {
+                $table->index(['actor_id', 'at']);
+            }
         });
 
         Schema::table('notifications', function (Blueprint $table) {
-            $table->index(['recipient_user_id', 'status', 'created_at']);
+            if (! Schema::hasIndex('notifications', 'notifications_recipient_user_id_status_created_at_index')) {
+                $table->index(['recipient_user_id', 'status', 'created_at']);
+            }
         });
-
     }
 
     public function down(): void

@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasColumn('boldsign_envelopes', 'is_countersign')) {
+            return;
+        }
+
         Schema::table('boldsign_envelopes', function (Blueprint $table) {
             $table->boolean('is_countersign')->default(false)->after('status');
         });

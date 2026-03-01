@@ -8,6 +8,10 @@ use Illuminate\Support\Facades\DB;
 return new class extends Migration {
     public function up(): void
     {
+        if (Schema::hasColumn('users', 'status')) {
+            return;
+        }
+
         Schema::table('users', function (Blueprint $table) {
             $table->string('status', 20)->default('active')->after('name');
         });

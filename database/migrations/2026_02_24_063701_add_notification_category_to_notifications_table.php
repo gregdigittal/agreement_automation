@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasColumn('notifications', 'notification_category')) {
+            return;
+        }
+
         Schema::table('notifications', function (Blueprint $table) {
             $table->string('notification_category', 50)->nullable()->after('channel');
         });
