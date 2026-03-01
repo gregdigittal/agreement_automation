@@ -70,18 +70,18 @@ class ContractResource extends Resource
                 ->icon('heroicon-o-document-text')
                 ->columns(2)
                 ->schema([
-                    Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->live()
+                    Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->preload()->live()
                         ->placeholder('Select region...')
-                        ->helperText('The organisational region this contract falls under.'),
-                    Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->live()
+                        ->helperText('The organisational region this contract falls under. Manage regions under Organization > Regions.'),
+                    Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->preload()->live()
                         ->placeholder('Select entity...')
-                        ->helperText('The legal entity entering into this contract.'),
-                    Forms\Components\Select::make('project_id')->relationship('project', 'name')->required()->searchable()
+                        ->helperText('The legal entity entering into this contract. Manage entities under Organization > Entities.'),
+                    Forms\Components\Select::make('project_id')->relationship('project', 'name')->required()->searchable()->preload()
                         ->placeholder('Select project...')
-                        ->helperText('The project or business unit this contract relates to.'),
-                    Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable()
+                        ->helperText('The project or business unit this contract relates to. Manage projects under Organization > Projects.'),
+                    Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable()->preload()
                         ->placeholder('Search for a counterparty...')
-                        ->helperText('The external party entering into this agreement.')
+                        ->helperText('The external party entering into this agreement. Create counterparties under Counterparties.')
                         ->rules([
                             fn () => function (string $attribute, $value, \Closure $fail) {
                                 $cp = \App\Models\Counterparty::find($value);

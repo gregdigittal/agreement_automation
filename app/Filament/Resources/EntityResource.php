@@ -27,7 +27,7 @@ class EntityResource extends Resource
                 ->required()
                 ->searchable()
                 ->preload()
-                ->helperText('The region this entity belongs to.'),
+                ->helperText('The region this entity belongs to. Create regions first under Organization > Regions.'),
             Forms\Components\TextInput::make('name')
                 ->required()
                 ->maxLength(255)
@@ -60,7 +60,7 @@ class EntityResource extends Resource
                     ->searchable()
                     ->preload()
                     ->placeholder('None (top-level entity)')
-                    ->helperText('Select a parent entity to build the organisational hierarchy.'),
+                    ->helperText('Select a parent entity to build the organisational hierarchy. Only appears after other entities have been created.'),
             ])->columns(2),
         ]);
     }

@@ -26,7 +26,7 @@ class ProjectResource extends Resource
                 ->required()
                 ->searchable()
                 ->preload()
-                ->helperText('The entity this project belongs to.'),
+                ->helperText('The entity this project belongs to. Create entities first under Organization > Entities.'),
             Forms\Components\TextInput::make('name')
                 ->required()
                 ->maxLength(255)

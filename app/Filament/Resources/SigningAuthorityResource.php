@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\SigningAuthorityResource\Pages;
 use App\Models\SigningAuthority;
+use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -26,21 +27,36 @@ class SigningAuthorityResource extends Resource
                 ->required()
                 ->searchable()
                 ->preload()
-                ->helperText('The entity this signing authority belongs to.'),
+                ->helperText('The entity this signing authority belongs to. Create entities under Organization > Entities.'),
             Forms\Components\Select::make('project_id')
                 ->relationship('project', 'name')
                 ->searchable()
                 ->preload()
-                ->helperText('Optionally restrict to a specific project.'),
-            Forms\Components\TextInput::make('user_id')
-                ->maxLength(255)
-                ->helperText('System user ID (auto-populated when linked to a user account).'),
+                ->helperText('Optionally restrict to a specific project. Create projects under Organization > Projects.'),
+            Forms\Components\Select::make('user_id')
+                ->label('User')
+                ->options(fn () => User::where('status', 'active')
+                    ->orderBy('name')
+                    ->pluck('name', 'id')
+                    ->toArray())
+                ->searchable()
+                ->placeholder('Select user (optional)')
+                ->live()
+                ->afterStateUpdated(function (Forms\Set $set, ?string $state) {
+                    if ($state) {
+                        $user = User::find($state);
+                        if ($user) {
+                            $set('user_email', $user->email);
+                        }
+                    }
+                })
+                ->helperText('Select an existing CCRS user to link. This auto-fills the email below. Manage users under Administration > Users.'),
             Forms\Components\TextInput::make('user_email')
                 ->email()
                 ->required()
                 ->maxLength(255)
                 ->placeholder('e.g. signer@digittal.io')
-                ->helperText('Email address of the authorised signatory.'),
+                ->helperText('Email address of the authorised signatory. Auto-filled when a user is selected above, or enter manually for external signatories.'),
             Forms\Components\TextInput::make('role_or_name')
                 ->required()
                 ->maxLength(255)
