@@ -14,4 +14,12 @@ class EditSigningAuthority extends EditRecord
     {
         return [Actions\DeleteAction::make()];
     }
+
+    protected function afterSave(): void
+    {
+        // If "All Projects" toggle is ON, clear the pivot to mean unrestricted
+        if ($this->data['all_projects'] ?? false) {
+            $this->record->projects()->detach();
+        }
+    }
 }

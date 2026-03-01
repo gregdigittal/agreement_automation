@@ -27,16 +27,34 @@ class EntityResource extends Resource
                 ->required()
                 ->searchable()
                 ->preload()
-                ->helperText('The region this entity belongs to. Create regions first under Organization > Regions.'),
+                ->live()
+                ->afterStateUpdated(function (Forms\Set $set, Forms\Get $get, ?string $state) {
+                    static::generateEntityCode($set, $get);
+                })
+                ->createOptionForm([
+                    Forms\Components\TextInput::make('name')->required()->maxLength(255)
+                        ->placeholder('e.g. Middle East & North Africa'),
+                    Forms\Components\Select::make('code')
+                        ->options(fn () => \App\Models\Country::dropdownOptions())
+                        ->searchable()
+                        ->helperText('ISO country code for this region.'),
+                ])
+                ->helperText('The region this entity belongs to.'),
             Forms\Components\TextInput::make('name')
                 ->required()
                 ->maxLength(255)
                 ->placeholder('e.g. Digittal UAE')
+                ->live(onBlur: true)
+                ->afterStateUpdated(function (Forms\Set $set, Forms\Get $get) {
+                    static::generateEntityCode($set, $get);
+                })
                 ->helperText('The display name for this entity.'),
             Forms\Components\TextInput::make('code')
                 ->maxLength(50)
-                ->placeholder('e.g. DGT-AE, DGT-UK')
-                ->helperText('Short internal identifier used in bulk uploads and reports.'),
+                ->placeholder('Auto-generated: DGT-AE')
+                ->disabled()
+                ->dehydrated()
+                ->helperText('Auto-generated from name and region. Format: ABC-XX.'),
 
             Forms\Components\Section::make('Legal Details')->schema([
                 Forms\Components\TextInput::make('legal_name')
@@ -93,6 +111,30 @@ class EntityResource extends Resource
     public static function canDelete(Model $record): bool
     {
         return auth()->user()?->hasRole('system_admin') ?? false;
+    }
+
+    protected static function generateEntityCode(Forms\Set $set, Forms\Get $get): void
+    {
+        $name = $get('name');
+        $regionId = $get('region_id');
+
+        if (! $name) {
+            return;
+        }
+
+        // Take first 3 alpha chars from name, uppercase
+        $prefix = strtoupper(preg_replace('/[^A-Za-z]/', '', $name));
+        $prefix = substr($prefix, 0, 3);
+
+        $suffix = '';
+        if ($regionId) {
+            $region = \App\Models\Region::find($regionId);
+            if ($region && $region->code) {
+                $suffix = '-' . strtoupper($region->code);
+            }
+        }
+
+        $set('code', $prefix . $suffix);
     }
 
     public static function getRelations(): array

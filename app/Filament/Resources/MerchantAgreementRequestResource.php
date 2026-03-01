@@ -26,14 +26,34 @@ class MerchantAgreementRequestResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable()
-                ->helperText('The merchant or vendor this agreement is for.'),
-            Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->live()
-                ->helperText('Region determines which template and terms are applied.'),
-            Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->live()
-                ->helperText('The Digittal entity that will sign this agreement.'),
-            Forms\Components\Select::make('project_id')->relationship('project', 'name')->required()->searchable()
-                ->helperText('The project this agreement will be allocated to.'),
+            Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable()->preload()
+                ->helperText('The merchant or vendor this agreement is for.')
+                ->createOptionForm([
+                    Forms\Components\TextInput::make('legal_name')->required()->maxLength(255)->placeholder('e.g. Acme Corporation Ltd'),
+                    Forms\Components\TextInput::make('registration_number')->maxLength(255),
+                    Forms\Components\Select::make('jurisdiction')->options(fn () => \App\Models\Country::dropdownOptions())->searchable(),
+                    Forms\Components\Select::make('status')->options(['Active' => 'Active'])->default('Active')->required(),
+                ]),
+            Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->preload()->live()
+                ->helperText('Region determines which template and terms are applied.')
+                ->createOptionForm([
+                    Forms\Components\TextInput::make('name')->required()->maxLength(255)->placeholder('e.g. MENA'),
+                    Forms\Components\Select::make('code')->options(fn () => \App\Models\Country::dropdownOptions())->required()->searchable(),
+                ]),
+            Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->preload()->live()
+                ->helperText('The Digittal entity that will sign this agreement.')
+                ->createOptionForm([
+                    Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->preload(),
+                    Forms\Components\TextInput::make('name')->required()->maxLength(255)->placeholder('e.g. Digittal UAE'),
+                    Forms\Components\TextInput::make('code')->maxLength(50)->placeholder('e.g. DGT-AE'),
+                ]),
+            Forms\Components\Select::make('project_id')->relationship('project', 'name')->required()->searchable()->preload()
+                ->helperText('The project this agreement will be allocated to.')
+                ->createOptionForm([
+                    Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->preload(),
+                    Forms\Components\TextInput::make('name')->required()->maxLength(255),
+                    Forms\Components\TextInput::make('code')->maxLength(50),
+                ]),
             Forms\Components\TextInput::make('merchant_fee')->numeric()->prefix('$')
                 ->helperText('Fee percentage or fixed amount for the merchant agreement.'),
             Forms\Components\Textarea::make('region_terms')->rows(3)

@@ -27,12 +27,55 @@ class SigningAuthorityResource extends Resource
                 ->required()
                 ->searchable()
                 ->preload()
-                ->helperText('The entity this signing authority belongs to. Create entities under Organization > Entities.'),
-            Forms\Components\Select::make('project_id')
-                ->relationship('project', 'name')
-                ->searchable()
+                ->createOptionForm([
+                    Forms\Components\Select::make('region_id')
+                        ->relationship('region', 'name')
+                        ->required()
+                        ->searchable()
+                        ->preload(),
+                    Forms\Components\TextInput::make('name')
+                        ->required()
+                        ->maxLength(255)
+                        ->placeholder('e.g. Digittal UAE'),
+                    Forms\Components\TextInput::make('code')
+                        ->maxLength(50)
+                        ->placeholder('e.g. DGT-AE'),
+                ])
+                ->helperText('The entity this signing authority belongs to.'),
+
+            Forms\Components\Toggle::make('all_projects')
+                ->label('All Projects')
+                ->default(true)
+                ->live()
+                ->dehydrated(false)
+                ->afterStateHydrated(function (Forms\Components\Toggle $component, ?SigningAuthority $record) {
+                    // If editing an existing record, derive toggle from pivot: no rows = all projects
+                    if ($record) {
+                        $component->state($record->projects()->count() === 0);
+                    }
+                })
+                ->helperText('Apply this signing authority to all current and future projects.'),
+
+            Forms\Components\Select::make('projects')
+                ->relationship('projects', 'name')
+                ->multiple()
                 ->preload()
-                ->helperText('Optionally restrict to a specific project. Create projects under Organization > Projects.'),
+                ->searchable()
+                ->visible(fn (Forms\Get $get) => ! $get('all_projects'))
+                ->createOptionForm([
+                    Forms\Components\Select::make('entity_id')
+                        ->relationship('entity', 'name')
+                        ->required()
+                        ->searchable()
+                        ->preload(),
+                    Forms\Components\TextInput::make('name')
+                        ->required()
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('code')
+                        ->maxLength(50),
+                ])
+                ->helperText('Select specific projects to restrict this signing authority.'),
+
             Forms\Components\Select::make('user_id')
                 ->label('User')
                 ->options(fn () => User::where('status', 'active')
@@ -50,13 +93,30 @@ class SigningAuthorityResource extends Resource
                         }
                     }
                 })
-                ->helperText('Select an existing CCRS user to link. This auto-fills the email below. Manage users under Administration > Users.'),
+                ->createOptionForm([
+                    Forms\Components\TextInput::make('name')
+                        ->required()
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('email')
+                        ->email()
+                        ->required()
+                        ->unique('users', 'email'),
+                ])
+                ->createOptionUsing(function (array $data): string {
+                    $user = User::create([
+                        'name' => $data['name'],
+                        'email' => $data['email'],
+                        'status' => 'active',
+                    ]);
+                    return $user->id;
+                })
+                ->helperText('Select an existing CCRS user or create a new one. Auto-fills the email below.'),
             Forms\Components\TextInput::make('user_email')
                 ->email()
                 ->required()
                 ->maxLength(255)
                 ->placeholder('e.g. signer@digittal.io')
-                ->helperText('Email address of the authorised signatory. Auto-filled when a user is selected above, or enter manually for external signatories.'),
+                ->helperText('Auto-filled when a user is selected above, or enter manually for external signatories.'),
             Forms\Components\TextInput::make('role_or_name')
                 ->required()
                 ->maxLength(255)
@@ -71,7 +131,14 @@ class SigningAuthorityResource extends Resource
             Tables\Columns\TextColumn::make('entity.name')->sortable(),
             Tables\Columns\TextColumn::make('user_email')->searchable()->sortable(),
             Tables\Columns\TextColumn::make('role_or_name')->searchable()->sortable(),
-            Tables\Columns\TextColumn::make('project.name')->sortable(),
+            Tables\Columns\TextColumn::make('projects.name')
+                ->label('Projects')
+                ->badge()
+                ->default('All Projects')
+                ->getStateUsing(function (SigningAuthority $record): string {
+                    $names = $record->projects->pluck('name')->toArray();
+                    return empty($names) ? 'All Projects' : implode(', ', $names);
+                }),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
         ])->actions([Tables\Actions\EditAction::make()]);
     }

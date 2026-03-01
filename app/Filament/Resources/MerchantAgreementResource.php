@@ -44,13 +44,33 @@ class MerchantAgreementResource extends Resource
     {
         return $form->schema([
             Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->preload()->live()
-                ->helperText('The organisational region this agreement falls under. Manage regions under Organization > Regions.'),
+                ->helperText('The organisational region this agreement falls under.')
+                ->createOptionForm([
+                    Forms\Components\TextInput::make('name')->required()->maxLength(255)->placeholder('e.g. MENA'),
+                    Forms\Components\Select::make('code')->options(fn () => \App\Models\Country::dropdownOptions())->required()->searchable(),
+                ]),
             Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->preload()->live()
-                ->helperText('The legal entity entering into this agreement. Manage entities under Organization > Entities.'),
+                ->helperText('The legal entity entering into this agreement.')
+                ->createOptionForm([
+                    Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->preload(),
+                    Forms\Components\TextInput::make('name')->required()->maxLength(255)->placeholder('e.g. Digittal UAE'),
+                    Forms\Components\TextInput::make('code')->maxLength(50)->placeholder('e.g. DGT-AE'),
+                ]),
             Forms\Components\Select::make('project_id')->relationship('project', 'name')->required()->searchable()->preload()
-                ->helperText('The project or business unit this agreement relates to. Manage projects under Organization > Projects.'),
+                ->helperText('The project or business unit this agreement relates to.')
+                ->createOptionForm([
+                    Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->preload(),
+                    Forms\Components\TextInput::make('name')->required()->maxLength(255),
+                    Forms\Components\TextInput::make('code')->maxLength(50),
+                ]),
             Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable()->preload()
-                ->helperText('The merchant or vendor party to this agreement. Create counterparties under Counterparties.'),
+                ->helperText('The merchant or vendor party to this agreement.')
+                ->createOptionForm([
+                    Forms\Components\TextInput::make('legal_name')->required()->maxLength(255)->placeholder('e.g. Acme Corporation Ltd'),
+                    Forms\Components\TextInput::make('registration_number')->maxLength(255),
+                    Forms\Components\Select::make('jurisdiction')->options(fn () => \App\Models\Country::dropdownOptions())->searchable(),
+                    Forms\Components\Select::make('status')->options(['Active' => 'Active'])->default('Active')->required(),
+                ]),
             Forms\Components\Hidden::make('contract_type')->default('Merchant'),
             Forms\Components\TextInput::make('title')->maxLength(255)
                 ->helperText('A descriptive title for this merchant agreement.'),

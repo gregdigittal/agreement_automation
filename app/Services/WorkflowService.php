@@ -139,8 +139,9 @@ class WorkflowService
         $query = \App\Models\SigningAuthority::query()
             ->where('entity_id', $contract->entity_id)
             ->where(function ($q) use ($contract) {
-                $q->whereNull('project_id')
-                  ->orWhere('project_id', $contract->project_id);
+                // "All Projects" authorities (no pivot rows) OR scoped to this project
+                $q->whereDoesntHave('projects')
+                  ->orWhereHas('projects', fn ($sub) => $sub->where('projects.id', $contract->project_id));
             })
             ->where('user_id', $actor->id);
 

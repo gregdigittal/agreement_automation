@@ -72,16 +72,69 @@ class ContractResource extends Resource
                 ->schema([
                     Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->preload()->live()
                         ->placeholder('Select region...')
-                        ->helperText('The organisational region this contract falls under. Manage regions under Organization > Regions.'),
+                        ->helperText('The organisational region this contract falls under.')
+                        ->createOptionForm([
+                            Forms\Components\TextInput::make('name')
+                                ->required()
+                                ->maxLength(255)
+                                ->placeholder('e.g. MENA'),
+                            Forms\Components\Select::make('code')
+                                ->options(fn () => \App\Models\Country::dropdownOptions())
+                                ->required()
+                                ->searchable()
+                                ->placeholder('Select country code'),
+                        ]),
                     Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->preload()->live()
                         ->placeholder('Select entity...')
-                        ->helperText('The legal entity entering into this contract. Manage entities under Organization > Entities.'),
+                        ->helperText('The legal entity entering into this contract.')
+                        ->createOptionForm([
+                            Forms\Components\Select::make('region_id')
+                                ->relationship('region', 'name')
+                                ->required()
+                                ->searchable()
+                                ->preload(),
+                            Forms\Components\TextInput::make('name')
+                                ->required()
+                                ->maxLength(255)
+                                ->placeholder('e.g. Digittal UAE'),
+                            Forms\Components\TextInput::make('code')
+                                ->maxLength(50)
+                                ->placeholder('e.g. DGT-AE'),
+                        ]),
                     Forms\Components\Select::make('project_id')->relationship('project', 'name')->required()->searchable()->preload()
                         ->placeholder('Select project...')
-                        ->helperText('The project or business unit this contract relates to. Manage projects under Organization > Projects.'),
+                        ->helperText('The project or business unit this contract relates to.')
+                        ->createOptionForm([
+                            Forms\Components\Select::make('entity_id')
+                                ->relationship('entity', 'name')
+                                ->required()
+                                ->searchable()
+                                ->preload(),
+                            Forms\Components\TextInput::make('name')
+                                ->required()
+                                ->maxLength(255),
+                            Forms\Components\TextInput::make('code')
+                                ->maxLength(50),
+                        ]),
                     Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable()->preload()
                         ->placeholder('Search for a counterparty...')
-                        ->helperText('The external party entering into this agreement. Create counterparties under Counterparties.')
+                        ->helperText('The external party entering into this agreement.')
+                        ->createOptionForm([
+                            Forms\Components\TextInput::make('legal_name')
+                                ->required()
+                                ->maxLength(255)
+                                ->placeholder('e.g. Acme Corporation Ltd'),
+                            Forms\Components\TextInput::make('registration_number')
+                                ->maxLength(255)
+                                ->placeholder('e.g. TL-2024-12345'),
+                            Forms\Components\Select::make('jurisdiction')
+                                ->options(fn () => \App\Models\Country::dropdownOptions())
+                                ->searchable(),
+                            Forms\Components\Select::make('status')
+                                ->options(['Active' => 'Active'])
+                                ->default('Active')
+                                ->required(),
+                        ])
                         ->rules([
                             fn () => function (string $attribute, $value, \Closure $fail) {
                                 $cp = \App\Models\Counterparty::find($value);
@@ -316,8 +369,9 @@ class ContractResource extends Resource
                     $authorities = \App\Models\SigningAuthority::query()
                         ->where('entity_id', $record->entity_id)
                         ->where(function ($q) use ($record) {
-                            $q->whereNull('project_id')
-                              ->orWhere('project_id', $record->project_id);
+                            // "All Projects" authorities (no pivot rows) OR scoped to this project
+                            $q->whereDoesntHave('projects')
+                              ->orWhereHas('projects', fn ($sub) => $sub->where('projects.id', $record->project_id));
                         })
                         ->with('user')
                         ->get();

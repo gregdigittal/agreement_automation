@@ -41,8 +41,10 @@ class CounterpartyResource extends Resource
             Forms\Components\Textarea::make('address')
                 ->placeholder('Registered business address...')
                 ->helperText('Official registered address of the counterparty.'),
-            Forms\Components\TextInput::make('jurisdiction')->maxLength(255)
-                ->placeholder('e.g. UAE, UK, USA')
+            Forms\Components\Select::make('jurisdiction')
+                ->options(fn () => \App\Models\Country::dropdownOptions())
+                ->searchable()
+                ->placeholder('Select jurisdiction')
                 ->helperText('Country or territory where the counterparty is legally registered.'),
             Forms\Components\Select::make('status')
                 ->options(['Active' => 'Active', 'Suspended' => 'Suspended', 'Blacklisted' => 'Blacklisted'])

@@ -13,7 +13,6 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\HtmlString;
 
 class WorkflowTemplateResource extends Resource
 {
@@ -44,25 +43,30 @@ class WorkflowTemplateResource extends Resource
                 ->searchable()
                 ->preload()
                 ->helperText('Optionally scope this workflow to a specific region.')
-                ->hint(fn () => \App\Models\Region::count() === 0
-                    ? new HtmlString('<span class="text-warning-600 dark:text-warning-400">No regions exist yet. <a href="/admin/regions/create" class="underline">Create one first</a>.</span>')
-                    : null),
+                ->createOptionForm([
+                    Forms\Components\TextInput::make('name')->required()->maxLength(255)->placeholder('e.g. MENA'),
+                    Forms\Components\Select::make('code')->options(fn () => \App\Models\Country::dropdownOptions())->required()->searchable(),
+                ]),
             Forms\Components\Select::make('entity_id')
                 ->relationship('entity', 'name')
                 ->searchable()
                 ->preload()
                 ->helperText('Optionally scope this workflow to a specific entity.')
-                ->hint(fn () => \App\Models\Entity::count() === 0
-                    ? new HtmlString('<span class="text-warning-600 dark:text-warning-400">No entities exist yet. <a href="/admin/entities/create" class="underline">Create one first</a>.</span>')
-                    : null),
+                ->createOptionForm([
+                    Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->preload(),
+                    Forms\Components\TextInput::make('name')->required()->maxLength(255)->placeholder('e.g. Digittal UAE'),
+                    Forms\Components\TextInput::make('code')->maxLength(50)->placeholder('e.g. DGT-AE'),
+                ]),
             Forms\Components\Select::make('project_id')
                 ->relationship('project', 'name')
                 ->searchable()
                 ->preload()
                 ->helperText('Optionally scope this workflow to a specific project.')
-                ->hint(fn () => \App\Models\Project::count() === 0
-                    ? new HtmlString('<span class="text-warning-600 dark:text-warning-400">No projects exist yet. <a href="/admin/projects/create" class="underline">Create one first</a>.</span>')
-                    : null),
+                ->createOptionForm([
+                    Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->preload(),
+                    Forms\Components\TextInput::make('name')->required()->maxLength(255),
+                    Forms\Components\TextInput::make('code')->maxLength(50),
+                ]),
             WorkflowBuilderField::make('stages')
             ->label('Workflow Stages')
             ->columnSpanFull(),

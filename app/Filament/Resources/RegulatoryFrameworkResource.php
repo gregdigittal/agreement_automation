@@ -40,20 +40,10 @@ class RegulatoryFrameworkResource extends Resource
                 ->schema([
                     Forms\Components\Select::make('jurisdiction_code')
                         ->label('Jurisdiction')
-                        ->options([
-                            'EU' => 'European Union',
-                            'US' => 'United States',
-                            'GB' => 'United Kingdom',
-                            'AE' => 'United Arab Emirates',
-                            'SA' => 'Saudi Arabia',
-                            'SG' => 'Singapore',
-                            'HK' => 'Hong Kong',
-                            'JP' => 'Japan',
-                            'AU' => 'Australia',
-                            'CA' => 'Canada',
-                            'IN' => 'India',
-                            'GLOBAL' => 'Global / Multi-jurisdictional',
-                        ])
+                        ->options(function () {
+                            $countries = \App\Models\Country::dropdownOptions();
+                            return array_merge(['GLOBAL' => 'GLOBAL - Multi-jurisdictional'], $countries);
+                        })
                         ->required()
                         ->searchable()
                         ->helperText('ISO 3166-1 alpha-2 code or GLOBAL for multi-jurisdictional frameworks.'),

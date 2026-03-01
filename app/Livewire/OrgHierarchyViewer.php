@@ -92,13 +92,12 @@ class OrgHierarchyViewer extends Component
             $this->selectedNodeLabel = $entity?->name ?? $id;
         } elseif ($type === 'project') {
             $project = Project::find($id);
-            $authQuery->where(function ($q) use ($project) {
-                $q->where('project_id', $project?->id)
-                  ->orWhere(function ($q2) use ($project) {
-                      $q2->where('entity_id', $project?->entity_id)
-                          ->whereNull('project_id');
-                  });
-            });
+            $authQuery->where('entity_id', $project?->entity_id)
+                ->where(function ($q) use ($project) {
+                    // "All Projects" authorities (no pivot rows) OR scoped to this project
+                    $q->whereDoesntHave('projects')
+                      ->orWhereHas('projects', fn ($sub) => $sub->where('projects.id', $project?->id));
+                });
             $this->selectedNodeLabel = $project?->name ?? $id;
         } elseif ($type === 'region') {
             $region = Region::with('entities')->find($id);

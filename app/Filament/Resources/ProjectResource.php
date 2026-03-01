@@ -26,7 +26,21 @@ class ProjectResource extends Resource
                 ->required()
                 ->searchable()
                 ->preload()
-                ->helperText('The entity this project belongs to. Create entities first under Organization > Entities.'),
+                ->createOptionForm([
+                    Forms\Components\Select::make('region_id')
+                        ->relationship('region', 'name')
+                        ->required()
+                        ->searchable()
+                        ->preload(),
+                    Forms\Components\TextInput::make('name')
+                        ->required()
+                        ->maxLength(255)
+                        ->placeholder('e.g. Digittal UAE'),
+                    Forms\Components\TextInput::make('code')
+                        ->maxLength(50)
+                        ->placeholder('e.g. DGT-AE'),
+                ])
+                ->helperText('The entity this project belongs to.'),
             Forms\Components\TextInput::make('name')
                 ->required()
                 ->maxLength(255)
@@ -34,8 +48,11 @@ class ProjectResource extends Resource
                 ->helperText('A descriptive name for this project.'),
             Forms\Components\TextInput::make('code')
                 ->maxLength(50)
-                ->placeholder('e.g. PRJ-001')
-                ->helperText('Short project code used in CSV uploads and contract filters.'),
+                ->placeholder('Auto-generated: PRJ-001')
+                ->disabled()
+                ->dehydrated()
+                ->default(fn () => 'PRJ-' . str_pad(Project::count() + 1, 3, '0', STR_PAD_LEFT))
+                ->helperText('Auto-generated project code.'),
         ]);
     }
 

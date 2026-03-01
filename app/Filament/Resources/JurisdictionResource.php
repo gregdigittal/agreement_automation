@@ -31,7 +31,7 @@ class JurisdictionResource extends Resource
                 Forms\Components\Select::make('country_code')
                     ->required()
                     ->searchable()
-                    ->options(\App\Helpers\CountryCodes::options())
+                    ->options(fn () => \App\Models\Country::dropdownOptions())
                     ->helperText('ISO 3166-1 alpha-2 country code for this jurisdiction.'),
                 Forms\Components\TextInput::make('regulatory_body')
                     ->maxLength(255)

@@ -50,8 +50,12 @@ class UserResource extends Resource
                 )
                 ->multiple()
                 ->preload()
+                ->searchable()
                 ->required()
-                ->helperText('Assign one or more roles to this user.'),
+                ->helperText('Assign one or more roles to this user.')
+                ->hint(fn () => \Spatie\Permission\Models\Role::where('guard_name', 'web')->count() === 0
+                    ? new \Illuminate\Support\HtmlString('<span class="text-warning-600 dark:text-warning-400">No roles seeded. Run <code>php artisan db:seed</code>.</span>')
+                    : null),
         ]);
     }
 
