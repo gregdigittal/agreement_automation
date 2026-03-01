@@ -11,12 +11,6 @@ class EditUser extends EditRecord
 {
     protected static string $resource = UserResource::class;
 
-    protected function mutateFormDataBeforeFill(array $data): array
-    {
-        $data['roles'] = $this->record->roles->pluck('name')->toArray();
-        return $data;
-    }
-
     protected function handleRecordUpdate(Model $record, array $data): Model
     {
         $roles = $data['roles'] ?? [];
