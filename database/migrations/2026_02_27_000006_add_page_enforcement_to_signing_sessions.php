@@ -8,16 +8,37 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('signing_sessions', function (Blueprint $table) {
-            $table->boolean('require_all_pages_viewed')->default(false)->after('expires_at');
-            $table->boolean('require_page_initials')->default(false)->after('require_all_pages_viewed');
-        });
+        if (!Schema::hasTable('signing_sessions')) {
+            return;
+        }
+
+        $addRequireAllPagesViewed = !Schema::hasColumn('signing_sessions', 'require_all_pages_viewed');
+        $addRequirePageInitials = !Schema::hasColumn('signing_sessions', 'require_page_initials');
+
+        if ($addRequireAllPagesViewed || $addRequirePageInitials) {
+            Schema::table('signing_sessions', function (Blueprint $table) use ($addRequireAllPagesViewed, $addRequirePageInitials) {
+                if ($addRequireAllPagesViewed) {
+                    $table->boolean('require_all_pages_viewed')->default(false)->after('expires_at');
+                }
+                if ($addRequirePageInitials) {
+                    $table->boolean('require_page_initials')->default(false)->after('require_all_pages_viewed');
+                }
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('signing_sessions', function (Blueprint $table) {
-            $table->dropColumn(['require_all_pages_viewed', 'require_page_initials']);
-        });
+        if (Schema::hasTable('signing_sessions') && Schema::hasColumn('signing_sessions', 'require_page_initials')) {
+            Schema::table('signing_sessions', function (Blueprint $table) {
+                $table->dropColumn('require_page_initials');
+            });
+        }
+
+        if (Schema::hasTable('signing_sessions') && Schema::hasColumn('signing_sessions', 'require_all_pages_viewed')) {
+            Schema::table('signing_sessions', function (Blueprint $table) {
+                $table->dropColumn('require_all_pages_viewed');
+            });
+        }
     }
 };

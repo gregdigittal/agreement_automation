@@ -57,6 +57,8 @@ spec:
               value: "ccrs"
             - name: DB_PASSWORD
               value: "ccrs-sandbox-pass"
+            - name: ALLOW_MIGRATE_FRESH_ON_FAIL
+              value: "true"
             - name: CACHE_STORE
               value: "redis"
             - name: SESSION_DRIVER
