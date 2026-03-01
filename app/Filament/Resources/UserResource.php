@@ -31,10 +31,6 @@ class UserResource extends Resource
 
     public static function form(Form $form): Form
     {
-        $roleOptions = Role::where('guard_name', 'web')
-            ->pluck('name', 'name')
-            ->toArray();
-
         return $form->schema([
             Forms\Components\TextInput::make('name')
                 ->required()
@@ -46,7 +42,9 @@ class UserResource extends Resource
             Forms\Components\Select::make('roles')
                 ->label('Roles')
                 ->multiple()
-                ->options($roleOptions)
+                ->options(fn () => Role::where('guard_name', 'web')
+                    ->pluck('name', 'name')
+                    ->toArray())
                 ->required()
                 ->helperText('Assign one or more roles to this user.'),
         ]);
@@ -91,11 +89,9 @@ class UserResource extends Resource
                         Forms\Components\Select::make('roles')
                             ->label('Assign Roles')
                             ->multiple()
-                            ->options(
-                                Role::where('guard_name', 'web')
-                                    ->pluck('name', 'name')
-                                    ->toArray()
-                            )
+                            ->options(fn () => Role::where('guard_name', 'web')
+                                ->pluck('name', 'name')
+                                ->toArray())
                             ->required(),
                     ])
                     ->action(function (User $record, array $data) {
