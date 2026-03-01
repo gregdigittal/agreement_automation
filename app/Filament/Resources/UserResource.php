@@ -12,7 +12,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Spatie\Permission\Models\Role;
@@ -41,19 +41,16 @@ class UserResource extends Resource
                 ->required()
                 ->unique(ignoreRecord: true),
             Forms\Components\Select::make('roles')
-                ->label('Roles')
+                ->relationship(
+                    'roles',
+                    'name',
+                    modifyQueryUsing: fn (Builder $query) => $query
+                        ->where('guard_name', 'web')
+                        ->whereNot('name', 'panel_user'),
+                )
                 ->multiple()
-                ->options(fn () => Role::where('guard_name', 'web')
-                    ->whereNot('name', 'panel_user')
-                    ->pluck('name', 'name')
-                    ->toArray())
+                ->preload()
                 ->required()
-                ->dehydrated()
-                ->afterStateHydrated(function (Forms\Components\Select $component, ?Model $record) {
-                    if ($record) {
-                        $component->state($record->roles->pluck('name')->toArray());
-                    }
-                })
                 ->helperText('Assign one or more roles to this user.'),
         ]);
     }

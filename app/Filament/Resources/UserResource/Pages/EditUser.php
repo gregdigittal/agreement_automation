@@ -5,21 +5,16 @@ namespace App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
-use Illuminate\Database\Eloquent\Model;
+use Spatie\Permission\PermissionRegistrar;
 
 class EditUser extends EditRecord
 {
     protected static string $resource = UserResource::class;
 
-    protected function handleRecordUpdate(Model $record, array $data): Model
+    protected function afterSave(): void
     {
-        $roles = $data['roles'] ?? [];
-        unset($data['roles']);
-
-        $record->update($data);
-        $record->syncRoles($roles);
-
-        return $record;
+        // Clear Spatie's permission cache after relationship sync
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 
     protected function getHeaderActions(): array

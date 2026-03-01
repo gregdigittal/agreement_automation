@@ -7,6 +7,7 @@ use App\Models\User;
 use Filament\Facades\Filament;
 use Illuminate\Support\Facades\Mail;
 use Livewire\Livewire;
+use Spatie\Permission\Models\Role;
 
 beforeEach(function () {
     $this->admin = User::factory()->create(['status' => 'active']);
@@ -33,11 +34,14 @@ it('denies non-admin access to user list', function () {
 it('creates user with roles and sends invite email', function () {
     Mail::fake();
 
+    $legalRole = Role::findByName('legal', 'web');
+    $commercialRole = Role::findByName('commercial', 'web');
+
     Livewire::test(CreateUser::class)
         ->fillForm([
             'name' => 'Jane Smith',
             'email' => 'jane@example.com',
-            'roles' => ['legal', 'commercial'],
+            'roles' => [$legalRole->id, $commercialRole->id],
         ])
         ->call('create')
         ->assertHasNoFormErrors();
@@ -61,11 +65,13 @@ it('updates user roles', function () {
     $user = User::factory()->create(['status' => 'active']);
     $user->assignRole('commercial');
 
+    $legalRole = Role::findByName('legal', 'web');
+
     Livewire::test(EditUser::class, ['record' => $user->id])
         ->fillForm([
             'name' => $user->name,
             'email' => $user->email,
-            'roles' => ['legal'],
+            'roles' => [$legalRole->id],
         ])
         ->call('save')
         ->assertHasNoFormErrors();

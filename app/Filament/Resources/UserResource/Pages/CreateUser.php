@@ -5,26 +5,30 @@ namespace App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource;
 use App\Mail\UserInviteMail;
 use Filament\Resources\Pages\CreateRecord;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Mail;
+use Spatie\Permission\PermissionRegistrar;
 
 class CreateUser extends CreateRecord
 {
     protected static string $resource = UserResource::class;
 
-    protected function handleRecordCreation(array $data): Model
+    protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $roles = $data['roles'] ?? [];
-        unset($data['roles']);
-
         $data['status'] = 'active';
 
-        $record = static::getModel()::create($data);
-        $record->syncRoles($roles);
+        return $data;
+    }
 
-        Mail::to($record->email)
-            ->queue(new UserInviteMail($record, $roles));
+    protected function afterCreate(): void
+    {
+        // Clear Spatie's permission cache after relationship sync
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        return $record;
+        $roles = $this->record->roles->pluck('name')->toArray();
+
+        if (! empty($roles)) {
+            Mail::to($this->record->email)
+                ->queue(new UserInviteMail($this->record, $roles));
+        }
     }
 }
