@@ -98,7 +98,7 @@ class UserResource extends Resource
                         Forms\Components\Select::make('roles')
                             ->label('Assign Roles')
                             ->multiple()
-                            ->options(fn () => Role::where('guard_name', 'web')
+                            ->options(Role::where('guard_name', 'web')
                                 ->whereNot('name', 'panel_user')
                                 ->pluck('name', 'name')
                                 ->toArray())

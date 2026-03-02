@@ -47,7 +47,7 @@ class MerchantAgreementResource extends Resource
                 ->helperText('The organisational region this agreement falls under.')
                 ->createOptionForm([
                     Forms\Components\TextInput::make('name')->required()->maxLength(255)->placeholder('e.g. MENA'),
-                    Forms\Components\Select::make('code')->options(fn () => \App\Models\Country::dropdownOptions())->required()->searchable(),
+                    Forms\Components\Select::make('code')->options(\App\Models\Country::dropdownOptions())->required()->searchable(),
                 ]),
             Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->preload()->live()
                 ->helperText('The legal entity entering into this agreement.')
@@ -68,7 +68,7 @@ class MerchantAgreementResource extends Resource
                 ->createOptionForm([
                     Forms\Components\TextInput::make('legal_name')->required()->maxLength(255)->placeholder('e.g. Acme Corporation Ltd'),
                     Forms\Components\TextInput::make('registration_number')->maxLength(255),
-                    Forms\Components\Select::make('jurisdiction')->options(fn () => \App\Models\Country::dropdownOptions())->searchable(),
+                    Forms\Components\Select::make('jurisdiction')->options(\App\Models\Country::dropdownOptions())->searchable(),
                     Forms\Components\Select::make('status')->options(['Active' => 'Active'])->default('Active')->required(),
                 ]),
             Forms\Components\Hidden::make('contract_type')->default('Merchant'),

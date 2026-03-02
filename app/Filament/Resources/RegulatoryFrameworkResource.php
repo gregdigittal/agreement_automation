@@ -40,10 +40,7 @@ class RegulatoryFrameworkResource extends Resource
                 ->schema([
                     Forms\Components\Select::make('jurisdiction_code')
                         ->label('Jurisdiction')
-                        ->options(function () {
-                            $countries = \App\Models\Country::dropdownOptions();
-                            return array_merge(['GLOBAL' => 'GLOBAL - Multi-jurisdictional'], $countries);
-                        })
+                        ->options(array_merge(['GLOBAL' => 'GLOBAL - Multi-jurisdictional'], \App\Models\Country::dropdownOptions()))
                         ->required()
                         ->searchable()
                         ->helperText('ISO 3166-1 alpha-2 code or GLOBAL for multi-jurisdictional frameworks.'),
@@ -161,7 +158,7 @@ class RegulatoryFrameworkResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('jurisdiction_code')
                     ->label('Jurisdiction')
-                    ->options(fn () => RegulatoryFramework::query()
+                    ->options(RegulatoryFramework::query()
                         ->distinct()
                         ->pluck('jurisdiction_code', 'jurisdiction_code')
                         ->toArray()

@@ -27,7 +27,7 @@ class RegionResource extends Resource
                 ->placeholder('e.g. Middle East & North Africa')
                 ->helperText('A descriptive name for this organisational region.'),
             Forms\Components\Select::make('code')
-                ->options(fn () => \App\Models\Country::dropdownOptions())
+                ->options(\App\Models\Country::dropdownOptions())
                 ->searchable()
                 ->helperText('ISO 3166-1 alpha-2 country code. Used in CSV uploads and reports.'),
         ]);

@@ -35,7 +35,7 @@ class EntityResource extends Resource
                     Forms\Components\TextInput::make('name')->required()->maxLength(255)
                         ->placeholder('e.g. Middle East & North Africa'),
                     Forms\Components\Select::make('code')
-                        ->options(fn () => \App\Models\Country::dropdownOptions())
+                        ->options(\App\Models\Country::dropdownOptions())
                         ->searchable()
                         ->helperText('ISO country code for this region.'),
                 ])

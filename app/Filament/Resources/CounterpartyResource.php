@@ -42,7 +42,7 @@ class CounterpartyResource extends Resource
                 ->placeholder('Registered business address...')
                 ->helperText('Official registered address of the counterparty.'),
             Forms\Components\Select::make('jurisdiction')
-                ->options(fn () => \App\Models\Country::dropdownOptions())
+                ->options(\App\Models\Country::dropdownOptions())
                 ->searchable()
                 ->placeholder('Select jurisdiction')
                 ->helperText('Country or territory where the counterparty is legally registered.'),

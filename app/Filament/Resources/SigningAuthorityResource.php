@@ -78,7 +78,7 @@ class SigningAuthorityResource extends Resource
 
             Forms\Components\Select::make('user_id')
                 ->label('User')
-                ->options(fn () => User::where('status', 'active')
+                ->options(User::where('status', 'active')
                     ->orderBy('name')
                     ->pluck('name', 'id')
                     ->toArray())

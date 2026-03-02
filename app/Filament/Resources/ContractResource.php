@@ -79,7 +79,7 @@ class ContractResource extends Resource
                                 ->maxLength(255)
                                 ->placeholder('e.g. MENA'),
                             Forms\Components\Select::make('code')
-                                ->options(fn () => \App\Models\Country::dropdownOptions())
+                                ->options(\App\Models\Country::dropdownOptions())
                                 ->required()
                                 ->searchable()
                                 ->placeholder('Select country code'),
@@ -128,7 +128,7 @@ class ContractResource extends Resource
                                 ->maxLength(255)
                                 ->placeholder('e.g. TL-2024-12345'),
                             Forms\Components\Select::make('jurisdiction')
-                                ->options(fn () => \App\Models\Country::dropdownOptions())
+                                ->options(\App\Models\Country::dropdownOptions())
                                 ->searchable(),
                             Forms\Components\Select::make('status')
                                 ->options(['Active' => 'Active'])

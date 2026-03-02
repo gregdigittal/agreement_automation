@@ -45,7 +45,7 @@ class WorkflowTemplateResource extends Resource
                 ->helperText('Optionally scope this workflow to a specific region.')
                 ->createOptionForm([
                     Forms\Components\TextInput::make('name')->required()->maxLength(255)->placeholder('e.g. MENA'),
-                    Forms\Components\Select::make('code')->options(fn () => \App\Models\Country::dropdownOptions())->required()->searchable(),
+                    Forms\Components\Select::make('code')->options(\App\Models\Country::dropdownOptions())->required()->searchable(),
                 ]),
             Forms\Components\Select::make('entity_id')
                 ->relationship('entity', 'name')

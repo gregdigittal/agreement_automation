@@ -47,12 +47,12 @@ class KycTemplateResource extends Resource
                     ->helperText('Restrict this template to a specific jurisdiction, or leave blank for all.')
                     ->createOptionForm([
                         Forms\Components\TextInput::make('name')->required()->maxLength(255)->unique(ignoreRecord: true)->placeholder('e.g. UAE - DIFC'),
-                        Forms\Components\Select::make('country_code')->options(fn () => \App\Models\Country::dropdownOptions())->required()->searchable(),
+                        Forms\Components\Select::make('country_code')->options(\App\Models\Country::dropdownOptions())->required()->searchable(),
                         Forms\Components\TextInput::make('regulatory_body')->maxLength(255)->placeholder('e.g. DIFC Authority'),
                         Forms\Components\Toggle::make('is_active')->default(true),
                     ]),
                 Forms\Components\Select::make('contract_type_pattern')
-                    ->options(fn () => array_merge(
+                    ->options(array_merge(
                         ['*' => 'All Types (*)'],
                         \App\Models\Contract::query()
                             ->distinct()
