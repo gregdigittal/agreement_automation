@@ -21,6 +21,33 @@ Route::get('/health/ready', function () {
     }
 })->name('health.ready');
 
+// Temporary debug endpoint — verify dropdown data is accessible from app layer
+Route::get('/health/debug-selects', function () {
+    try {
+        $countries = \App\Models\Country::where('is_active', true)->count();
+        $countryOptions = \App\Models\Country::dropdownOptions();
+        $roles = \Spatie\Permission\Models\Role::where('guard_name', 'web')->count();
+        $roleNames = \Spatie\Permission\Models\Role::where('guard_name', 'web')->pluck('name')->toArray();
+        return response()->json([
+            'status' => 'ok',
+            'countries_count' => $countries,
+            'country_options_count' => count($countryOptions),
+            'country_sample' => array_slice($countryOptions, 0, 3, true),
+            'roles_count' => $roles,
+            'role_names' => $roleNames,
+            'filament_version' => \Composer\InstalledVersions::getVersion('filament/filament'),
+            'php_version' => PHP_VERSION,
+            'app_url' => config('app.url'),
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status' => 'error',
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ], 500);
+    }
+});
+
 // Database file storage — signed URL serving (replaces S3 pre-signed URLs)
 Route::get('/storage/serve/{path}', \App\Http\Controllers\StorageServeController::class)
     ->where('path', '.*')
