@@ -24,9 +24,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Force HTTPS URL generation in production (behind Cloudflare SSL termination)
+        // Force correct URL generation in production (behind Cloudflare SSL termination).
+        // Without forceRootUrl, internal port 8080 leaks into generated URLs because
+        // nginx forwards X-Forwarded-Port: 8080. This breaks Livewire AJAX calls
+        // since the browser can only reach port 443 via Cloudflare.
         if ($this->app->environment('production', 'staging', 'sandbox')) {
             URL::forceScheme('https');
+            URL::forceRootUrl(config('app.url'));
         }
         Event::listen(
             \SocialiteProviders\Manager\SocialiteWasCalled::class,
