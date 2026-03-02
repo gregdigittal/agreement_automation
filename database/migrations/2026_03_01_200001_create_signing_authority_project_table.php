@@ -16,11 +16,13 @@ return new class extends Migration {
             $table->foreign('project_id')->references('id')->on('projects')->cascadeOnDelete();
         });
 
-        // Migrate existing project_id data into pivot table
-        DB::statement("
-            INSERT IGNORE INTO signing_authority_project (signing_authority_id, project_id)
-            SELECT id, project_id FROM signing_authority WHERE project_id IS NOT NULL
-        ");
+        // Migrate existing project_id data into pivot table (MySQL only; skip on SQLite test DBs)
+        if (Schema::hasColumn('signing_authority', 'project_id') && DB::getDriverName() === 'mysql') {
+            DB::statement("
+                INSERT IGNORE INTO signing_authority_project (signing_authority_id, project_id)
+                SELECT id, project_id FROM signing_authority WHERE project_id IS NOT NULL
+            ");
+        }
     }
 
     public function down(): void

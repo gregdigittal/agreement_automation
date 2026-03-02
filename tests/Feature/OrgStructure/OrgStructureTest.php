@@ -481,28 +481,27 @@ it('can create a signing authority with entity and email via Livewire form', fun
     ]);
 });
 
-it('signing authority can optionally reference a project', function () {
+it('signing authority can be scoped to specific projects via pivot', function () {
     $region = Region::create(['name' => 'SA Proj Region', 'code' => 'US']);
     $entity = Entity::create(['region_id' => $region->id, 'name' => 'SA Proj Entity', 'code' => 'SP']);
     $project = Project::create(['entity_id' => $entity->id, 'name' => 'SA Project', 'code' => 'SAP']);
     $saUser = User::factory()->create();
 
-    Livewire::test(CreateSigningAuthority::class)
-        ->fillForm([
-            'entity_id' => $entity->id,
-            'project_id' => $project->id,
-            'user_id' => $saUser->id,
-            'user_email' => 'project-signer@digittal.io',
-            'role_or_name' => 'CFO',
-        ])
-        ->call('create')
-        ->assertHasNoFormErrors();
+    $sa = SigningAuthority::create([
+        'entity_id' => $entity->id,
+        'user_id' => $saUser->id,
+        'user_email' => 'project-signer@digittal.io',
+        'role_or_name' => 'CFO',
+    ]);
+    $sa->projects()->attach($project->id);
 
-    $sa = SigningAuthority::where('user_email', 'project-signer@digittal.io')->first();
+    $sa->refresh();
     expect($sa)->not->toBeNull();
     expect($sa->entity_id)->toBe($entity->id);
-    expect($sa->project_id)->toBe($project->id);
+    expect($sa->projects)->toHaveCount(1);
+    expect($sa->projects->first()->id)->toBe($project->id);
     expect($sa->role_or_name)->toBe('CFO');
+    expect($sa->appliesToAllProjects())->toBeFalse();
 });
 
 // ── 15-18. Authority validation tests ────────────────────────────────────────
@@ -568,7 +567,7 @@ it('signing authority user_email must be valid email format', function () {
         ]);
 });
 
-it('signing authority belongs to entity and project relationships', function () {
+it('signing authority belongs to entity and has many-to-many projects', function () {
     $region = Region::create(['name' => 'Rel Region', 'code' => 'JP']);
     $entity = Entity::create(['region_id' => $region->id, 'name' => 'Rel Entity', 'code' => 'RL']);
     $project = Project::create(['entity_id' => $entity->id, 'name' => 'Rel Project', 'code' => 'RP']);
@@ -576,14 +575,17 @@ it('signing authority belongs to entity and project relationships', function () 
     $saUser = User::factory()->create();
     $sa = SigningAuthority::create([
         'entity_id' => $entity->id,
-        'project_id' => $project->id,
         'user_id' => $saUser->id,
         'user_email' => 'rel-test@example.com',
         'role_or_name' => 'VP Legal',
     ]);
+    $sa->projects()->attach($project->id);
 
+    $sa->refresh();
     expect($sa->entity->id)->toBe($entity->id);
-    expect($sa->project->id)->toBe($project->id);
+    expect($sa->projects)->toHaveCount(1);
+    expect($sa->projects->first()->id)->toBe($project->id);
+    expect($project->signingAuthorities->first()->id)->toBe($sa->id);
     expect($entity->signingAuthorities->first()->id)->toBe($sa->id);
 });
 
