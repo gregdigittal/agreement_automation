@@ -12,6 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Trust all proxies (Cloudflare → K8s Ingress → nginx)
+        // Required for correct $request->isSecure(), ->ip(), ->getHost()
+        // Without this, Livewire AJAX fails due to http/https scheme mismatch
+        $middleware->trustProxies(at: '*');
+
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
         $middleware->appendToGroup('web', [\App\Http\Middleware\AuditMiddleware::class]);
         $middleware->alias([

@@ -6,6 +6,7 @@ use App\Services\AiWorkerClient;
 use App\Storage\DatabaseAdapter;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -23,6 +24,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Force HTTPS URL generation in production (behind Cloudflare SSL termination)
+        if ($this->app->environment('production', 'staging', 'sandbox')) {
+            URL::forceScheme('https');
+        }
         Event::listen(
             \SocialiteProviders\Manager\SocialiteWasCalled::class,
             \SocialiteProviders\Azure\AzureExtendSocialite::class.'@handle'

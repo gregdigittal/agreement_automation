@@ -48,6 +48,26 @@ Route::get('/health/debug-selects', function () {
     }
 });
 
+// Temporary debug endpoint — verify Livewire AJAX / TrustProxies fix
+Route::get('/health/debug-livewire', function (\Illuminate\Http\Request $request) {
+    return response()->json([
+        'is_secure' => $request->isSecure(),
+        'scheme' => $request->getScheme(),
+        'host' => $request->getHost(),
+        'url' => $request->url(),
+        'root' => $request->root(),
+        'ip' => $request->ip(),
+        'forwarded_proto' => $request->header('X-Forwarded-Proto'),
+        'forwarded_host' => $request->header('X-Forwarded-Host'),
+        'forwarded_for' => $request->header('X-Forwarded-For'),
+        'origin_header' => $request->header('Origin'),
+        'trusted_proxies' => $request->getTrustedProxies(),
+        'app_url' => config('app.url'),
+        'livewire_update_url' => url('/livewire/update'),
+        'url_force_scheme' => parse_url(url('/'), PHP_URL_SCHEME),
+    ]);
+});
+
 // Database file storage — signed URL serving (replaces S3 pre-signed URLs)
 Route::get('/storage/serve/{path}', \App\Http\Controllers\StorageServeController::class)
     ->where('path', '.*')
