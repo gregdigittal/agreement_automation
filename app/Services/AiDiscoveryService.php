@@ -141,13 +141,79 @@ class AiDiscoveryService
         ]);
     }
 
+    /**
+     * Auto-apply simple extracted fields (title, contract_type) to a staging contract.
+     * These don't require human review — they're direct text values.
+     */
+    public function autoApplyExtraction(Contract $contract, array $fields): void
+    {
+        $updates = [];
+
+        foreach ($fields as $field) {
+            $name = $field['field_name'] ?? '';
+            $value = $field['field_value'] ?? null;
+
+            if (! $value) {
+                continue;
+            }
+
+            if ($name === 'title' && empty($contract->title)) {
+                $updates['title'] = $value;
+            }
+
+            if ($name === 'contract_type') {
+                $mapped = $this->mapContractType($value);
+                if ($mapped) {
+                    $updates['contract_type'] = $mapped;
+                }
+            }
+        }
+
+        if (! empty($updates)) {
+            $contract->update($updates);
+            Log::info('Auto-applied extraction fields to staging contract', [
+                'contract_id' => $contract->id,
+                'fields' => array_keys($updates),
+            ]);
+        }
+    }
+
+    private function mapContractType(string $raw): ?string
+    {
+        $lower = strtolower(trim($raw));
+
+        return match (true) {
+            str_contains($lower, 'merchant') => 'Merchant',
+            str_contains($lower, 'inter-company'), str_contains($lower, 'intercompany'),
+            str_contains($lower, 'inter company') => 'Inter-Company',
+            str_contains($lower, 'commercial'), str_contains($lower, 'service'),
+            str_contains($lower, 'supply'), str_contains($lower, 'license'),
+            str_contains($lower, 'nda'), str_contains($lower, 'consulting') => 'Commercial',
+            default => null,
+        };
+    }
+
     private function linkToContract(Contract $contract, string $type, string $recordId): void
     {
         match ($type) {
             'counterparty' => $contract->update(['counterparty_id' => $recordId]),
             'governing_law' => $contract->update(['governing_law_id' => $recordId]),
+            'entity' => $this->linkEntityToContract($contract, $recordId),
             default => null,
         };
+    }
+
+    private function linkEntityToContract(Contract $contract, string $entityId): void
+    {
+        $entity = Entity::find($entityId);
+        $updates = ['entity_id' => $entityId];
+
+        // Infer region from the entity's region when the contract doesn't have one yet
+        if ($entity && $entity->region_id && ! $contract->region_id) {
+            $updates['region_id'] = $entity->region_id;
+        }
+
+        $contract->update($updates);
     }
 
     private function createRecord(string $type, array $data): ?string

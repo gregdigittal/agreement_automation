@@ -3,8 +3,11 @@
 namespace App\Filament\Pages;
 
 use App\Jobs\ProcessContractBatch;
+use App\Jobs\ProcessSmartUpload;
+use App\Models\AiAnalysisResult;
 use App\Models\BulkUpload;
 use App\Models\BulkUploadRow;
+use App\Models\Contract;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -31,12 +34,15 @@ class BulkContractUploadPage extends Page implements HasForms
 
     public ?array $data = [];
     public ?array $individualData = [];
+    public ?array $smartUploadData = [];
     public ?string $currentBulkUploadId = null;
+    public array $smartUploadContractIds = [];
 
     public function mount(): void
     {
         $this->form->fill();
         $this->individualUploadForm->fill();
+        $this->smartUploadForm->fill();
     }
 
     protected function getForms(): array
@@ -44,6 +50,7 @@ class BulkContractUploadPage extends Page implements HasForms
         return [
             'form',
             'individualUploadForm',
+            'smartUploadForm',
         ];
     }
 
@@ -242,6 +249,105 @@ class BulkContractUploadPage extends Page implements HasForms
                 'contract_id' => $r->contract_id,
             ])->toArray(),
         ];
+    }
+
+    public function smartUploadForm(Form $form): Form
+    {
+        return $form
+            ->schema([
+                FileUpload::make('smart_files')
+                    ->label('Contract Files')
+                    ->multiple()
+                    ->disk(config('ccrs.contracts_disk', 'local'))
+                    ->directory('smart_uploads/pending')
+                    ->acceptedFileTypes([
+                        'application/pdf',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    ])
+                    ->maxFiles(50)
+                    ->maxSize(51200)
+                    ->helperText('Upload contract files (PDF, DOCX, max 50 MB each). AI will extract metadata automatically.'),
+            ])
+            ->statePath('smartUploadData');
+    }
+
+    public function submitSmartUpload(): void
+    {
+        $data = $this->smartUploadForm->getState();
+
+        if (empty($data['smart_files'])) {
+            Notification::make()->title('No files selected')->warning()->send();
+            return;
+        }
+
+        $disk = Storage::disk(config('ccrs.contracts_disk', 'local'));
+        $contractIds = [];
+
+        foreach ($data['smart_files'] as $filePath) {
+            $filename = basename($filePath);
+            $contractUuid = Str::uuid()->toString();
+            $destKey = 'contracts/' . $contractUuid . '/' . $filename;
+
+            // Move file from pending upload location to permanent contract storage
+            $sourcePath = $filePath;
+            if ($disk->exists($sourcePath)) {
+                $disk->move($sourcePath, $destKey);
+            }
+
+            // Create staging contract with just the file
+            $contract = new Contract([
+                'title' => pathinfo($filename, PATHINFO_FILENAME),
+                'storage_path' => $destKey,
+                'file_name' => $filename,
+                'created_by' => auth()->id(),
+            ]);
+            $contract->id = $contractUuid;
+            $contract->workflow_state = 'staging';
+            $contract->save();
+
+            // Dispatch AI analysis
+            ProcessSmartUpload::dispatch(
+                contractId: $contract->id,
+                actorId: auth()->id(),
+            )->onQueue('default');
+
+            $contractIds[] = $contract->id;
+        }
+
+        $this->smartUploadContractIds = $contractIds;
+        $count = count($contractIds);
+
+        Notification::make()
+            ->title("{$count} contract(s) staged for AI analysis")
+            ->body('Check the Agreements list for progress. AI discovery results will appear on the AI Discovery Review page.')
+            ->success()
+            ->send();
+
+        $this->smartUploadForm->fill();
+    }
+
+    public function getSmartUploadProgress(): array
+    {
+        if (empty($this->smartUploadContractIds)) {
+            return [];
+        }
+
+        $contracts = Contract::whereIn('id', $this->smartUploadContractIds)->get();
+
+        return $contracts->map(function (Contract $contract) {
+            $analyses = AiAnalysisResult::where('contract_id', $contract->id)->get();
+            $extractionStatus = $analyses->firstWhere('analysis_type', 'extraction')?->status ?? 'pending';
+            $discoveryStatus = $analyses->firstWhere('analysis_type', 'discovery')?->status ?? 'pending';
+
+            return [
+                'id' => $contract->id,
+                'title' => $contract->title,
+                'file_name' => $contract->file_name,
+                'workflow_state' => $contract->workflow_state,
+                'extraction' => $extractionStatus,
+                'discovery' => $discoveryStatus,
+            ];
+        })->toArray();
     }
 
     public function downloadTemplate(): StreamedResponse

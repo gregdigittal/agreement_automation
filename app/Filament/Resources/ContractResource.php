@@ -29,7 +29,7 @@ class ContractResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        $count = static::getModel()::whereIn('workflow_state', ['review', 'approval'])->count();
+        $count = static::getModel()::whereIn('workflow_state', ['review', 'approval', 'staging'])->count();
         return $count > 0 ? (string) $count : null;
     }
 
@@ -70,7 +70,7 @@ class ContractResource extends Resource
                 ->icon('heroicon-o-document-text')
                 ->columns(2)
                 ->schema([
-                    Forms\Components\Select::make('region_id')->relationship('region', 'name')->required()->searchable()->preload()->live()
+                    Forms\Components\Select::make('region_id')->relationship('region', 'name')->required(fn (?Contract $record): bool => ! $record || $record->workflow_state !== 'staging')->searchable()->preload()->live()
                         ->placeholder('Select region...')
                         ->helperText('The organisational region this contract falls under.')
                         ->createOptionForm([
@@ -84,7 +84,7 @@ class ContractResource extends Resource
                                 ->searchable()
                                 ->placeholder('Select country code'),
                         ]),
-                    Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required()->searchable()->preload()->live()
+                    Forms\Components\Select::make('entity_id')->relationship('entity', 'name')->required(fn (?Contract $record): bool => ! $record || $record->workflow_state !== 'staging')->searchable()->preload()->live()
                         ->placeholder('Select entity...')
                         ->helperText('The legal entity entering into this contract.')
                         ->createOptionForm([
@@ -101,7 +101,7 @@ class ContractResource extends Resource
                                 ->maxLength(50)
                                 ->placeholder('e.g. DGT-AE'),
                         ]),
-                    Forms\Components\Select::make('project_id')->relationship('project', 'name')->required()->searchable()->preload()
+                    Forms\Components\Select::make('project_id')->relationship('project', 'name')->required(fn (?Contract $record): bool => ! $record || $record->workflow_state !== 'staging')->searchable()->preload()
                         ->placeholder('Select project...')
                         ->helperText('The project or business unit this contract relates to.')
                         ->createOptionForm([
@@ -193,7 +193,7 @@ class ContractResource extends Resource
                                 ])
                                 ->searchable(),
                         ]),
-                    Forms\Components\Select::make('contract_type')->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant', 'Inter-Company' => 'Inter-Company'])->required()->live()
+                    Forms\Components\Select::make('contract_type')->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant', 'Inter-Company' => 'Inter-Company'])->required(fn (?Contract $record): bool => ! $record || $record->workflow_state !== 'staging')->live()
                         ->placeholder('Select contract type')
                         ->helperText('Determines which workflow template will be applied. Inter-Company is for agreements between two group entities.'),
                     Forms\Components\TextInput::make('title')->maxLength(255)->columnSpanFull()
@@ -264,7 +264,7 @@ class ContractResource extends Resource
         return $table->columns([
             Tables\Columns\TextColumn::make('title')->searchable()->sortable()->limit(40),
             Tables\Columns\TextColumn::make('contract_type')->badge(),
-            Tables\Columns\TextColumn::make('workflow_state')->badge()->description('Current lifecycle stage')->color(fn ($state) => match($state) { 'draft' => 'gray', 'review' => 'warning', 'approval' => 'info', 'signing' => 'primary', 'countersign' => 'warning', 'executed' => 'success', 'archived' => 'gray', default => 'gray' }),
+            Tables\Columns\TextColumn::make('workflow_state')->badge()->description('Current lifecycle stage')->color(fn ($state) => match($state) { 'staging' => 'purple', 'draft' => 'gray', 'review' => 'warning', 'approval' => 'info', 'signing' => 'primary', 'countersign' => 'warning', 'executed' => 'success', 'archived' => 'gray', default => 'gray' }),
             Tables\Columns\TextColumn::make('counterparty.legal_name')->sortable()->limit(30)->placeholder('—')->toggleable(),
             Tables\Columns\TextColumn::make('region.name')->sortable(),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
@@ -293,7 +293,7 @@ class ContractResource extends Resource
         ->filters([
             Tables\Filters\SelectFilter::make('contract_type')->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant', 'Inter-Company' => 'Inter-Company']),
             Tables\Filters\SelectFilter::make('workflow_state')->options([
-                'draft' => 'Draft', 'review' => 'Review', 'approval' => 'Approval',
+                'staging' => 'Staging', 'draft' => 'Draft', 'review' => 'Review', 'approval' => 'Approval',
                 'signing' => 'Signing', 'countersign' => 'Countersign', 'executed' => 'Executed', 'archived' => 'Archived',
             ]),
             Tables\Filters\SelectFilter::make('region_id')->relationship('region', 'name'),
@@ -362,6 +362,53 @@ class ContractResource extends Resource
                         ->send();
                 })
                 ->visible(fn (Contract $record) => $record->storage_path !== null),
+            Tables\Actions\Action::make('complete_setup')
+                ->label('Complete Setup')
+                ->icon('heroicon-o-check-circle')
+                ->color('purple')
+                ->visible(fn (Contract $record): bool => $record->workflow_state === 'staging')
+                ->form(fn (Contract $record) => [
+                    Forms\Components\Select::make('region_id')
+                        ->relationship('region', 'name')
+                        ->searchable()
+                        ->preload()
+                        ->required()
+                        ->default($record->region_id),
+                    Forms\Components\Select::make('entity_id')
+                        ->relationship('entity', 'name')
+                        ->searchable()
+                        ->preload()
+                        ->required()
+                        ->default($record->entity_id),
+                    Forms\Components\Select::make('project_id')
+                        ->relationship('project', 'name')
+                        ->searchable()
+                        ->preload()
+                        ->required()
+                        ->default($record->project_id),
+                    Forms\Components\Select::make('contract_type')
+                        ->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant', 'Inter-Company' => 'Inter-Company'])
+                        ->required()
+                        ->default($record->contract_type),
+                    Forms\Components\Select::make('counterparty_id')
+                        ->relationship('counterparty', 'legal_name')
+                        ->searchable()
+                        ->preload()
+                        ->default($record->counterparty_id),
+                    Forms\Components\TextInput::make('title')
+                        ->maxLength(255)
+                        ->default($record->title),
+                ])
+                ->modalHeading('Complete Contract Setup')
+                ->modalDescription('Fill in the required metadata to promote this staged contract to draft status.')
+                ->action(function (Contract $record, array $data): void {
+                    $record->update(array_merge($data, ['workflow_state' => 'draft']));
+                    Notification::make()
+                        ->title('Contract promoted to Draft')
+                        ->body('Metadata saved. The contract is now in draft status.')
+                        ->success()
+                        ->send();
+                }),
             Tables\Actions\Action::make('create_amendment')
                 ->label('Create Amendment')
                 ->icon('heroicon-o-document-plus')

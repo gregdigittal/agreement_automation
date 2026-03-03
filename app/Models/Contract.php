@@ -4,9 +4,11 @@ namespace App\Models;
 use App\Traits\HasUuidPrimaryKey;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Laravel\Scout\Searchable;
+
 class Contract extends Model
 {
     use HasFactory, HasUuidPrimaryKey, Searchable;
@@ -47,6 +49,24 @@ class Contract extends Model
         return $this->belongsToMany(User::class, 'contract_user_access')
             ->withPivot('access_level', 'granted_by')
             ->withTimestamps();
+    }
+
+    public function isStaging(): bool
+    {
+        return $this->workflow_state === 'staging';
+    }
+
+    public function isMetadataComplete(): bool
+    {
+        return $this->region_id
+            && $this->entity_id
+            && $this->project_id
+            && $this->contract_type;
+    }
+
+    public function scopeStaging(Builder $query): Builder
+    {
+        return $query->where('workflow_state', 'staging');
     }
 
     public function toSearchableArray(): array

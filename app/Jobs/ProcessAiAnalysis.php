@@ -96,6 +96,12 @@ class ProcessAiAnalysis implements ShouldQueue
                         'confidence' => $field['confidence'] ?? null,
                     ]);
                 }
+
+                // Auto-apply simple extracted fields (title, contract_type) for staging contracts
+                if ($contract->workflow_state === 'staging') {
+                    app(\App\Services\AiDiscoveryService::class)
+                        ->autoApplyExtraction($contract, $result['fields']);
+                }
             }
 
             if ($this->analysisType === 'obligations' && isset($result['obligations'])) {
