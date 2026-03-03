@@ -44,7 +44,8 @@ class WikiContractResource extends Resource
                 ->helperText('Only published templates are available for use in contracts.'),
             Forms\Components\FileUpload::make('storage_path')->label('Template File')->disk(config('ccrs.contracts_disk'))->directory('wiki-contracts')
                 ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
-                ->helperText('Upload the master template document. Accepted formats: PDF, DOCX.'),
+                ->maxSize(51200)
+                ->helperText('Upload the master template document (max 50 MB). Accepted formats: PDF, DOCX.'),
 
             Forms\Components\Section::make('Signing Blocks')
                 ->description('Define where signature and initials fields should appear when this template is used for signing. Positions are in mm from the top-left of the page.')

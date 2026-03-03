@@ -76,7 +76,8 @@ class MerchantAgreementResource extends Resource
                 ->helperText('A descriptive title for this merchant agreement.'),
             Forms\Components\FileUpload::make('storage_path')->label('Agreement File')->disk(config('ccrs.contracts_disk'))->directory('contracts')
                 ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
-                ->helperText('Upload the agreement document. Accepted formats: PDF, DOCX.')
+                ->maxSize(51200)
+                ->helperText('Upload the agreement document (max 50 MB). Accepted formats: PDF, DOCX.')
                 ->afterStateUpdated(function ($state, Set $set) {
                     if ($state instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
                         $set('file_name', $state->getClientOriginalName());

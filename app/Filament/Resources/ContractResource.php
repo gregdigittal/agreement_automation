@@ -201,7 +201,8 @@ class ContractResource extends Resource
                         ->helperText('A descriptive title for this contract.'),
                     Forms\Components\FileUpload::make('storage_path')->label('Contract File')->disk(config('ccrs.contracts_disk'))->directory('contracts')->columnSpanFull()
                         ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
-                        ->helperText('Upload the contract document. Accepted formats: PDF, DOCX.')
+                        ->maxSize(51200)
+                        ->helperText('Upload the contract document (max 50 MB). Accepted formats: PDF, DOCX.')
                         ->afterStateUpdated(function ($state, Set $set) {
                             if ($state instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
                                 $set('file_name', $state->getClientOriginalName());
@@ -412,6 +413,7 @@ class ContractResource extends Resource
                     \Filament\Forms\Components\FileUpload::make('file')
                         ->label('File (PDF/DOCX)')
                         ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
+                        ->maxSize(51200)
                         ->disk(config('ccrs.contracts_disk'))
                         ->directory('side_letters'),
                 ])

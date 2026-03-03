@@ -54,14 +54,15 @@ class BulkContractUploadPage extends Page implements HasForms
                 FileUpload::make('contract_files')
                     ->label('Contract Files')
                     ->multiple()
-                    ->disk(config('ccrs.contracts_disk', 'database'))
+                    ->disk(config('ccrs.contracts_disk', 'local'))
                     ->directory('bulk_uploads/files')
                     ->acceptedFileTypes([
                         'application/pdf',
                         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                     ])
                     ->maxFiles(50)
-                    ->helperText('Upload individual contract files (PDF, DOCX). These will be available for the CSV manifest to reference by filename.'),
+                    ->maxSize(51200)
+                    ->helperText('Upload individual contract files (PDF, DOCX, max 50 MB each). These will be available for the CSV manifest to reference by filename.'),
             ])
             ->statePath('individualData');
     }
@@ -98,7 +99,8 @@ class BulkContractUploadPage extends Page implements HasForms
                 FileUpload::make('zip_file')
                     ->label('Contract Files (ZIP)')
                     ->acceptedFileTypes(['application/zip', 'application/x-zip-compressed'])
-                    ->disk('local')->helperText('ZIP containing the contract files referenced by file_path column'),
+                    ->maxSize(51200)
+                    ->disk('local')->helperText('ZIP containing the contract files referenced by file_path column (max 50 MB).'),
             ])
             ->statePath('data');
     }

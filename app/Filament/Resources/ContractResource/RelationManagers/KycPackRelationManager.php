@@ -72,7 +72,8 @@ class KycPackRelationManager extends RelationManager
                                     ->required()
                                     ->disk(config('ccrs.contracts_disk'))
                                     ->directory('kyc')
-                                    ->helperText('Upload the required KYC document.'),
+                                    ->maxSize(51200)
+                                    ->helperText('Upload the required KYC document (max 50 MB).'),
                             ],
                             'text' => [
                                 Forms\Components\TextInput::make('value')
