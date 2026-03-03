@@ -12,6 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Force HTTPS detection before anything else — required so that
+        // Livewire signed-URL validation ($request->url()) matches the
+        // URL that was signed with URL::forceScheme('https').
+        $middleware->prepend(\App\Http\Middleware\ForceHttpsScheme::class);
+
         // Trust all proxies (Cloudflare → K8s Ingress → nginx)
         // Required for correct $request->isSecure(), ->ip(), ->getHost()
         // Without this, Livewire AJAX fails due to http/https scheme mismatch
