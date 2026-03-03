@@ -60,6 +60,6 @@ it('deletes files via Storage facade', function () {
     expect(FileStorage::where('path', 'integration/delete.txt')->exists())->toBeFalse();
 });
 
-it('ccrs.contracts_disk config defaults to database', function () {
-    expect(config('ccrs.contracts_disk'))->toBe('database');
+it('ccrs.contracts_disk config defaults to local', function () {
+    expect(config('ccrs.contracts_disk'))->toBe('local');
 });
