@@ -15,6 +15,8 @@ class Jurisdiction extends Model
         'name',
         'country_code',
         'regulatory_body',
+        'arbitration_body',
+        'arbitration_rules',
         'notes',
         'is_active',
     ];

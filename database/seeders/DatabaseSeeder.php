@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,               // Creates 6 roles (firstOrCreate — idempotent)
             ShieldPermissionSeeder::class,    // Syncs permissions per role (idempotent)
             RegulatoryFrameworkSeeder::class, // Seeds 3 regulatory frameworks (idempotent)
+            GoverningLawSeeder::class,       // Seeds 20 common governing law options (idempotent)
         ]);
     }
 }

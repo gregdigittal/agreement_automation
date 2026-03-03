@@ -10,13 +10,15 @@ use Laravel\Scout\Searchable;
 class Contract extends Model
 {
     use HasFactory, HasUuidPrimaryKey, Searchable;
-    protected $fillable = ['region_id', 'entity_id', 'project_id', 'counterparty_id', 'parent_contract_id', 'contract_type', 'title', 'storage_path', 'file_name', 'file_version', 'sharepoint_url', 'sharepoint_version', 'expiry_date', 'created_by', 'updated_by', 'is_restricted'];
+    protected $fillable = ['region_id', 'entity_id', 'second_entity_id', 'project_id', 'counterparty_id', 'governing_law_id', 'parent_contract_id', 'contract_type', 'title', 'storage_path', 'file_name', 'file_version', 'sharepoint_url', 'sharepoint_version', 'expiry_date', 'created_by', 'updated_by', 'is_restricted'];
     protected $casts = ['file_version' => 'integer', 'workflow_state' => 'string', 'signing_status' => 'string', 'expiry_date' => 'date', 'is_restricted' => 'boolean'];
 
     public function region(): BelongsTo { return $this->belongsTo(Region::class); }
     public function entity(): BelongsTo { return $this->belongsTo(Entity::class); }
+    public function secondEntity(): BelongsTo { return $this->belongsTo(Entity::class, 'second_entity_id'); }
     public function project(): BelongsTo { return $this->belongsTo(Project::class); }
     public function counterparty(): BelongsTo { return $this->belongsTo(Counterparty::class); }
+    public function governingLaw(): BelongsTo { return $this->belongsTo(GoverningLaw::class); }
     public function parentContract(): \Illuminate\Database\Eloquent\Relations\HasOne { return $this->hasOne(ContractLink::class, 'child_contract_id')->with('parentContract'); }
     public function keyDates(): HasMany { return $this->hasMany(ContractKeyDate::class); }
     public function reminders(): HasMany { return $this->hasMany(Reminder::class); }

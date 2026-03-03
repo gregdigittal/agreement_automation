@@ -21,53 +21,6 @@ Route::get('/health/ready', function () {
     }
 })->name('health.ready');
 
-// Temporary debug endpoint — verify dropdown data is accessible from app layer
-Route::get('/health/debug-selects', function () {
-    try {
-        $countries = \App\Models\Country::where('is_active', true)->count();
-        $countryOptions = \App\Models\Country::dropdownOptions();
-        $roles = \Spatie\Permission\Models\Role::where('guard_name', 'web')->count();
-        $roleNames = \Spatie\Permission\Models\Role::where('guard_name', 'web')->pluck('name')->toArray();
-        return response()->json([
-            'status' => 'ok',
-            'countries_count' => $countries,
-            'country_options_count' => count($countryOptions),
-            'country_sample' => array_slice($countryOptions, 0, 3, true),
-            'roles_count' => $roles,
-            'role_names' => $roleNames,
-            'filament_version' => \Composer\InstalledVersions::getVersion('filament/filament'),
-            'php_version' => PHP_VERSION,
-            'app_url' => config('app.url'),
-        ]);
-    } catch (\Throwable $e) {
-        return response()->json([
-            'status' => 'error',
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
-        ], 500);
-    }
-});
-
-// Temporary debug endpoint — verify Livewire AJAX / TrustProxies fix
-Route::get('/health/debug-livewire', function (\Illuminate\Http\Request $request) {
-    return response()->json([
-        'is_secure' => $request->isSecure(),
-        'scheme' => $request->getScheme(),
-        'host' => $request->getHost(),
-        'url' => $request->url(),
-        'root' => $request->root(),
-        'ip' => $request->ip(),
-        'forwarded_proto' => $request->header('X-Forwarded-Proto'),
-        'forwarded_host' => $request->header('X-Forwarded-Host'),
-        'forwarded_for' => $request->header('X-Forwarded-For'),
-        'origin_header' => $request->header('Origin'),
-        'trusted_proxies' => $request->getTrustedProxies(),
-        'app_url' => config('app.url'),
-        'livewire_update_url' => url('/livewire/update'),
-        'url_force_scheme' => parse_url(url('/'), PHP_URL_SCHEME),
-    ]);
-});
-
 // Database file storage — signed URL serving (replaces S3 pre-signed URLs)
 Route::get('/storage/serve/{path}', \App\Http\Controllers\StorageServeController::class)
     ->where('path', '.*')

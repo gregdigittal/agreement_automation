@@ -41,7 +41,7 @@ class ContractResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery()
-            ->with(['counterparty', 'region', 'entity', 'project']);
+            ->with(['counterparty', 'region', 'entity', 'secondEntity', 'project']);
 
         $user = auth()->user();
         if ($user && !$user->hasRole('system_admin')) {
@@ -116,9 +116,11 @@ class ContractResource extends Resource
                             Forms\Components\TextInput::make('code')
                                 ->maxLength(50),
                         ]),
-                    Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->required()->searchable()->preload()
+                    Forms\Components\Select::make('counterparty_id')->relationship('counterparty', 'legal_name')->searchable()->preload()
                         ->placeholder('Search for a counterparty...')
                         ->helperText('The external party entering into this agreement.')
+                        ->visible(fn (Forms\Get $get): bool => $get('contract_type') !== 'Inter-Company')
+                        ->required(fn (Forms\Get $get): bool => $get('contract_type') !== 'Inter-Company')
                         ->createOptionForm([
                             Forms\Components\TextInput::make('legal_name')
                                 ->required()
@@ -143,9 +145,57 @@ class ContractResource extends Resource
                                 }
                             },
                         ]),
-                    Forms\Components\Select::make('contract_type')->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant'])->required()
+                    Forms\Components\Select::make('second_entity_id')
+                        ->label('Second Group Entity')
+                        ->relationship('secondEntity', 'name')
+                        ->searchable()
+                        ->preload()
+                        ->placeholder('Select the other group entity...')
+                        ->helperText('The other group company in this inter-company agreement.')
+                        ->visible(fn (Forms\Get $get): bool => $get('contract_type') === 'Inter-Company')
+                        ->required(fn (Forms\Get $get): bool => $get('contract_type') === 'Inter-Company')
+                        ->different('entity_id')
+                        ->createOptionForm([
+                            Forms\Components\Select::make('region_id')
+                                ->relationship('region', 'name')
+                                ->required()
+                                ->searchable()
+                                ->preload(),
+                            Forms\Components\TextInput::make('name')
+                                ->required()
+                                ->maxLength(255)
+                                ->placeholder('e.g. Digittal UK'),
+                            Forms\Components\TextInput::make('code')
+                                ->maxLength(50)
+                                ->placeholder('e.g. DGT-UK'),
+                        ]),
+                    Forms\Components\Select::make('governing_law_id')
+                        ->relationship('governingLaw', 'name')
+                        ->searchable()
+                        ->preload()
+                        ->placeholder('Select governing law...')
+                        ->helperText('The governing law for this contract (may differ from the jurisdiction where it is signed).')
+                        ->createOptionForm([
+                            Forms\Components\TextInput::make('name')
+                                ->required()
+                                ->maxLength(255)
+                                ->placeholder('e.g. England and Wales'),
+                            Forms\Components\Select::make('country_code')
+                                ->label('Country')
+                                ->options(\App\Models\Country::dropdownOptions())
+                                ->searchable(),
+                            Forms\Components\Select::make('legal_system')
+                                ->options([
+                                    'Common Law' => 'Common Law',
+                                    'Civil Law' => 'Civil Law',
+                                    'Sharia / Civil Law' => 'Sharia / Civil Law',
+                                    'Mixed' => 'Mixed',
+                                ])
+                                ->searchable(),
+                        ]),
+                    Forms\Components\Select::make('contract_type')->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant', 'Inter-Company' => 'Inter-Company'])->required()->live()
                         ->placeholder('Select contract type')
-                        ->helperText('Determines which workflow template will be applied.'),
+                        ->helperText('Determines which workflow template will be applied. Inter-Company is for agreements between two group entities.'),
                     Forms\Components\TextInput::make('title')->maxLength(255)->columnSpanFull()
                         ->placeholder('e.g. Master Services Agreement — Acme Corp')
                         ->helperText('A descriptive title for this contract.'),
@@ -214,7 +264,7 @@ class ContractResource extends Resource
             Tables\Columns\TextColumn::make('title')->searchable()->sortable()->limit(40),
             Tables\Columns\TextColumn::make('contract_type')->badge(),
             Tables\Columns\TextColumn::make('workflow_state')->badge()->description('Current lifecycle stage')->color(fn ($state) => match($state) { 'draft' => 'gray', 'review' => 'warning', 'approval' => 'info', 'signing' => 'primary', 'countersign' => 'warning', 'executed' => 'success', 'archived' => 'gray', default => 'gray' }),
-            Tables\Columns\TextColumn::make('counterparty.legal_name')->sortable()->limit(30),
+            Tables\Columns\TextColumn::make('counterparty.legal_name')->sortable()->limit(30)->placeholder('—')->toggleable(),
             Tables\Columns\TextColumn::make('region.name')->sortable(),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
             Tables\Columns\TextColumn::make('languages_count')->badge()
@@ -240,7 +290,7 @@ class ContractResource extends Resource
                 ->toggleable(isToggledHiddenByDefault: true),
         ])
         ->filters([
-            Tables\Filters\SelectFilter::make('contract_type')->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant']),
+            Tables\Filters\SelectFilter::make('contract_type')->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant', 'Inter-Company' => 'Inter-Company']),
             Tables\Filters\SelectFilter::make('workflow_state')->options([
                 'draft' => 'Draft', 'review' => 'Review', 'approval' => 'Approval',
                 'signing' => 'Signing', 'countersign' => 'Countersign', 'executed' => 'Executed', 'archived' => 'Archived',

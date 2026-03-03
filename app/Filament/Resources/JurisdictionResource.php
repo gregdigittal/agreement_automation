@@ -37,6 +37,14 @@ class JurisdictionResource extends Resource
                     ->maxLength(255)
                     ->placeholder('e.g. DIFC Authority')
                     ->helperText('The regulatory authority governing this jurisdiction.'),
+                Forms\Components\TextInput::make('arbitration_body')
+                    ->maxLength(255)
+                    ->placeholder('e.g. DIAC, LCIA, ICC')
+                    ->helperText('The default arbitration institution for this jurisdiction.'),
+                Forms\Components\TextInput::make('arbitration_rules')
+                    ->maxLength(255)
+                    ->placeholder('e.g. DIAC Rules 2022')
+                    ->helperText('The standard arbitration rules applicable in this jurisdiction.'),
                 Forms\Components\Textarea::make('notes')
                     ->rows(3)
                     ->helperText('Any additional notes about this jurisdiction.'),
@@ -54,6 +62,7 @@ class JurisdictionResource extends Resource
                 Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('country_code')->badge()->sortable(),
                 Tables\Columns\TextColumn::make('regulatory_body')->limit(40),
+                Tables\Columns\TextColumn::make('arbitration_body')->limit(30)->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('is_active')->boolean(),
                 Tables\Columns\TextColumn::make('entities_count')
                     ->counts('entities')
