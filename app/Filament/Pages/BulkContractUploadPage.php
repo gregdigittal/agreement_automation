@@ -30,11 +30,59 @@ class BulkContractUploadPage extends Page implements HasForms
     }
 
     public ?array $data = [];
+    public ?array $individualData = [];
     public ?string $currentBulkUploadId = null;
 
     public function mount(): void
     {
         $this->form->fill();
+        $this->individualUploadForm->fill();
+    }
+
+    protected function getForms(): array
+    {
+        return [
+            'form',
+            'individualUploadForm',
+        ];
+    }
+
+    public function individualUploadForm(Form $form): Form
+    {
+        return $form
+            ->schema([
+                FileUpload::make('contract_files')
+                    ->label('Contract Files')
+                    ->multiple()
+                    ->disk(config('ccrs.contracts_disk', 'database'))
+                    ->directory('bulk_uploads/files')
+                    ->acceptedFileTypes([
+                        'application/pdf',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    ])
+                    ->maxFiles(50)
+                    ->helperText('Upload individual contract files (PDF, DOCX). These will be available for the CSV manifest to reference by filename.'),
+            ])
+            ->statePath('individualData');
+    }
+
+    public function uploadIndividualFiles(): void
+    {
+        $data = $this->individualUploadForm->getState();
+
+        if (empty($data['contract_files'])) {
+            Notification::make()->title('No files selected')->warning()->send();
+            return;
+        }
+
+        $count = count($data['contract_files']);
+        Notification::make()
+            ->title("{$count} file(s) uploaded")
+            ->body('Files are now available for the CSV manifest to reference.')
+            ->success()
+            ->send();
+
+        $this->individualUploadForm->fill();
     }
 
     public function form(Form $form): Form
@@ -85,6 +133,33 @@ class BulkContractUploadPage extends Page implements HasForms
         if (empty($rows)) {
             Notification::make()->title('CSV is empty')->danger()->send();
             return;
+        }
+
+        // When no ZIP is provided, verify that all referenced files already exist (uploaded individually)
+        if (empty($data['zip_file'])) {
+            $contractsDisk = Storage::disk(config('ccrs.contracts_disk', 'database'));
+            $missingFiles = [];
+            foreach ($rows as $row) {
+                $rowData = json_decode($row['row_data'], true);
+                if (! empty($rowData['file_path'])) {
+                    $sourceKey = 'bulk_uploads/files/' . $rowData['file_path'];
+                    if (! $contractsDisk->exists($sourceKey)) {
+                        $missingFiles[] = $rowData['file_path'];
+                    }
+                }
+            }
+
+            if (! empty($missingFiles)) {
+                $list = implode(', ', array_slice($missingFiles, 0, 5));
+                $count = count($missingFiles);
+                $extra = $count > 5 ? " (and " . ($count - 5) . " more)" : '';
+                Notification::make()
+                    ->title("Missing {$count} file(s)")
+                    ->body("Files not found: {$list}{$extra}. Upload them individually or provide a ZIP archive.")
+                    ->danger()
+                    ->send();
+                return;
+            }
         }
 
         if (! empty($data['zip_file'])) {

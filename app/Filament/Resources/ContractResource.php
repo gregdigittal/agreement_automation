@@ -340,6 +340,27 @@ class ContractResource extends Resource
                         ->send();
                 })
                 ->visible(fn (Contract $record) => $record->storage_path !== null),
+            Tables\Actions\Action::make('ai_discover')
+                ->label('AI Discover')
+                ->icon('heroicon-o-sparkles')
+                ->color('info')
+                ->requiresConfirmation()
+                ->modalHeading('Run AI Auto-Discovery')
+                ->modalDescription('Analyze this contract to extract counterparties, jurisdictions, and governing law. Results will appear as drafts for your review.')
+                ->action(function (Contract $record) {
+                    ProcessAiAnalysis::dispatch(
+                        $record->id,
+                        'discovery',
+                        auth()->id(),
+                        auth()->user()?->email,
+                    );
+                    \Filament\Notifications\Notification::make()
+                        ->title('AI Discovery started')
+                        ->body('Analysis is running in the background. Check the Discovery Review page for results.')
+                        ->success()
+                        ->send();
+                })
+                ->visible(fn (Contract $record) => $record->storage_path !== null),
             Tables\Actions\Action::make('create_amendment')
                 ->label('Create Amendment')
                 ->icon('heroicon-o-document-plus')

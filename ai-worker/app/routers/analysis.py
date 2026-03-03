@@ -5,9 +5,12 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.deps import get_db
+import json
+
 from app.ai.agent_client import analyze_complex
 from app.ai.config import get_task_type
 from app.ai.messages_client import analyze_summary
+from app.ai.config import settings
 from app.ai.workflow_generator import generate_workflow
 from app.middleware.auth import verify_ai_worker_secret
 
@@ -53,6 +56,8 @@ async def analyze(req: AnalyzeRequest, db: Session = Depends(get_db)):
         if task_type == "simple":
             result, usage = await analyze_summary(contract_text)
             result_dict = result.model_dump()
+        elif req.analysis_type == "discovery":
+            result_dict, usage = await analyze_discovery(contract_text, req.context, tools)
         else:
             result_dict, usage = await analyze_complex(
                 req.analysis_type,
@@ -93,6 +98,60 @@ async def generate_workflow_endpoint(req: GenerateWorkflowRequest):
     except Exception as e:
         logger.error("generate_workflow_failed", error=str(e))
         raise HTTPException(status_code=500, detail="Workflow generation failed. See AI worker logs for details.")
+
+
+async def analyze_discovery(contract_text: str, context: dict, mcp_tools: list) -> tuple[dict, "AnalysisUsage"]:
+    """Extract structured entity data from contract text using Claude."""
+    import time
+    import anthropic
+    from app.ai.schemas import AnalysisUsage
+
+    prompt = f"""Analyze this contract and extract the following structured information.
+For each item found, provide the data and a confidence score (0.0 to 1.0).
+
+Return ONLY valid JSON with a 'discoveries' array. Each item has:
+- type: one of 'counterparty', 'entity', 'jurisdiction', 'governing_law'
+- confidence: float 0.0-1.0
+- data: object with relevant fields
+
+For counterparty: legal_name, registration_number, registered_address, jurisdiction
+For entity: name, registration_number, code
+For jurisdiction: name, country_code
+For governing_law: name, country_code
+
+Contract text:
+{contract_text[:8000]}
+
+Context from the system:
+{json.dumps(context, default=str)}"""
+
+    start = time.perf_counter()
+    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+    msg = await client.messages.create(
+        model=settings.ai_model,
+        max_tokens=2048,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    elapsed_ms = int((time.perf_counter() - start) * 1000)
+
+    raw_text = ""
+    if msg.content and len(msg.content) > 0:
+        raw_text = msg.content[0].text if hasattr(msg.content[0], "text") else str(msg.content[0])
+
+    try:
+        result_dict = json.loads(raw_text)
+    except json.JSONDecodeError:
+        logger.warning("analyze_discovery_json_parse_failed", raw=raw_text[:200])
+        result_dict = {"discoveries": []}
+
+    usage = AnalysisUsage(
+        input_tokens=msg.usage.input_tokens if msg.usage else 0,
+        output_tokens=msg.usage.output_tokens if msg.usage else 0,
+        cost_usd=0.0,
+        processing_time_ms=elapsed_ms,
+        model_used=settings.ai_model,
+    )
+    return result_dict, usage
 
 
 def _extract_text(file_bytes: bytes, file_name: str) -> str:

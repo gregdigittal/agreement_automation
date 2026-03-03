@@ -20,6 +20,24 @@
         </form>
     </x-filament::section>
 
+    <x-filament::section>
+        <x-slot name="heading">Individual File Upload</x-slot>
+        <x-slot name="description">
+            Upload contract files individually instead of as a ZIP archive.
+            Files uploaded here can be referenced by filename in the CSV manifest.
+        </x-slot>
+
+        <form wire:submit="uploadIndividualFiles" class="space-y-6">
+            {{ $this->individualUploadForm }}
+
+            <div>
+                <x-filament::button type="submit" color="primary">
+                    Upload Files
+                </x-filament::button>
+            </div>
+        </form>
+    </x-filament::section>
+
     @if ($currentBulkUploadId)
         @php $progress = $this->getProgressData(); @endphp
         <x-filament::section class="mt-6">

@@ -64,6 +64,8 @@ class ProcessAiAnalysis implements ShouldQueue
                     'region_id' => $contract->region_id,
                     'entity_id' => $contract->entity_id,
                     'counterparty_id' => $contract->counterparty_id,
+                    'existing_entities' => \App\Models\Entity::pluck('name', 'id')->toArray(),
+                    'existing_counterparties' => \App\Models\Counterparty::pluck('legal_name', 'id')->take(100)->toArray(),
                 ],
             );
 
@@ -112,6 +114,11 @@ class ProcessAiAnalysis implements ShouldQueue
                         'status' => 'active',
                     ]);
                 }
+            }
+
+            if ($this->analysisType === 'discovery' && isset($result['discoveries'])) {
+                $discoveryService = app(\App\Services\AiDiscoveryService::class);
+                $discoveryService->processDiscoveryResults($contract, $analysis->id, $result['discoveries']);
             }
 
             AuditService::log(
