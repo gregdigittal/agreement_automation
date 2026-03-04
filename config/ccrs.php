@@ -17,10 +17,10 @@ return [
             env('AZURE_AD_GROUP_AUDIT', '') => 'audit',
         ], fn ($v, $k) => $k !== '', ARRAY_FILTER_USE_BOTH),
     ],
-    'contracts_disk' => env('CCRS_STORAGE_DISK', 'local'),
+    'contracts_disk' => env('CCRS_STORAGE_DISK', 'database'),
     'tito_api_key' => env('TITO_API_KEY', ''),
     'merchant_agreement_template_key' => env('MA_TEMPLATE_STORAGE_KEY', 'templates/merchant_agreement_master.docx'),
-    'wiki_contracts_disk' => env('CCRS_STORAGE_DISK', 'local'),
+    'wiki_contracts_disk' => env('CCRS_STORAGE_DISK', 'database'),
     'in_house_signing' => env('FEATURE_IN_HOUSE_SIGNING', true),
     'exchange_room' => [
         'enabled' => env('FEATURE_EXCHANGE_ROOM', true),

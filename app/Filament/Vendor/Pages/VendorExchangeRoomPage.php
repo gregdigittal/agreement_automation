@@ -119,10 +119,14 @@ class VendorExchangeRoomPage extends Page implements HasTable
 
                         $uploadedFile = null;
                         if (! empty($data['file'])) {
-                            $disk = config('ccrs.contracts_disk', 'local');
+                            $disk = config('ccrs.contracts_disk', 'database');
                             $filePath = $data['file'];
+                            // Read from storage disk (works with database disk where files are in MySQL)
+                            $content = \Illuminate\Support\Facades\Storage::disk($disk)->get($filePath);
+                            $tmpPath = tempnam(sys_get_temp_dir(), 'exchange_');
+                            file_put_contents($tmpPath, $content);
                             $uploadedFile = new \Illuminate\Http\UploadedFile(
-                                \Illuminate\Support\Facades\Storage::disk($disk)->path($filePath),
+                                $tmpPath,
                                 basename($filePath),
                             );
                         }

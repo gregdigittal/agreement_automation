@@ -16,7 +16,7 @@ class TestAiWorker extends Command
         $url = config('ccrs.ai_worker_url');
         $hasSecret = ! empty(config('ccrs.ai_worker_secret'));
         $timeout = config('ccrs.ai_analysis_timeout', 120);
-        $disk = config('ccrs.contracts_disk', 'local');
+        $disk = config('ccrs.contracts_disk', 'database');
 
         $this->info('AI Worker Configuration');
         $this->table(['Setting', 'Value'], [

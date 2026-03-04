@@ -56,7 +56,7 @@ class ExchangeRoomService
             }
 
             $fileName = $file->getClientOriginalName();
-            $disk = config('ccrs.contracts_disk', 'local');
+            $disk = config('ccrs.contracts_disk', 'database');
             $ext = $file->getClientOriginalExtension();
             $storagePath = sprintf('exchange_rooms/%s/%s.%s', $room->contract_id, Str::uuid(), $ext);
             Storage::disk($disk)->put($storagePath, $file->getContent());

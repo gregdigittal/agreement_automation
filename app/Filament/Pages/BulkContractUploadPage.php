@@ -61,7 +61,7 @@ class BulkContractUploadPage extends Page implements HasForms
                 FileUpload::make('contract_files')
                     ->label('Contract Files')
                     ->multiple()
-                    ->disk(config('ccrs.contracts_disk', 'local'))
+                    ->disk(config('ccrs.contracts_disk', 'database'))
                     ->directory('bulk_uploads/files')
                     ->acceptedFileTypes([
                         'application/pdf',
@@ -258,7 +258,7 @@ class BulkContractUploadPage extends Page implements HasForms
                 FileUpload::make('smart_files')
                     ->label('Contract Files')
                     ->multiple()
-                    ->disk(config('ccrs.contracts_disk', 'local'))
+                    ->disk(config('ccrs.contracts_disk', 'database'))
                     ->directory('smart_uploads/pending')
                     ->acceptedFileTypes([
                         'application/pdf',
@@ -280,7 +280,7 @@ class BulkContractUploadPage extends Page implements HasForms
             return;
         }
 
-        $disk = Storage::disk(config('ccrs.contracts_disk', 'local'));
+        $disk = Storage::disk(config('ccrs.contracts_disk', 'database'));
         $contractIds = [];
 
         foreach ($data['smart_files'] as $filePath) {
