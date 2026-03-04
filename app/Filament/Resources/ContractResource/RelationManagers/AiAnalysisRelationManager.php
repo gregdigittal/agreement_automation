@@ -19,6 +19,7 @@ class AiAnalysisRelationManager extends RelationManager
             Tables\Columns\TextColumn::make('confidence_score')->numeric(decimalPlaces: 2),
             Tables\Columns\TextColumn::make('cost_usd')->money('USD'),
             Tables\Columns\TextColumn::make('created_at')->dateTime(),
-        ])->headerActions([]);
+        ])->headerActions([])
+            ->poll('5s');
     }
 }

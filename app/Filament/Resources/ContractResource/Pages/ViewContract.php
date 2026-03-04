@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\ContractResource\Pages;
 
 use App\Filament\Resources\ContractResource;
+use App\Filament\Widgets\AiProcessingBannerWidget;
 use App\Models\Contract;
 use App\Services\RegulatoryComplianceService;
 use Filament\Resources\Pages\ViewRecord;
@@ -13,6 +14,15 @@ class ViewContract extends ViewRecord
 {
     protected static string $resource = ContractResource::class;
 
+    protected function getHeaderWidgets(): array
+    {
+        return [AiProcessingBannerWidget::class];
+    }
+
+    protected function getHeaderWidgetsColumns(): int|array
+    {
+        return 1;
+    }
 
     public function infolist(Infolist $infolist): Infolist
     {
