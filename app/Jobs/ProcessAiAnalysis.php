@@ -54,12 +54,22 @@ class ProcessAiAnalysis implements ShouldQueue
             return;
         }
 
-        $analysis = AiAnalysisResult::create([
-            'id' => Str::uuid()->toString(),
-            'contract_id' => $this->contractId,
-            'analysis_type' => $this->analysisType,
-            'status' => 'processing',
-        ]);
+        $analysis = null;
+        try {
+            $analysis = AiAnalysisResult::create([
+                'id' => Str::uuid()->toString(),
+                'contract_id' => $this->contractId,
+                'analysis_type' => $this->analysisType,
+                'status' => 'processing',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('ProcessAiAnalysis: failed to create analysis record', [
+                'contract_id' => $this->contractId,
+                'analysis_type' => $this->analysisType,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
 
         try {
             $response = $client->analyze(
@@ -184,9 +194,11 @@ class ProcessAiAnalysis implements ShouldQueue
         } catch (\Exception $e) {
             Log::error('ProcessAiAnalysis failed', [
                 'contract_id' => $this->contractId,
+                'analysis_type' => $this->analysisType,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
-            $analysis->update([
+            $analysis?->update([
                 'status' => 'failed',
                 'error_message' => $e->getMessage(),
             ]);
