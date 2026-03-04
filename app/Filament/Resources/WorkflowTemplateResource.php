@@ -35,7 +35,7 @@ class WorkflowTemplateResource extends Resource
                 ->placeholder('e.g. Commercial Standard Review')
                 ->helperText('A descriptive name for this workflow template.'),
             Forms\Components\Select::make('contract_type')
-                ->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant'])
+                ->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant', 'Inter-Company' => 'Inter-Company'])
                 ->required()
                 ->helperText('Determines which contracts this workflow applies to.'),
             Forms\Components\Select::make('region_id')
@@ -80,7 +80,7 @@ class WorkflowTemplateResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->columns([
-            Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
+            Tables\Columns\TextColumn::make('name')->searchable()->sortable()->limit(30),
             Tables\Columns\TextColumn::make('contract_type')->sortable(),
             Tables\Columns\TextColumn::make('status')->badge()->color(fn ($state) => match($state) { 'draft' => 'gray', 'published' => 'success', 'deprecated' => 'danger', default => 'gray' }),
             Tables\Columns\TextColumn::make('version')->sortable(),

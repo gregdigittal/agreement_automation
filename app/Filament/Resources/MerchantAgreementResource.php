@@ -94,7 +94,7 @@ class MerchantAgreementResource extends Resource
             Tables\Columns\TextColumn::make('workflow_state')->badge()->color(fn ($state) => match($state) { 'draft' => 'gray', 'review' => 'warning', 'approval' => 'info', 'signing' => 'primary', 'executed' => 'success', 'archived' => 'gray', default => 'gray' }),
             Tables\Columns\TextColumn::make('counterparty.legal_name')->sortable()->limit(30),
             Tables\Columns\TextColumn::make('region.name')->sortable(),
-            Tables\Columns\TextColumn::make('entity.name')->sortable(),
+            Tables\Columns\TextColumn::make('entity.name')->sortable()->limit(30),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
         ])
         ->filters([

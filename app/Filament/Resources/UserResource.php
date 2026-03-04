@@ -63,8 +63,8 @@ class UserResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
-                Tables\Columns\TextColumn::make('email')->searchable()->sortable(),
+                Tables\Columns\TextColumn::make('name')->searchable()->sortable()->limit(30),
+                Tables\Columns\TextColumn::make('email')->searchable()->sortable()->limit(30),
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
                     ->formatStateUsing(fn (UserStatus $state): string => $state->value)
@@ -89,57 +89,62 @@ class UserResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\Action::make('approve')
-                    ->label('Approve')
-                    ->icon('heroicon-o-check-circle')
-                    ->color('success')
-                    ->visible(fn (User $record) => $record->status === UserStatus::Pending)
-                    ->form([
-                        Forms\Components\Select::make('roles')
-                            ->label('Assign Roles')
-                            ->multiple()
-                            ->options(Role::where('guard_name', 'web')
-                                ->whereNot('name', 'panel_user')
-                                ->pluck('name', 'name')
-                                ->toArray())
-                            ->required(),
-                    ])
-                    ->action(function (User $record, array $data) {
-                        DB::transaction(function () use ($record, $data) {
-                            $record->update(['status' => 'active']);
-                            $record->syncRoles($data['roles']);
-                        });
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\Action::make('approve')
+                        ->label('Approve')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->visible(fn (User $record) => $record->status === UserStatus::Pending)
+                        ->form([
+                            Forms\Components\Select::make('roles')
+                                ->label('Assign Roles')
+                                ->multiple()
+                                ->options(Role::where('guard_name', 'web')
+                                    ->whereNot('name', 'panel_user')
+                                    ->pluck('name', 'name')
+                                    ->toArray())
+                                ->required(),
+                        ])
+                        ->action(function (User $record, array $data) {
+                            DB::transaction(function () use ($record, $data) {
+                                $record->update(['status' => 'active']);
+                                $record->syncRoles($data['roles']);
+                            });
 
-                        Mail::to($record->email)
-                            ->queue(new UserApprovedMail($record, $data['roles']));
+                            Mail::to($record->email)
+                                ->queue(new UserApprovedMail($record, $data['roles']));
 
-                        Notification::make()
-                            ->title("Approved {$record->name}")
-                            ->success()
-                            ->send();
-                    }),
-                Tables\Actions\Action::make('suspend')
-                    ->label('Suspend')
-                    ->icon('heroicon-o-no-symbol')
-                    ->color('danger')
-                    ->visible(fn (User $record) => $record->status === UserStatus::Active && !$record->is(auth()->user()))
-                    ->requiresConfirmation()
-                    ->action(fn (User $record) => $record->update(['status' => 'suspended'])),
-                Tables\Actions\Action::make('reactivate')
-                    ->label('Reactivate')
-                    ->icon('heroicon-o-arrow-path')
-                    ->color('warning')
-                    ->visible(fn (User $record) => $record->status === UserStatus::Suspended)
-                    ->requiresConfirmation()
-                    ->action(fn (User $record) => $record->update(['status' => 'active'])),
-                Tables\Actions\Action::make('reject')
-                    ->label('Reject')
-                    ->icon('heroicon-o-x-circle')
-                    ->color('danger')
-                    ->visible(fn (User $record) => $record->status === UserStatus::Pending)
-                    ->requiresConfirmation()
-                    ->modalDescription('This will delete the pending user. They can SSO again to re-enter the queue.')
-                    ->action(fn (User $record) => $record->delete()),
+                            Notification::make()
+                                ->title("Approved {$record->name}")
+                                ->success()
+                                ->send();
+                        }),
+                    Tables\Actions\Action::make('suspend')
+                        ->label('Suspend')
+                        ->icon('heroicon-o-no-symbol')
+                        ->color('danger')
+                        ->visible(fn (User $record) => $record->status === UserStatus::Active && !$record->is(auth()->user()))
+                        ->requiresConfirmation()
+                        ->action(fn (User $record) => $record->update(['status' => 'suspended'])),
+                    Tables\Actions\Action::make('reactivate')
+                        ->label('Reactivate')
+                        ->icon('heroicon-o-arrow-path')
+                        ->color('warning')
+                        ->visible(fn (User $record) => $record->status === UserStatus::Suspended)
+                        ->requiresConfirmation()
+                        ->action(fn (User $record) => $record->update(['status' => 'active'])),
+                    Tables\Actions\Action::make('reject')
+                        ->label('Reject')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->visible(fn (User $record) => $record->status === UserStatus::Pending)
+                        ->requiresConfirmation()
+                        ->modalDescription('This will delete the pending user. They can SSO again to re-enter the queue.')
+                        ->action(fn (User $record) => $record->delete()),
+                ])
+                    ->label('Status')
+                    ->icon('heroicon-m-ellipsis-vertical')
+                    ->tooltip('User status actions'),
             ]);
     }
 

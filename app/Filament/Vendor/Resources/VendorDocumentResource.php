@@ -50,7 +50,7 @@ class VendorDocumentResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->columns([
-            Tables\Columns\TextColumn::make('filename')->searchable(),
+            Tables\Columns\TextColumn::make('filename')->searchable()->limit(30),
             Tables\Columns\TextColumn::make('document_type')->badge(),
             Tables\Columns\TextColumn::make('contract.title')->label('Agreement')->limit(35)->default('—'),
             Tables\Columns\TextColumn::make('created_at')->since()->label('Uploaded'),

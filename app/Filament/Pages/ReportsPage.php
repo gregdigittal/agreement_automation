@@ -57,7 +57,7 @@ class ReportsPage extends Page implements HasTable
                 Tables\Columns\TextColumn::make('contract_type')
                     ->label('Type')
                     ->badge()
-                    ->formatStateUsing(fn (string $state) => ucwords(str_replace('_', ' ', $state))),
+                    ->formatStateUsing(fn (?string $state) => $state ? ucwords(str_replace('_', ' ', $state)) : '—'),
                 Tables\Columns\TextColumn::make('counterparty.legal_name')
                     ->label('Counterparty')
                     ->limit(30)
@@ -65,11 +65,12 @@ class ReportsPage extends Page implements HasTable
                 Tables\Columns\TextColumn::make('region.name')
                     ->label('Region'),
                 Tables\Columns\TextColumn::make('entity.name')
-                    ->label('Entity'),
+                    ->label('Entity')
+                    ->limit(30),
                 Tables\Columns\TextColumn::make('workflow_state')
                     ->label('State')
                     ->badge()
-                    ->color(fn (string $state) => match ($state) {
+                    ->color(fn (?string $state) => match ($state) {
                         'draft' => 'gray',
                         'review' => 'info',
                         'approval' => 'warning',
@@ -103,7 +104,7 @@ class ReportsPage extends Page implements HasTable
                 Tables\Filters\SelectFilter::make('contract_type')
                     ->label('Type')
                     ->options(
-                        Contract::distinct()->pluck('contract_type', 'contract_type')->toArray()
+                        Contract::distinct()->whereNotNull('contract_type')->pluck('contract_type', 'contract_type')->toArray()
                     ),
                 Tables\Filters\SelectFilter::make('region_id')
                     ->label('Region')

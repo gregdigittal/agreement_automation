@@ -37,9 +37,9 @@ class VendorUserResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->columns([
-            Tables\Columns\TextColumn::make('name')->searchable(),
-            Tables\Columns\TextColumn::make('email')->searchable(),
-            Tables\Columns\TextColumn::make('counterparty.legal_name')->label('Counterparty')->searchable(),
+            Tables\Columns\TextColumn::make('name')->searchable()->limit(30),
+            Tables\Columns\TextColumn::make('email')->searchable()->limit(40),
+            Tables\Columns\TextColumn::make('counterparty.legal_name')->label('Counterparty')->searchable()->limit(30),
             Tables\Columns\TextColumn::make('last_login_at')->label('Last Login')->since()->default('Never'),
             Tables\Columns\TextColumn::make('created_at')->since(),
         ])->actions([

@@ -128,9 +128,9 @@ class SigningAuthorityResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->columns([
-            Tables\Columns\TextColumn::make('entity.name')->sortable(),
-            Tables\Columns\TextColumn::make('user_email')->searchable()->sortable(),
-            Tables\Columns\TextColumn::make('role_or_name')->searchable()->sortable(),
+            Tables\Columns\TextColumn::make('entity.name')->sortable()->limit(30),
+            Tables\Columns\TextColumn::make('user_email')->searchable()->sortable()->limit(40),
+            Tables\Columns\TextColumn::make('role_or_name')->searchable()->sortable()->limit(30),
             Tables\Columns\TextColumn::make('projects.name')
                 ->label('Projects')
                 ->badge()

@@ -37,8 +37,8 @@ class AuditLogResource extends Resource
             Tables\Columns\TextColumn::make('at')->label('At')->dateTime()->sortable(),
             Tables\Columns\TextColumn::make('action')->searchable()->sortable(),
             Tables\Columns\TextColumn::make('resource_type')->searchable()->sortable(),
-            Tables\Columns\TextColumn::make('resource_id')->sortable(),
-            Tables\Columns\TextColumn::make('actor_email')->searchable()->sortable(),
+            Tables\Columns\TextColumn::make('resource_id')->sortable()->limit(30),
+            Tables\Columns\TextColumn::make('actor_email')->searchable()->sortable()->limit(40),
             Tables\Columns\TextColumn::make('ip_address')->sortable(),
         ])
         ->filters([

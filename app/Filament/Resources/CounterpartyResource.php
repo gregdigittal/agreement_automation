@@ -76,9 +76,9 @@ class CounterpartyResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->columns([
-            Tables\Columns\TextColumn::make('legal_name')->searchable()->sortable(),
-            Tables\Columns\TextColumn::make('registration_number')->searchable(),
-            Tables\Columns\TextColumn::make('jurisdiction')->searchable(),
+            Tables\Columns\TextColumn::make('legal_name')->searchable()->sortable()->limit(30),
+            Tables\Columns\TextColumn::make('registration_number')->searchable()->limit(30),
+            Tables\Columns\TextColumn::make('jurisdiction')->searchable()->limit(30),
             Tables\Columns\TextColumn::make('status')->badge()->color(fn ($state) => match($state) { 'Active' => 'success', 'Suspended' => 'warning', 'Blacklisted' => 'danger', default => 'gray' }),
             Tables\Columns\TextColumn::make('preferred_language'),
             Tables\Columns\TextColumn::make('contracts_count')->counts('contracts')->label('Contracts')->toggleable(isToggledHiddenByDefault: true),

@@ -64,10 +64,10 @@ class MerchantAgreementRequestResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->columns([
-            Tables\Columns\TextColumn::make('counterparty.legal_name')->sortable()->searchable(),
+            Tables\Columns\TextColumn::make('counterparty.legal_name')->sortable()->searchable()->limit(30),
             Tables\Columns\TextColumn::make('region.name')->sortable(),
-            Tables\Columns\TextColumn::make('entity.name')->sortable(),
-            Tables\Columns\TextColumn::make('project.name')->sortable(),
+            Tables\Columns\TextColumn::make('entity.name')->sortable()->limit(30),
+            Tables\Columns\TextColumn::make('project.name')->sortable()->limit(30),
             Tables\Columns\TextColumn::make('merchant_fee')->money('USD'),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
         ])

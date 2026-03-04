@@ -311,68 +311,63 @@ class ContractResource extends Resource
         ])
         ->actions([
             Tables\Actions\EditAction::make()
-            ->visible(fn (Contract $record): bool => !in_array($record->workflow_state, ['executed', 'completed'])),
-            Tables\Actions\Action::make('download')->icon('heroicon-o-arrow-down-tray')
+                ->visible(fn (Contract $record): bool => ! in_array($record->workflow_state, ['executed', 'completed'])),
+            Tables\Actions\Action::make('download')
+                ->icon('heroicon-o-arrow-down-tray')
                 ->url(fn (Contract $record) => $record->storage_path ? app(\App\Services\ContractFileService::class)->getSignedUrl($record->storage_path) : null)
                 ->openUrlInNewTab()
                 ->visible(fn (Contract $record) => (bool) $record->storage_path),
             Tables\Actions\Action::make('trigger_ai_analysis')
                 ->label('AI Analysis')
                 ->icon('heroicon-o-cpu-chip')
+                ->color('info')
+                ->modalHeading('Run AI Analysis')
+                ->modalDescription('Select one or more analysis types to run. Results appear in the AI tabs and Discovery Review page.')
                 ->form([
-                    Forms\Components\Select::make('analysis_type')
+                    Forms\Components\CheckboxList::make('analysis_types')
+                        ->label('Analysis Types')
                         ->options([
-                            'summary' => 'Summary',
-                            'extraction' => 'Field Extraction',
-                            'risk' => 'Risk Assessment',
-                            'deviation' => 'Template Deviation',
-                            'obligations' => 'Obligations Register',
+                            'summary' => 'Summary — overall contract synopsis',
+                            'extraction' => 'Field Extraction — key terms, dates & values',
+                            'risk' => 'Risk Assessment — risk scores & red flags',
+                            'deviation' => 'Template Deviation — compare against standard templates',
+                            'obligations' => 'Obligations Register — deadlines & responsibilities',
+                            'discovery' => 'Auto-Discovery — extract counterparties, jurisdictions & governing law',
                         ])
-                        ->required(),
+                        ->required()
+                        ->columns(1)
+                        ->bulkToggleable(),
                 ])
                 ->action(function (Contract $record, array $data) {
-                    if (!$record->storage_path) {
-                        \Filament\Notifications\Notification::make()
+                    if (! $record->storage_path) {
+                        Notification::make()
                             ->title('No file uploaded')
                             ->body('Upload a contract file before running AI analysis.')
                             ->danger()
                             ->send();
                         return;
                     }
-                    ProcessAiAnalysis::dispatch(
-                        $record->id,
-                        $data['analysis_type'],
-                        auth()->id(),
-                        auth()->user()?->email,
-                    );
-                    \Filament\Notifications\Notification::make()
-                        ->title('AI Analysis queued')
-                        ->body('Analysis will complete in the background.')
+                    $types = $data['analysis_types'] ?? [];
+                    foreach ($types as $type) {
+                        ProcessAiAnalysis::dispatch(
+                            $record->id,
+                            $type,
+                            auth()->id(),
+                            auth()->user()?->email,
+                        );
+                    }
+                    $labels = collect($types)->join(', ');
+                    $discoveryNote = in_array('discovery', $types)
+                        ? ' Discovery results will appear on the AI Discovery Review page.'
+                        : '';
+                    Notification::make()
+                        ->title(count($types) . ' analysis job(s) queued')
+                        ->body("Running: {$labels}.{$discoveryNote}")
                         ->success()
                         ->send();
                 })
                 ->visible(fn (Contract $record) => $record->storage_path !== null),
-            Tables\Actions\Action::make('ai_discover')
-                ->label('AI Discover')
-                ->icon('heroicon-o-sparkles')
-                ->color('info')
-                ->requiresConfirmation()
-                ->modalHeading('Run AI Auto-Discovery')
-                ->modalDescription('Analyze this contract to extract counterparties, jurisdictions, and governing law. Results will appear as drafts for your review.')
-                ->action(function (Contract $record) {
-                    ProcessAiAnalysis::dispatch(
-                        $record->id,
-                        'discovery',
-                        auth()->id(),
-                        auth()->user()?->email,
-                    );
-                    \Filament\Notifications\Notification::make()
-                        ->title('AI Discovery started')
-                        ->body('Analysis is running in the background. Check the Discovery Review page for results.')
-                        ->success()
-                        ->send();
-                })
-                ->visible(fn (Contract $record) => $record->storage_path !== null),
+            Tables\Actions\ActionGroup::make([
             Tables\Actions\Action::make('complete_setup')
                 ->label('Complete Setup')
                 ->icon('heroicon-o-check-circle')
@@ -607,6 +602,10 @@ class ContractResource extends Resource
                         'session' => $session->id,
                     ]));
                 }),
+            ])
+                ->label('More')
+                ->icon('heroicon-m-ellipsis-vertical')
+                ->tooltip('More actions'),
         ])
         ->bulkActions([
             Tables\Actions\BulkAction::make('export')

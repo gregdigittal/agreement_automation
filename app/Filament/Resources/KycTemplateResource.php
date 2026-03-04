@@ -125,13 +125,16 @@ class KycTemplateResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->limit(30),
                 Tables\Columns\TextColumn::make('entity.name')
                     ->placeholder('All')
-                    ->sortable(),
+                    ->sortable()
+                    ->limit(30),
                 Tables\Columns\TextColumn::make('jurisdiction.name')
                     ->placeholder('All')
-                    ->sortable(),
+                    ->sortable()
+                    ->limit(30),
                 Tables\Columns\TextColumn::make('contract_type_pattern')
                     ->badge()
                     ->label('Type Pattern'),

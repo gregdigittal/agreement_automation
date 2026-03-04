@@ -125,7 +125,7 @@ class WikiContractResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->columns([
-            Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
+            Tables\Columns\TextColumn::make('name')->searchable()->sortable()->limit(30),
             Tables\Columns\TextColumn::make('category')->sortable(),
             Tables\Columns\TextColumn::make('status')->badge()->color(fn ($state) => match($state) { 'draft' => 'gray', 'review' => 'warning', 'published' => 'success', 'deprecated' => 'danger', default => 'gray' }),
             Tables\Columns\TextColumn::make('version')->sortable(),

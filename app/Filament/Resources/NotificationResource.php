@@ -48,7 +48,7 @@ class NotificationResource extends Resource
     {
         return $table->columns([
             Tables\Columns\TextColumn::make('subject')->searchable()->sortable()->limit(40),
-            Tables\Columns\TextColumn::make('recipient_email')->searchable()->sortable(),
+            Tables\Columns\TextColumn::make('recipient_email')->searchable()->sortable()->limit(40),
             Tables\Columns\TextColumn::make('channel')->sortable(),
             Tables\Columns\TextColumn::make('status')->badge()->color(fn ($state) => match($state) { 'pending' => 'warning', 'sent' => 'success', 'failed' => 'danger', default => 'gray' }),
             Tables\Columns\TextColumn::make('sent_at')->dateTime()->sortable(),
