@@ -80,8 +80,10 @@ async def analyze(req: AnalyzeRequest, db: Session = Depends(get_db)):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("analyze_failed", contract_id=req.contract_id, analysis_type=req.analysis_type, error=str(e))
-        raise HTTPException(status_code=500, detail="Analysis failed. See AI worker logs for details.")
+        error_msg = str(e)
+        logger.error("analyze_failed", contract_id=req.contract_id, analysis_type=req.analysis_type, error=error_msg)
+        # Return actual error detail so Laravel can display it to the user
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {error_msg[:1000]}")
 
 
 @router.post("/generate-workflow")
