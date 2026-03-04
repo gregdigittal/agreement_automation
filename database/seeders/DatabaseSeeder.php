@@ -10,6 +10,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             CountrySeeder::class,            // Seeds 249 ISO 3166-1 alpha-2 countries (idempotent)
+            ContractTypeSeeder::class,       // Seeds contract types (firstOrCreate — idempotent)
             RoleSeeder::class,               // Creates 6 roles (firstOrCreate — idempotent)
             ShieldPermissionSeeder::class,    // Syncs permissions per role (idempotent)
             RegulatoryFrameworkSeeder::class, // Seeds 3 regulatory frameworks (idempotent)

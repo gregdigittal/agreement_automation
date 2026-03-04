@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\WorkflowTemplateResource\Pages;
 use App\Filament\Resources\WorkflowTemplateResource\RelationManagers\EscalationRulesRelationManager;
+use App\Models\ContractType;
 use App\Models\WorkflowTemplate;
 use Filament\Forms;
 use App\Forms\Components\WorkflowBuilderField;
@@ -35,7 +36,7 @@ class WorkflowTemplateResource extends Resource
                 ->placeholder('e.g. Commercial Standard Review')
                 ->helperText('A descriptive name for this workflow template.'),
             Forms\Components\Select::make('contract_type')
-                ->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant', 'Inter-Company' => 'Inter-Company'])
+                ->options(ContractType::options())
                 ->required()
                 ->helperText('Determines which contracts this workflow applies to.'),
             Forms\Components\Select::make('region_id')

@@ -23,7 +23,7 @@ class ContractFactory extends Factory
             'entity_id' => Entity::factory(),
             'project_id' => Project::factory(),
             'counterparty_id' => Counterparty::factory(),
-            'contract_type' => fake()->randomElement(['Commercial', 'Merchant']),
+            'contract_type' => fake()->randomElement(array_keys(\App\Models\ContractType::options()) ?: ['Commercial']),
             'title' => fake()->sentence(4),
             'storage_path' => 'contracts/' . fake()->uuid() . '.pdf',
             'file_name' => fake()->slug(2) . '.pdf',

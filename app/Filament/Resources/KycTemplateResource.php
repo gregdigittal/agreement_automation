@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\KycTemplateResource\Pages;
+use App\Models\ContractType;
 use App\Models\KycTemplate;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -52,14 +53,7 @@ class KycTemplateResource extends Resource
                         Forms\Components\Toggle::make('is_active')->default(true),
                     ]),
                 Forms\Components\Select::make('contract_type_pattern')
-                    ->options(array_merge(
-                        ['*' => 'All Types (*)'],
-                        \App\Models\Contract::query()
-                            ->distinct()
-                            ->whereNotNull('contract_type')
-                            ->pluck('contract_type', 'contract_type')
-                            ->toArray()
-                    ))
+                    ->options(array_merge(['*' => 'All Types (*)'], ContractType::options()))
                     ->default('*')
                     ->required()
                     ->helperText('Which contract types this KYC template applies to.'),

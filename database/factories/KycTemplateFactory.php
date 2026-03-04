@@ -16,7 +16,7 @@ class KycTemplateFactory extends Factory
             'name' => fake()->words(3, true) . ' KYC Template',
             'entity_id' => null,
             'jurisdiction_id' => null,
-            'contract_type_pattern' => fake()->optional()->randomElement(['Commercial', 'Merchant', '*']),
+            'contract_type_pattern' => fake()->optional()->randomElement(array_merge(['*'], array_keys(\App\Models\ContractType::options()) ?: ['Commercial'])),
             'version' => 1,
             'status' => 'active',
         ];

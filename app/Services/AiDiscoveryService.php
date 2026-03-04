@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AiDiscoveryDraft;
 use App\Models\Contract;
+use App\Models\ContractType;
 use App\Models\Counterparty;
 use App\Models\Entity;
 use App\Models\GoverningLaw;
@@ -180,17 +181,39 @@ class AiDiscoveryService
 
     private function mapContractType(string $raw): ?string
     {
+        $types = ContractType::options(); // ['Commercial' => 'Commercial', ...]
         $lower = strtolower(trim($raw));
 
-        return match (true) {
-            str_contains($lower, 'merchant') => 'Merchant',
-            str_contains($lower, 'inter-company'), str_contains($lower, 'intercompany'),
-            str_contains($lower, 'inter company') => 'Inter-Company',
-            str_contains($lower, 'commercial'), str_contains($lower, 'service'),
-            str_contains($lower, 'supply'), str_contains($lower, 'license'),
-            str_contains($lower, 'nda'), str_contains($lower, 'consulting') => 'Commercial',
-            default => null,
-        };
+        // Pass 1: exact case-insensitive name match
+        foreach ($types as $name => $label) {
+            if (strtolower($name) === $lower) {
+                return $name;
+            }
+        }
+
+        // Pass 2: keyword heuristics — only return a type if it actually exists
+        if (isset($types['Merchant']) && str_contains($lower, 'merchant')) {
+            return 'Merchant';
+        }
+        if (isset($types['Inter-Company']) && (
+            str_contains($lower, 'inter-company') ||
+            str_contains($lower, 'intercompany') ||
+            str_contains($lower, 'inter company')
+        )) {
+            return 'Inter-Company';
+        }
+        if (isset($types['Commercial']) && (
+            str_contains($lower, 'commercial') ||
+            str_contains($lower, 'service') ||
+            str_contains($lower, 'supply') ||
+            str_contains($lower, 'license') ||
+            str_contains($lower, 'nda') ||
+            str_contains($lower, 'consulting')
+        )) {
+            return 'Commercial';
+        }
+
+        return null;
     }
 
     private function linkToContract(Contract $contract, string $type, string $recordId): void

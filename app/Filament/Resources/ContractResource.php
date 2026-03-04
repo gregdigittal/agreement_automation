@@ -7,6 +7,7 @@ use App\Filament\Resources\ContractResource\RelationManagers;
 use App\Helpers\Feature;
 use App\Jobs\ProcessAiAnalysis;
 use App\Models\Contract;
+use App\Models\ContractType;
 use App\Models\WikiContract;
 use App\Services\ContractLinkService;
 use App\Services\RedlineService;
@@ -194,7 +195,7 @@ class ContractResource extends Resource
                                 ])
                                 ->searchable(),
                         ]),
-                    Forms\Components\Select::make('contract_type')->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant', 'Inter-Company' => 'Inter-Company'])->required(fn (?Contract $record): bool => ! $record || $record->workflow_state !== 'staging')->live()
+                    Forms\Components\Select::make('contract_type')->options(ContractType::options())->required(fn (?Contract $record): bool => ! $record || $record->workflow_state !== 'staging')->live()
                         ->placeholder('Select contract type')
                         ->helperText('Determines which workflow template will be applied. Inter-Company is for agreements between two group entities.'),
                     Forms\Components\TextInput::make('title')->maxLength(255)->columnSpanFull()
@@ -302,7 +303,7 @@ class ContractResource extends Resource
                 ->toggleable(isToggledHiddenByDefault: true),
         ])
         ->filters([
-            Tables\Filters\SelectFilter::make('contract_type')->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant', 'Inter-Company' => 'Inter-Company']),
+            Tables\Filters\SelectFilter::make('contract_type')->options(ContractType::options()),
             Tables\Filters\SelectFilter::make('workflow_state')->options([
                 'staging' => 'Staging', 'draft' => 'Draft', 'review' => 'Review', 'approval' => 'Approval',
                 'signing' => 'Signing', 'countersign' => 'Countersign', 'executed' => 'Executed', 'archived' => 'Archived',
@@ -393,7 +394,7 @@ class ContractResource extends Resource
                         ->required()
                         ->default($record->project_id),
                     Forms\Components\Select::make('contract_type')
-                        ->options(['Commercial' => 'Commercial', 'Merchant' => 'Merchant', 'Inter-Company' => 'Inter-Company'])
+                        ->options(ContractType::options())
                         ->required()
                         ->default($record->contract_type),
                     Forms\Components\Select::make('counterparty_id')
