@@ -69,6 +69,23 @@ spec:
               value: "127.0.0.1"
             - name: REDIS_PORT
               value: "6379"
+            # Mail
+            - name: MAIL_MAILER
+              value: "smtp"
+            - name: MAIL_HOST
+              value: "ramnode.digittal.io"
+            - name: MAIL_PORT
+              value: "465"
+            - name: MAIL_ENCRYPTION
+              value: "ssl"
+            - name: MAIL_USERNAME
+              value: "ccrs@digittal.mobi"
+            - name: MAIL_PASSWORD
+              value: "oJXQg3otiOeJ.I6s"
+            - name: MAIL_FROM_ADDRESS
+              value: "ccrs@digittal.mobi"
+            - name: MAIL_FROM_NAME
+              value: "CCRS"
             # Azure AD OAuth
             - name: AZURE_AD_CLIENT_ID
               value: "35b4e9d4-2c34-4d2f-99c1-d076da853581"
