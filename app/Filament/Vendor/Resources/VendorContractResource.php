@@ -2,7 +2,9 @@
 
 namespace App\Filament\Vendor\Resources;
 
+use App\Filament\Vendor\Pages\VendorExchangeRoomPage;
 use App\Filament\Vendor\Resources\VendorContractResource\Pages;
+use App\Helpers\Feature;
 use App\Models\Contract;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -36,6 +38,14 @@ Tables\Columns\TextColumn::make('workflow_state')->badge()->color(fn ($state) =>
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
         ])
         ->actions([
+            Tables\Actions\Action::make('exchange_room')
+                ->label('Document Exchange')
+                ->icon('heroicon-o-chat-bubble-left-right')
+                ->color('primary')
+                ->visible(fn (Contract $record) => Feature::exchangeRoom()
+                    && $record->exchange_room_enabled
+                    && $record->exchangeRoom !== null)
+                ->url(fn (Contract $record) => VendorExchangeRoomPage::getUrl(['contractId' => $record->id])),
             Tables\Actions\Action::make('download')
                 ->icon('heroicon-o-arrow-down-tray')
                 ->url(fn (Contract $record) => $record->storage_path

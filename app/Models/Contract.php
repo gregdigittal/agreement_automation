@@ -7,13 +7,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Laravel\Scout\Searchable;
 
 class Contract extends Model
 {
     use HasFactory, HasUuidPrimaryKey, Searchable;
-    protected $fillable = ['region_id', 'entity_id', 'second_entity_id', 'project_id', 'counterparty_id', 'governing_law_id', 'parent_contract_id', 'contract_type', 'title', 'storage_path', 'file_name', 'file_version', 'sharepoint_url', 'sharepoint_version', 'expiry_date', 'created_by', 'updated_by', 'is_restricted'];
-    protected $casts = ['file_version' => 'integer', 'workflow_state' => 'string', 'signing_status' => 'string', 'expiry_date' => 'date', 'is_restricted' => 'boolean'];
+    protected $fillable = ['region_id', 'entity_id', 'second_entity_id', 'project_id', 'counterparty_id', 'governing_law_id', 'parent_contract_id', 'contract_type', 'title', 'storage_path', 'file_name', 'file_version', 'sharepoint_url', 'sharepoint_version', 'exchange_room_enabled', 'sharepoint_enabled', 'sharepoint_folder_id', 'sharepoint_site_id', 'sharepoint_drive_id', 'expiry_date', 'created_by', 'updated_by', 'is_restricted'];
+    protected $casts = ['file_version' => 'integer', 'workflow_state' => 'string', 'signing_status' => 'string', 'expiry_date' => 'date', 'is_restricted' => 'boolean', 'exchange_room_enabled' => 'boolean', 'sharepoint_enabled' => 'boolean'];
 
     public function region(): BelongsTo { return $this->belongsTo(Region::class); }
     public function entity(): BelongsTo { return $this->belongsTo(Entity::class); }
@@ -43,6 +44,7 @@ class Contract extends Model
     public function kycPack(): \Illuminate\Database\Eloquent\Relations\HasOne { return $this->hasOne(KycPack::class); }
     public function signingSessions(): HasMany { return $this->hasMany(SigningSession::class); }
     public function activeSigningSession() { return $this->hasOne(SigningSession::class)->where('status', 'active'); }
+    public function exchangeRoom(): HasOne { return $this->hasOne(ExchangeRoom::class); }
     public function accessGrants(): HasMany { return $this->hasMany(ContractUserAccess::class); }
     public function authorizedUsers(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {

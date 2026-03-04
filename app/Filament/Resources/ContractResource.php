@@ -12,6 +12,7 @@ use App\Services\ContractLinkService;
 use App\Services\RedlineService;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -210,21 +211,31 @@ class ContractResource extends Resource
                         }),
                     Forms\Components\Hidden::make('file_name'),
                 ]),
-            Forms\Components\Section::make('SharePoint Collaboration')
-                ->description('Link the SharePoint document URL for collaborative review and track the version.')
+            Forms\Components\Section::make('Collaboration')
+                ->description('Enable collaboration tools for document negotiation with counterparties.')
                 ->collapsed()
                 ->schema([
+                    Forms\Components\Toggle::make('exchange_room_enabled')
+                        ->label('Enable Document Exchange Room')
+                        ->helperText('Shared workspace for Digittal and counterparty to exchange document versions and comments.')
+                        ->visible(fn () => Feature::exchangeRoom()),
+                    Forms\Components\Toggle::make('sharepoint_enabled')
+                        ->label('Enable SharePoint Integration')
+                        ->helperText('Link a SharePoint folder for document collaboration via Microsoft 365.')
+                        ->visible(fn () => Feature::sharePoint()),
                     Forms\Components\TextInput::make('sharepoint_url')
                         ->label('SharePoint URL')
                         ->url()
                         ->maxLength(2048)
                         ->placeholder('https://digittalgroup.sharepoint.com/sites/legal/...')
-                        ->helperText('Link to the document on SharePoint for collaborative editing.'),
+                        ->helperText('Link to the document on SharePoint for collaborative editing.')
+                        ->visible(fn (Get $get) => $get('sharepoint_enabled') || ! Feature::sharePoint()),
                     Forms\Components\TextInput::make('sharepoint_version')
                         ->label('SharePoint Version')
                         ->maxLength(50)
                         ->placeholder('e.g. 2.3')
-                        ->helperText('Track the current SharePoint document version number.'),
+                        ->helperText('Track the current SharePoint document version number.')
+                        ->visible(fn () => ! Feature::sharePoint()),
                 ])
                 ->columns(2),
             Forms\Components\Section::make('Access Control')
@@ -640,6 +651,14 @@ class ContractResource extends Resource
             if (class_exists(RelationManagers\BoldsignEnvelopesRelationManager::class)) {
                 $relations[] = RelationManagers\BoldsignEnvelopesRelationManager::class;
             }
+        }
+
+        if (Feature::exchangeRoom()) {
+            $relations[] = RelationManagers\ExchangeRoomRelationManager::class;
+        }
+
+        if (Feature::sharePoint()) {
+            $relations[] = RelationManagers\SharePointRelationManager::class;
         }
 
         return $relations;

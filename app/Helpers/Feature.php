@@ -18,4 +18,16 @@ class Feature
     {
         return (bool) config('ccrs.in_house_signing');
     }
+
+    public static function exchangeRoom(): bool
+    {
+        return (bool) config('ccrs.exchange_room.enabled', true);
+    }
+
+    public static function sharePoint(): bool
+    {
+        return (bool) config('ccrs.sharepoint.enabled', false)
+            && config('services.azure.client_id')
+            && config('services.azure.client_secret');
+    }
 }

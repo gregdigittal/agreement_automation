@@ -22,6 +22,12 @@ return [
     'merchant_agreement_template_key' => env('MA_TEMPLATE_STORAGE_KEY', 'templates/merchant_agreement_master.docx'),
     'wiki_contracts_disk' => env('CCRS_STORAGE_DISK', 'local'),
     'in_house_signing' => env('FEATURE_IN_HOUSE_SIGNING', true),
+    'exchange_room' => [
+        'enabled' => env('FEATURE_EXCHANGE_ROOM', true),
+    ],
+    'sharepoint' => [
+        'enabled' => env('FEATURE_SHAREPOINT', false),
+    ],
     'teams' => [
         'team_id' => env('TEAMS_TEAM_ID', ''),
         'channel_id' => env('TEAMS_CHANNEL_ID', ''),
