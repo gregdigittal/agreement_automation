@@ -21,7 +21,7 @@ class EditContract extends EditRecord
         return [AiProcessingBannerWidget::class];
     }
 
-    protected function getHeaderWidgetsColumns(): int|array
+    public function getHeaderWidgetsColumns(): int|array
     {
         return 1;
     }

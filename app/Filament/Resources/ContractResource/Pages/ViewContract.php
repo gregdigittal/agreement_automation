@@ -19,7 +19,7 @@ class ViewContract extends ViewRecord
         return [AiProcessingBannerWidget::class];
     }
 
-    protected function getHeaderWidgetsColumns(): int|array
+    public function getHeaderWidgetsColumns(): int|array
     {
         return 1;
     }
