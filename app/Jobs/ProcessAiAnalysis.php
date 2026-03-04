@@ -122,9 +122,20 @@ class ProcessAiAnalysis implements ShouldQueue
                 }
             }
 
-            if ($this->analysisType === 'discovery' && isset($result['discoveries'])) {
-                $discoveryService = app(\App\Services\AiDiscoveryService::class);
-                $discoveryService->processDiscoveryResults($contract, $analysis->id, $result['discoveries']);
+            if ($this->analysisType === 'discovery') {
+                if (isset($result['discoveries']) && is_array($result['discoveries'])) {
+                    Log::info('ProcessAiAnalysis: discovery results received', [
+                        'contract_id' => $this->contractId,
+                        'discovery_count' => count($result['discoveries']),
+                    ]);
+                    $discoveryService = app(\App\Services\AiDiscoveryService::class);
+                    $discoveryService->processDiscoveryResults($contract, $analysis->id, $result['discoveries']);
+                } else {
+                    Log::warning('ProcessAiAnalysis: discovery completed but no discoveries array in result', [
+                        'contract_id' => $this->contractId,
+                        'result_keys' => array_keys($result),
+                    ]);
+                }
             }
 
             AuditService::log(

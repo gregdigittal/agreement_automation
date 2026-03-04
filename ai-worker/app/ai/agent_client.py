@@ -1,5 +1,6 @@
 """Complex AI analysis (risk, extraction, obligations, deviation) with tool use."""
 import json
+import re
 import time
 from app.config import settings
 from app.ai.schemas import AnalysisUsage
@@ -75,8 +76,13 @@ async def analyze_complex(
         if text_block is not None and not tool_use_blocks:
             elapsed_ms = int((time.perf_counter() - start) * 1000)
             result_dict = {"summary": "", "confidence": 0.8}
+            # Strip markdown code fences — Claude may wrap JSON in ```json blocks
+            cleaned = text_block.text.strip()
+            m = re.match(r"^```(?:json)?\s*\n?(.*?)```\s*$", cleaned, re.DOTALL)
+            if m:
+                cleaned = m.group(1).strip()
             try:
-                result_dict = json.loads(text_block.text)
+                result_dict = json.loads(cleaned)
             except json.JSONDecodeError:
                 result_dict = {"raw": text_block.text}
             usage = AnalysisUsage(

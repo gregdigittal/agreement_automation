@@ -100,6 +100,21 @@ async def generate_workflow_endpoint(req: GenerateWorkflowRequest):
         raise HTTPException(status_code=500, detail="Workflow generation failed. See AI worker logs for details.")
 
 
+def _strip_markdown_json(text: str) -> str:
+    """Strip markdown code fences from Claude's JSON responses.
+
+    Claude frequently wraps JSON in ```json ... ``` blocks even when asked not to.
+    This function extracts the raw JSON string from such wrappers.
+    """
+    import re
+    stripped = text.strip()
+    # Match ```json ... ``` or ``` ... ``` (with optional language tag)
+    m = re.match(r"^```(?:json)?\s*\n?(.*?)```\s*$", stripped, re.DOTALL)
+    if m:
+        return m.group(1).strip()
+    return stripped
+
+
 async def analyze_discovery(contract_text: str, context: dict, mcp_tools: list) -> tuple[dict, "AnalysisUsage"]:
     """Extract structured entity data from contract text using Claude."""
     import time
@@ -109,7 +124,8 @@ async def analyze_discovery(contract_text: str, context: dict, mcp_tools: list) 
     prompt = f"""Analyze this contract and extract the following structured information.
 For each item found, provide the data and a confidence score (0.0 to 1.0).
 
-Return ONLY valid JSON with a 'discoveries' array. Each item has:
+Return ONLY raw valid JSON (no markdown, no code fences, no explanation).
+The JSON must have a 'discoveries' array. Each item has:
 - type: one of 'counterparty', 'entity', 'jurisdiction', 'governing_law'
 - confidence: float 0.0-1.0
 - data: object with relevant fields
@@ -120,7 +136,7 @@ For jurisdiction: name, country_code
 For governing_law: name, country_code
 
 Contract text:
-{contract_text[:8000]}
+{contract_text[:50000]}
 
 Context from the system:
 {json.dumps(context, default=str)}"""
@@ -129,7 +145,7 @@ Context from the system:
     client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
     msg = await client.messages.create(
         model=settings.ai_model,
-        max_tokens=2048,
+        max_tokens=4096,
         messages=[{"role": "user", "content": prompt}],
     )
     elapsed_ms = int((time.perf_counter() - start) * 1000)
@@ -138,11 +154,29 @@ Context from the system:
     if msg.content and len(msg.content) > 0:
         raw_text = msg.content[0].text if hasattr(msg.content[0], "text") else str(msg.content[0])
 
+    # Strip markdown code fences — Claude frequently wraps JSON despite instructions
+    cleaned_text = _strip_markdown_json(raw_text)
+
     try:
-        result_dict = json.loads(raw_text)
+        result_dict = json.loads(cleaned_text)
     except json.JSONDecodeError:
-        logger.warning("analyze_discovery_json_parse_failed", raw=raw_text[:200])
+        logger.warning("analyze_discovery_json_parse_failed",
+                       raw=raw_text[:500],
+                       cleaned=cleaned_text[:500])
         result_dict = {"discoveries": []}
+
+    # Validate we got a discoveries array
+    if "discoveries" not in result_dict:
+        logger.warning("analyze_discovery_missing_key",
+                       keys=list(result_dict.keys()),
+                       raw_preview=raw_text[:300])
+        result_dict = {"discoveries": result_dict.get("results", result_dict.get("data", []))}
+        if not isinstance(result_dict["discoveries"], list):
+            result_dict = {"discoveries": []}
+
+    logger.info("analyze_discovery_completed",
+                discovery_count=len(result_dict.get("discoveries", [])),
+                elapsed_ms=elapsed_ms)
 
     usage = AnalysisUsage(
         input_tokens=msg.usage.input_tokens if msg.usage else 0,
