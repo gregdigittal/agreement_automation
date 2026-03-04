@@ -34,6 +34,13 @@ class ProcessAiAnalysis implements ShouldQueue
 
     public function handle(AiWorkerClient $client): void
     {
+        Log::info('ProcessAiAnalysis: job STARTED', [
+            'contract_id' => $this->contractId,
+            'analysis_type' => $this->analysisType,
+            'attempt' => $this->attempts(),
+            'queue_connection' => config('queue.default'),
+        ]);
+
         $span = TelemetryService::startSpan('job.process_ai_analysis', ['contract_id' => $this->contractId]);
         try {
             $contract = Contract::find($this->contractId);
@@ -124,16 +131,35 @@ class ProcessAiAnalysis implements ShouldQueue
 
             if ($this->analysisType === 'discovery') {
                 if (isset($result['discoveries']) && is_array($result['discoveries'])) {
+                    $discoveryCount = count($result['discoveries']);
                     Log::info('ProcessAiAnalysis: discovery results received', [
                         'contract_id' => $this->contractId,
-                        'discovery_count' => count($result['discoveries']),
+                        'discovery_count' => $discoveryCount,
+                        'discovery_types' => collect($result['discoveries'])->pluck('type')->all(),
                     ]);
-                    $discoveryService = app(\App\Services\AiDiscoveryService::class);
-                    $discoveryService->processDiscoveryResults($contract, $analysis->id, $result['discoveries']);
+
+                    if ($discoveryCount === 0) {
+                        Log::warning('ProcessAiAnalysis: discovery returned EMPTY discoveries array', [
+                            'contract_id' => $this->contractId,
+                            'analysis_id' => $analysis->id,
+                            'result_preview' => substr(json_encode($result), 0, 500),
+                        ]);
+                        // Update the analysis with a note so the user knows it wasn't an error
+                        $analysis->update([
+                            'error_message' => 'AI completed but found zero entities in this document. The document may not contain identifiable counterparties, jurisdictions, or governing law.',
+                        ]);
+                    } else {
+                        $discoveryService = app(\App\Services\AiDiscoveryService::class);
+                        $discoveryService->processDiscoveryResults($contract, $analysis->id, $result['discoveries']);
+                    }
                 } else {
                     Log::warning('ProcessAiAnalysis: discovery completed but no discoveries array in result', [
                         'contract_id' => $this->contractId,
                         'result_keys' => array_keys($result),
+                        'result_preview' => substr(json_encode($result), 0, 500),
+                    ]);
+                    $analysis->update([
+                        'error_message' => 'AI response did not contain a discoveries array. Result keys: ' . implode(', ', array_keys($result)),
                     ]);
                 }
             }

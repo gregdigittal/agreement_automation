@@ -349,6 +349,15 @@ class ContractResource extends Resource
                         return;
                     }
                     $types = $data['analysis_types'] ?? [];
+
+                    \Illuminate\Support\Facades\Log::info('AI Analysis dispatch: starting', [
+                        'contract_id' => $record->id,
+                        'types' => $types,
+                        'storage_path' => $record->storage_path,
+                        'queue_connection' => config('queue.default'),
+                        'actor' => auth()->user()?->email,
+                    ]);
+
                     foreach ($types as $type) {
                         ProcessAiAnalysis::dispatch(
                             $record->id,
@@ -356,6 +365,10 @@ class ContractResource extends Resource
                             auth()->id(),
                             auth()->user()?->email,
                         );
+                        \Illuminate\Support\Facades\Log::info("AI Analysis dispatch: dispatched {$type}", [
+                            'contract_id' => $record->id,
+                            'analysis_type' => $type,
+                        ]);
                     }
                     $labels = collect($types)->join(', ');
                     $discoveryNote = in_array('discovery', $types)
