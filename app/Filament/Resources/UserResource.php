@@ -14,6 +14,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Spatie\Permission\Models\Role;
 
@@ -56,6 +57,26 @@ class UserResource extends Resource
                 ->hint(fn () => \Spatie\Permission\Models\Role::where('guard_name', 'web')->count() === 0
                     ? new \Illuminate\Support\HtmlString('<span class="text-warning-600 dark:text-warning-400">No roles seeded. Run <code>php artisan db:seed</code>.</span>')
                     : null),
+            Forms\Components\Section::make('Password')
+                ->description('Set a password to allow email/password login. Leave blank to keep SSO-only.')
+                ->schema([
+                    Forms\Components\TextInput::make('password')
+                        ->password()
+                        ->revealable()
+                        ->minLength(8)
+                        ->dehydrated(fn (?string $state): bool => filled($state))
+                        ->required(fn (string $operation): bool => $operation === 'create')
+                        ->label('Password'),
+                    Forms\Components\TextInput::make('password_confirmation')
+                        ->password()
+                        ->revealable()
+                        ->requiredWith('password')
+                        ->same('password')
+                        ->dehydrated(false)
+                        ->label('Confirm Password'),
+                ])
+                ->collapsed(fn (string $operation): bool => $operation === 'edit')
+                ->collapsible(),
         ]);
     }
 
@@ -133,6 +154,32 @@ class UserResource extends Resource
                         ->visible(fn (User $record) => $record->status === UserStatus::Suspended)
                         ->requiresConfirmation()
                         ->action(fn (User $record) => $record->update(['status' => 'active'])),
+                    Tables\Actions\Action::make('set_password')
+                        ->label('Set Password')
+                        ->icon('heroicon-o-key')
+                        ->color('info')
+                        ->form([
+                            Forms\Components\TextInput::make('password')
+                                ->password()
+                                ->revealable()
+                                ->required()
+                                ->minLength(8)
+                                ->label('New Password'),
+                            Forms\Components\TextInput::make('password_confirmation')
+                                ->password()
+                                ->revealable()
+                                ->required()
+                                ->same('password')
+                                ->label('Confirm Password'),
+                        ])
+                        ->action(function (User $record, array $data) {
+                            $record->update(['password' => $data['password']]);
+
+                            Notification::make()
+                                ->title("Password set for {$record->name}")
+                                ->success()
+                                ->send();
+                        }),
                     Tables\Actions\Action::make('reject')
                         ->label('Reject')
                         ->icon('heroicon-o-x-circle')

@@ -17,11 +17,14 @@ class User extends Authenticatable implements FilamentUser
 
     protected string $guard_name = 'web';
 
-    protected $fillable = ['email', 'name', 'notification_preferences', 'status'];
+    protected $fillable = ['email', 'name', 'password', 'notification_preferences', 'status'];
+
+    protected $hidden = ['password', 'remember_token'];
 
     protected $casts = [
         'notification_preferences' => 'array',
         'status' => UserStatus::class,
+        'password' => 'hashed',
     ];
 
     public function storedSignatures(): HasMany
