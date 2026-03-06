@@ -43,6 +43,7 @@ class WikiContractResource extends Resource
                 ->default('draft')
                 ->helperText('Only published templates are available for use in contracts.'),
             Forms\Components\FileUpload::make('storage_path')->label('Template File')->disk(config('ccrs.contracts_disk'))->directory('wiki-contracts')
+                ->visibility('private')
                 ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
                 ->maxSize(51200)
                 ->helperText('Upload the master template document (max 50 MB). Accepted formats: PDF, DOCX.'),

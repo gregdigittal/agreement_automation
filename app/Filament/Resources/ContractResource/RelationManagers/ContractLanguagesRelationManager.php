@@ -34,7 +34,7 @@ class ContractLanguagesRelationManager extends RelationManager
             Forms\Components\FileUpload::make('file')
                 ->label('Contract File (PDF / DOCX)')
                 ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
-                ->disk(config('ccrs.contracts_disk'))->directory('contract_languages')
+                ->disk(config('ccrs.contracts_disk'))->visibility('private')->directory('contract_languages')
                 ->maxSize(51200)
                 ->required()->live()
                 ->helperText('Upload the translated contract document (max 50 MB). PDF or DOCX.')

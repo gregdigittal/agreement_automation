@@ -75,6 +75,7 @@ class MerchantAgreementResource extends Resource
             Forms\Components\TextInput::make('title')->maxLength(255)
                 ->helperText('A descriptive title for this merchant agreement.'),
             Forms\Components\FileUpload::make('storage_path')->label('Agreement File')->disk(config('ccrs.contracts_disk'))->directory('contracts')
+                ->visibility('private')
                 ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
                 ->maxSize(51200)
                 ->helperText('Upload the agreement document (max 50 MB). Accepted formats: PDF, DOCX.')

@@ -62,6 +62,7 @@ class BulkContractUploadPage extends Page implements HasForms
                     ->label('Contract Files')
                     ->multiple()
                     ->disk(config('ccrs.contracts_disk', 'database'))
+                    ->visibility('private')
                     ->directory('bulk_uploads/files')
                     ->acceptedFileTypes([
                         'application/pdf',
@@ -259,6 +260,7 @@ class BulkContractUploadPage extends Page implements HasForms
                     ->label('Contract Files')
                     ->multiple()
                     ->disk(config('ccrs.contracts_disk', 'database'))
+                    ->visibility('private')
                     ->directory('smart_uploads/pending')
                     ->acceptedFileTypes([
                         'application/pdf',

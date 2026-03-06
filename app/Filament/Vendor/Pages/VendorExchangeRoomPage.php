@@ -104,6 +104,7 @@ class VendorExchangeRoomPage extends Page implements HasTable
                                 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                             ])
                             ->disk(config('ccrs.contracts_disk'))
+                            ->visibility('private')
                             ->directory('exchange_room_uploads')
                             ->maxSize(51200)
                             ->helperText('Optional. Upload a revised document version (max 50 MB).'),

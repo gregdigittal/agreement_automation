@@ -202,6 +202,7 @@ class ContractResource extends Resource
                         ->placeholder('e.g. Master Services Agreement — Acme Corp')
                         ->helperText('A descriptive title for this contract.'),
                     Forms\Components\FileUpload::make('storage_path')->label('Contract File')->disk(config('ccrs.contracts_disk'))->directory('contracts')->columnSpanFull()
+                        ->visibility('private')
                         ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
                         ->maxSize(51200)
                         ->helperText('Upload the contract document (max 50 MB). Accepted formats: PDF, DOCX.')
@@ -482,6 +483,7 @@ class ContractResource extends Resource
                         ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
                         ->maxSize(51200)
                         ->disk(config('ccrs.contracts_disk'))
+                        ->visibility('private')
                         ->directory('side_letters'),
                 ])
                 ->action(function (Contract $record, array $data) {

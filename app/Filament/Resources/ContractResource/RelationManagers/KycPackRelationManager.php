@@ -71,6 +71,7 @@ class KycPackRelationManager extends RelationManager
                                     ->label($record->label)
                                     ->required()
                                     ->disk(config('ccrs.contracts_disk'))
+                                    ->visibility('private')
                                     ->directory('kyc')
                                     ->maxSize(51200)
                                     ->helperText('Upload the required KYC document (max 50 MB).'),

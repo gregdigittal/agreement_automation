@@ -38,7 +38,7 @@ class VendorDocumentResource extends Resource
                 ->helperText('Classify this document so Digittal can process it correctly.'),
             Forms\Components\FileUpload::make('storage_path')->label('Document File')
                 ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png'])
-                ->disk(config('ccrs.contracts_disk'))->directory(fn () => 'vendor_documents/' . $counterpartyId)->maxSize(51200)->required()->live()
+                ->disk(config('ccrs.contracts_disk'))->visibility('private')->directory(fn () => 'vendor_documents/' . $counterpartyId)->maxSize(51200)->required()->live()
                 ->afterStateUpdated(fn ($state, callable $set) => $set('filename', $state ? basename($state) : null))
                 ->helperText('Upload PDF, DOCX, JPEG, or PNG (max 50 MB).'),
             Forms\Components\Hidden::make('filename'),
