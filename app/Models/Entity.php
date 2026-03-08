@@ -44,4 +44,16 @@ class Entity extends Model
             ->withPivot(['license_number', 'license_expiry', 'is_primary'])
             ->withTimestamps();
     }
+
+    /** Entities this entity owns shares in. */
+    public function shareholdingsOwned(): HasMany
+    {
+        return $this->hasMany(EntityShareholding::class, 'owner_entity_id');
+    }
+
+    /** Entities that own shares in this entity. */
+    public function shareholdingsHeld(): HasMany
+    {
+        return $this->hasMany(EntityShareholding::class, 'owned_entity_id');
+    }
 }
