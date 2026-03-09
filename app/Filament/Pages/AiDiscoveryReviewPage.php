@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\AiDiscoveryDraft;
+use App\Models\Contract;
 use App\Services\AiDiscoveryService;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -30,10 +31,23 @@ class AiDiscoveryReviewPage extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->query(AiDiscoveryDraft::query()->where('status', 'pending')->with('contract'))
+            ->query(
+                AiDiscoveryDraft::query()
+                    ->where('status', 'pending')
+                    ->with('contract')
+            )
             ->columns([
-                Tables\Columns\TextColumn::make('contract.title')->limit(30)->sortable(),
-                Tables\Columns\TextColumn::make('draft_type')->badge()
+                Tables\Columns\TextColumn::make('contract.contract_ref')
+                    ->label('Contract Ref')
+                    ->sortable()
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('contract.title')
+                    ->label('Contract Title')
+                    ->limit(30)
+                    ->sortable()
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('draft_type')
+                    ->badge()
                     ->color(fn ($state) => match ($state) {
                         'counterparty' => 'warning',
                         'entity' => 'info',
@@ -63,7 +77,36 @@ class AiDiscoveryReviewPage extends Page implements HasTable
                     ->formatStateUsing(fn ($state) => $state ? 'Existing record' : 'New record')
                     ->badge()
                     ->color(fn ($state) => $state ? 'success' : 'warning'),
-                Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->dateTime()
+                    ->sortable(),
+            ])
+            ->groups([
+                Tables\Grouping\Group::make('contract.contract_ref')
+                    ->label('Contract')
+                    ->collapsible()
+                    ->getTitleFromRecordUsing(
+                        fn (AiDiscoveryDraft $record): string =>
+                            ($record->contract?->contract_ref ?? 'N/A') . ' — ' . ($record->contract?->title ?? 'Untitled')
+                    ),
+            ])
+            ->defaultGroup('contract.contract_ref')
+            ->filters([
+                Tables\Filters\SelectFilter::make('contract_id')
+                    ->label('Contract')
+                    ->options(fn () => Contract::whereHas('aiDiscoveryDrafts', fn ($q) => $q->where('status', 'pending'))
+                        ->get()
+                        ->mapWithKeys(fn (Contract $c) => [$c->id => ($c->contract_ref ?? 'N/A') . ' — ' . $c->title])
+                        ->toArray()
+                    )
+                    ->searchable(),
+                Tables\Filters\SelectFilter::make('draft_type')
+                    ->options([
+                        'counterparty' => 'Counterparty',
+                        'entity' => 'Entity',
+                        'jurisdiction' => 'Jurisdiction',
+                        'governing_law' => 'Governing Law',
+                    ]),
             ])
             ->actions([
                 Tables\Actions\Action::make('approve')
