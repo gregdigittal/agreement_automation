@@ -81,7 +81,7 @@ class ProcessAiAnalysis implements ShouldQueue
                     'region_id' => $contract->region_id,
                     'entity_id' => $contract->entity_id,
                     'counterparty_id' => $contract->counterparty_id,
-                    'existing_entities' => \App\Models\Entity::pluck('name', 'id')->toArray(),
+                    'existing_entities' => \App\Models\Entity::pluck('name', 'id')->take(100)->toArray(),
                     'existing_counterparties' => \App\Models\Counterparty::pluck('legal_name', 'id')->take(100)->toArray(),
                 ],
             );

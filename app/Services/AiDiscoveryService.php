@@ -107,13 +107,28 @@ class AiDiscoveryService
     public function approveDraft(AiDiscoveryDraft $draft, User $actor, ?array $overrides = null): void
     {
         $data = $overrides ?? $draft->extracted_data;
+        $contract = $draft->contract;
+
+        if (! $contract) {
+            Log::warning('AiDiscoveryService: contract deleted before draft approval', [
+                'draft_id' => $draft->id,
+                'contract_id' => $draft->contract_id,
+            ]);
+            $draft->update([
+                'status' => 'rejected',
+                'reviewed_by' => $actor->id,
+                'reviewed_at' => now(),
+            ]);
+
+            return;
+        }
 
         if ($draft->matched_record_id) {
-            $this->linkToContract($draft->contract, $draft->draft_type, $draft->matched_record_id);
+            $this->linkToContract($contract, $draft->draft_type, $draft->matched_record_id);
         } else {
             $newId = $this->createRecord($draft->draft_type, $data);
             if ($newId) {
-                $this->linkToContract($draft->contract, $draft->draft_type, $newId);
+                $this->linkToContract($contract, $draft->draft_type, $newId);
             }
         }
 
@@ -222,7 +237,8 @@ class AiDiscoveryService
             'counterparty' => $contract->update(['counterparty_id' => $recordId]),
             'governing_law' => $contract->update(['governing_law_id' => $recordId]),
             'entity' => $this->linkEntityToContract($contract, $recordId),
-            default => null,
+            'jurisdiction' => $this->linkJurisdictionToContract($contract, $recordId),
+            default => Log::warning("AiDiscoveryService: unhandled draft type '{$type}' in linkToContract"),
         };
     }
 
@@ -239,6 +255,18 @@ class AiDiscoveryService
         $contract->update($updates);
     }
 
+    private function linkJurisdictionToContract(Contract $contract, string $jurisdictionId): void
+    {
+        // Jurisdiction links to entities via entity_jurisdictions pivot, not directly to contracts.
+        // If the contract has an entity, attach the jurisdiction to that entity.
+        if ($contract->entity_id) {
+            $entity = Entity::find($contract->entity_id);
+            if ($entity && method_exists($entity, 'jurisdictions')) {
+                $entity->jurisdictions()->syncWithoutDetaching([$jurisdictionId]);
+            }
+        }
+    }
+
     private function createRecord(string $type, array $data): ?string
     {
         return match ($type) {
@@ -250,6 +278,11 @@ class AiDiscoveryService
                 'status' => 'Active',
             ])->id,
             'governing_law' => GoverningLaw::create([
+                'name' => $data['name'] ?? 'Unknown',
+                'country_code' => $data['country_code'] ?? null,
+                'is_active' => true,
+            ])->id,
+            'jurisdiction' => Jurisdiction::create([
                 'name' => $data['name'] ?? 'Unknown',
                 'country_code' => $data['country_code'] ?? null,
                 'is_active' => true,

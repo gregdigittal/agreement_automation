@@ -12,11 +12,6 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PhpOffice\PhpWord\TemplateProcessor;
 
-/**
- * S3 master DOCX template placeholders (PHPWord): ${vendor_name}, ${merchant_fee},
- * ${effective_date}, ${region_terms}, ${entity_name}, ${project_name},
- * ${signing_authority_name}, ${signing_authority_title}.
- */
 class MerchantAgreementService
 {
     public function generate(Contract $contract, array $inputs, User $actor): array
@@ -86,49 +81,76 @@ class MerchantAgreementService
     }
 
     /**
-     * Generate a filled Merchant Agreement DOCX from the master template.
-     * Downloads template from S3, fills placeholders, uploads to S3, creates Contract.
+     * Generate a filled agreement DOCX from either a wiki template or the master template.
+     * Downloads template, fills placeholders, uploads to S3, creates Contract record.
      */
     public function generateFromAgreement(MerchantAgreement $agreement, User $actor): Contract
     {
         $counterparty = $agreement->counterparty;
+        $agreementType = $agreement->agreement_type ?? 'Merchant';
+
         $signingAuth = SigningAuthority::where('entity_id', $agreement->entity_id)
             ->orderByDesc('created_at')
-            ->firstOrFail();
+            ->first();
 
-        $templateKey = config('ccrs.merchant_agreement_template_key');
-        $tempTemplatePath = tempnam(sys_get_temp_dir(), 'ma_template_') . '.docx';
+        // Resolve template: wiki template first, then fall back to master
+        $templateContent = $this->resolveTemplate($agreement);
 
-        $disk = config('ccrs.contracts_disk', 'database');
-        $templateContent = Storage::disk($disk)->get($templateKey);
-        if (! $templateContent) {
-            throw new \RuntimeException("Master template not found at storage key: {$templateKey}");
-        }
+        $tempTemplatePath = tempnam(sys_get_temp_dir(), 'agr_template_') . '.docx';
         file_put_contents($tempTemplatePath, $templateContent);
 
-        $regionTerms = is_string($agreement->region_terms) ? $agreement->region_terms : (is_array($agreement->region_terms) ? json_encode($agreement->region_terms) : '');
+        $regionTerms = is_string($agreement->region_terms)
+            ? $agreement->region_terms
+            : (is_array($agreement->region_terms) ? json_encode($agreement->region_terms) : '');
 
+        // Build placeholder values — all agreement types share the common set
         $values = [
             'vendor_name'             => $counterparty->legal_name,
-            'merchant_fee'            => number_format((float) ($agreement->merchant_fee ?? 0), 2),
             'effective_date'          => now()->format('d F Y'),
             'region_terms'            => $regionTerms,
             'entity_name'             => $agreement->entity->name ?? '',
             'project_name'            => $agreement->project->name ?? '',
-            'signing_authority_name'  => $signingAuth->role_or_name,
-            'signing_authority_title' => $signingAuth->contract_type_pattern ?? '',
+            'agreement_type'          => $agreementType,
+            'governing_law'           => $agreement->governingLaw?->name ?? '',
+            'description'             => $agreement->description ?? '',
+            'signing_authority_name'  => $signingAuth?->role_or_name ?? '',
+            'signing_authority_title' => $signingAuth?->contract_type_pattern ?? '',
         ];
+
+        // Type-specific placeholders
+        if (strtolower($agreementType) === 'merchant') {
+            $values['merchant_fee'] = number_format((float) ($agreement->merchant_fee ?? 0), 2);
+        }
+
+        // Additional counterparties
+        if (!empty($agreement->additional_counterparty_ids)) {
+            $additionalNames = \App\Models\Counterparty::whereIn('id', $agreement->additional_counterparty_ids)
+                ->pluck('legal_name')
+                ->implode(', ');
+            $values['additional_counterparties'] = $additionalNames;
+        }
+
+        // Jurisdictions
+        if (!empty($agreement->jurisdiction_ids)) {
+            $jurisdictionNames = \App\Models\Jurisdiction::whereIn('id', $agreement->jurisdiction_ids)
+                ->pluck('name')
+                ->implode(', ');
+            $values['jurisdictions'] = $jurisdictionNames;
+        }
 
         $processor = new TemplateProcessor($tempTemplatePath);
         foreach ($values as $key => $value) {
             $processor->setValue($key, htmlspecialchars((string) $value));
         }
 
-        $outputTempPath = tempnam(sys_get_temp_dir(), 'ma_output_') . '.docx';
+        $outputTempPath = tempnam(sys_get_temp_dir(), 'agr_output_') . '.docx';
         $processor->saveAs($outputTempPath);
 
+        $disk = config('ccrs.contracts_disk', 'database');
+        $typeSlug = Str::slug($agreementType, '_');
         $s3OutputKey = sprintf(
-            'merchant_agreements/%s/%s.docx',
+            '%s_agreements/%s/%s.docx',
+            $typeSlug,
             $counterparty->id,
             now()->format('Ymd_His') . '_' . Str::random(6)
         );
@@ -138,12 +160,13 @@ class MerchantAgreementService
         @unlink($outputTempPath);
 
         $contract = new Contract([
-            'title'           => 'Merchant Agreement — ' . $counterparty->legal_name,
-            'contract_type'   => 'Merchant',
+            'title'           => "{$agreementType} Agreement — {$counterparty->legal_name}",
+            'contract_type'   => $agreementType,
             'counterparty_id' => $counterparty->id,
             'region_id'       => $agreement->region_id,
             'entity_id'       => $agreement->entity_id,
             'project_id'      => $agreement->project_id,
+            'governing_law_id' => $agreement->governing_law_id,
             'storage_path'    => $s3OutputKey,
             'created_by'      => $actor->id,
         ]);
@@ -151,14 +174,46 @@ class MerchantAgreementService
         $contract->save();
 
         AuditService::log(
-            action: 'merchant_agreement.generated',
+            action: 'agreement.generated',
             resourceType: 'contract',
             resourceId: $contract->id,
-            details: ['s3_key' => $s3OutputKey, 'counterparty_id' => $counterparty->id],
+            details: [
+                'agreement_type' => $agreementType,
+                's3_key' => $s3OutputKey,
+                'counterparty_id' => $counterparty->id,
+                'template_id' => $agreement->wiki_contract_id,
+            ],
             actor: $actor,
         );
 
         return $contract;
     }
 
+    /**
+     * Resolve the DOCX template content — prefer wiki template, fall back to master.
+     */
+    private function resolveTemplate(MerchantAgreement $agreement): string
+    {
+        $disk = config('ccrs.contracts_disk', 'database');
+
+        // 1. Try wiki template if selected
+        if ($agreement->wiki_contract_id) {
+            $wikiTemplate = WikiContract::find($agreement->wiki_contract_id);
+            if ($wikiTemplate?->storage_path) {
+                $contents = Storage::disk($disk)->get($wikiTemplate->storage_path);
+                if ($contents) {
+                    return $contents;
+                }
+            }
+        }
+
+        // 2. Fall back to master template
+        $templateKey = config('ccrs.merchant_agreement_template_key');
+        $contents = Storage::disk($disk)->get($templateKey);
+        if (! $contents) {
+            throw new \RuntimeException("No template found. Assign a wiki template or configure the master template at storage key: {$templateKey}");
+        }
+
+        return $contents;
+    }
 }

@@ -13,8 +13,52 @@ use Laravel\Scout\Searchable;
 class Contract extends Model
 {
     use HasFactory, HasUuidPrimaryKey, Searchable;
-    protected $fillable = ['region_id', 'entity_id', 'second_entity_id', 'project_id', 'counterparty_id', 'governing_law_id', 'parent_contract_id', 'contract_type', 'title', 'storage_path', 'file_name', 'file_version', 'sharepoint_url', 'sharepoint_version', 'exchange_room_enabled', 'sharepoint_enabled', 'sharepoint_folder_id', 'sharepoint_site_id', 'sharepoint_drive_id', 'expiry_date', 'created_by', 'updated_by', 'is_restricted'];
+    protected $fillable = ['region_id', 'entity_id', 'second_entity_id', 'project_id', 'counterparty_id', 'governing_law_id', 'parent_contract_id', 'contract_type', 'contract_ref', 'title', 'storage_path', 'file_name', 'file_version', 'sharepoint_url', 'sharepoint_version', 'exchange_room_enabled', 'sharepoint_enabled', 'sharepoint_folder_id', 'sharepoint_site_id', 'sharepoint_drive_id', 'expiry_date', 'created_by', 'updated_by', 'is_restricted'];
     protected $casts = ['file_version' => 'integer', 'workflow_state' => 'string', 'signing_status' => 'string', 'expiry_date' => 'date', 'is_restricted' => 'boolean', 'exchange_room_enabled' => 'boolean', 'sharepoint_enabled' => 'boolean'];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Contract $contract) {
+            if (empty($contract->contract_ref)) {
+                $contract->contract_ref = static::generateContractRef($contract->contract_type);
+            }
+        });
+    }
+
+    /**
+     * Generate a human-readable contract reference like COM-2026-0042.
+     */
+    public static function generateContractRef(?string $contractType = null): string
+    {
+        $prefix = static::typePrefix($contractType);
+        $year = now()->format('Y');
+
+        $lastRef = static::where('contract_ref', 'LIKE', "{$prefix}-{$year}-%")
+            ->orderByRaw("CAST(SUBSTRING_INDEX(contract_ref, '-', -1) AS UNSIGNED) DESC")
+            ->value('contract_ref');
+
+        $nextSeq = 1;
+        if ($lastRef) {
+            $parts = explode('-', $lastRef);
+            $nextSeq = ((int) end($parts)) + 1;
+        }
+
+        return sprintf('%s-%s-%04d', $prefix, $year, $nextSeq);
+    }
+
+    private static function typePrefix(?string $contractType): string
+    {
+        if (! $contractType) {
+            return 'CTR';
+        }
+
+        return match (strtolower($contractType)) {
+            'commercial' => 'COM',
+            'merchant' => 'MER',
+            'inter-company' => 'INT',
+            default => strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $contractType), 0, 3)) ?: 'CTR',
+        };
+    }
 
     public function region(): BelongsTo { return $this->belongsTo(Region::class); }
     public function entity(): BelongsTo { return $this->belongsTo(Entity::class); }
@@ -75,6 +119,7 @@ class Contract extends Model
     {
         return [
             'id' => $this->id,
+            'contract_ref' => $this->contract_ref,
             'title' => $this->title,
             'contract_type' => $this->contract_type,
             'workflow_state' => $this->workflow_state,

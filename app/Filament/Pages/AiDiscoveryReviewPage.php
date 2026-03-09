@@ -10,6 +10,7 @@ use Filament\Tables;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Log;
 
 class AiDiscoveryReviewPage extends Page implements HasTable
 {
@@ -42,12 +43,21 @@ class AiDiscoveryReviewPage extends Page implements HasTable
                     }),
                 Tables\Columns\TextColumn::make('extracted_data')
                     ->label('Extracted')
-                    ->formatStateUsing(fn ($state) => collect($state)->map(fn ($v, $k) => "{$k}: {$v}")->take(3)->join(', '))
+                    ->formatStateUsing(function ($state) {
+                        if (! is_array($state)) {
+                            return (string) $state;
+                        }
+
+                        return collect($state)
+                            ->map(fn ($v, $k) => "{$k}: " . (is_array($v) ? json_encode($v) : (string) $v))
+                            ->take(3)
+                            ->join(', ');
+                    })
                     ->limit(60),
                 Tables\Columns\TextColumn::make('confidence')
                     ->badge()
                     ->color(fn ($state) => $state >= 0.8 ? 'success' : ($state >= 0.5 ? 'warning' : 'danger'))
-                    ->formatStateUsing(fn ($state) => round($state * 100) . '%'),
+                    ->formatStateUsing(fn ($state) => round(($state ?? 0) * 100) . '%'),
                 Tables\Columns\TextColumn::make('matched_record_id')
                     ->label('Match')
                     ->formatStateUsing(fn ($state) => $state ? 'Existing record' : 'New record')
@@ -61,25 +71,50 @@ class AiDiscoveryReviewPage extends Page implements HasTable
                     ->color('success')
                     ->requiresConfirmation()
                     ->action(function (AiDiscoveryDraft $record) {
-                        app(AiDiscoveryService::class)->approveDraft($record, auth()->user());
-                        Notification::make()->title('Draft approved')->success()->send();
+                        try {
+                            app(AiDiscoveryService::class)->approveDraft($record, auth()->user());
+                            Notification::make()->title('Draft approved')->success()->send();
+                        } catch (\Exception $e) {
+                            Log::error('AI Discovery approve failed', [
+                                'draft_id' => $record->id,
+                                'error' => $e->getMessage(),
+                            ]);
+                            Notification::make()
+                                ->title('Approval failed')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
                     }),
                 Tables\Actions\Action::make('reject')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
                     ->requiresConfirmation()
                     ->action(function (AiDiscoveryDraft $record) {
-                        app(AiDiscoveryService::class)->rejectDraft($record, auth()->user());
-                        Notification::make()->title('Draft rejected')->warning()->send();
+                        try {
+                            app(AiDiscoveryService::class)->rejectDraft($record, auth()->user());
+                            Notification::make()->title('Draft rejected')->warning()->send();
+                        } catch (\Exception $e) {
+                            Log::error('AI Discovery reject failed', [
+                                'draft_id' => $record->id,
+                                'error' => $e->getMessage(),
+                            ]);
+                            Notification::make()
+                                ->title('Rejection failed')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
                     }),
             ])
             ->defaultSort('created_at', 'desc')
-            ->poll('10s');
+            ->poll('30s');
     }
 
     public static function getNavigationBadge(): ?string
     {
         $count = AiDiscoveryDraft::where('status', 'pending')->count();
+
         return $count > 0 ? (string) $count : null;
     }
 }

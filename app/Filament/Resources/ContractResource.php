@@ -275,6 +275,14 @@ class ContractResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->columns([
+            Tables\Columns\TextColumn::make('contract_ref')
+                ->label('Ref')
+                ->searchable()
+                ->sortable()
+                ->copyable()
+                ->tooltip('Click to copy reference')
+                ->weight('bold')
+                ->color('primary'),
             Tables\Columns\TextColumn::make('title')->searchable()->sortable()->limit(40),
             Tables\Columns\TextColumn::make('contract_type')->badge(),
             Tables\Columns\TextColumn::make('workflow_state')->badge()->description('Current lifecycle stage')->color(fn ($state) => match($state) { 'staging' => 'purple', 'draft' => 'gray', 'review' => 'warning', 'approval' => 'info', 'signing' => 'primary', 'countersign' => 'warning', 'executed' => 'success', 'archived' => 'gray', default => 'gray' }),
@@ -304,6 +312,20 @@ class ContractResource extends Resource
                 ->toggleable(isToggledHiddenByDefault: true),
         ])
         ->filters([
+            Tables\Filters\SelectFilter::make('contract')
+                ->label('Contract')
+                ->options(fn () => Contract::query()
+                    ->orderByDesc('created_at')
+                    ->limit(200)
+                    ->get()
+                    ->mapWithKeys(fn (Contract $c) => [
+                        $c->id => ($c->contract_ref ? "{$c->contract_ref} — " : '') . ($c->title ?? 'Untitled'),
+                    ])
+                    ->toArray()
+                )
+                ->searchable()
+                ->query(fn (Builder $query, array $data) => $query->when($data['value'], fn (Builder $q, $id) => $q->where('contracts.id', $id)))
+                ->placeholder('Filter by contract...'),
             Tables\Filters\SelectFilter::make('contract_type')->options(ContractType::options()),
             Tables\Filters\SelectFilter::make('workflow_state')->options([
                 'staging' => 'Staging', 'draft' => 'Draft', 'review' => 'Review', 'approval' => 'Approval',
@@ -720,15 +742,23 @@ class ContractResource extends Resource
 
     public static function getGlobalSearchResultTitle(Model $record): string
     {
-        return $record->title ?? $record->id;
+        $ref = $record->contract_ref ? "[{$record->contract_ref}] " : '';
+
+        return $ref . ($record->title ?? 'Untitled');
     }
 
     public static function getGlobalSearchResultDetails(Model $record): array
     {
         return [
+            'Ref' => $record->contract_ref,
             'Type' => $record->contract_type,
             'State' => $record->workflow_state,
         ];
+    }
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['title', 'contract_ref', 'contract_type'];
     }
 
     public static function getGlobalSearchResultUrl(Model $record): string
