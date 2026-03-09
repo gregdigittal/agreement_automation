@@ -18,10 +18,10 @@ class AiDiscoveryTest extends TestCase
 
     private function makeContract(): Contract
     {
-        $region = Region::create(['name' => 'UAE', 'code' => 'AE']);
-        $entity = Entity::create(['name' => 'Digittal FZ-LLC', 'code' => 'DGT-AE', 'region_id' => $region->id]);
-        $project = Project::create(['name' => 'Test Project', 'code' => 'TP', 'entity_id' => $entity->id]);
-        $cp = Counterparty::create(['legal_name' => 'Acme Corp', 'registration_number' => 'REG-123', 'status' => 'Active']);
+        $region = Region::firstOrCreate(['code' => 'AE'], ['name' => 'UAE']);
+        $entity = Entity::firstOrCreate(['code' => 'DGT-AE'], ['name' => 'Digittal FZ-LLC', 'region_id' => $region->id]);
+        $project = Project::create(['name' => 'Test Project', 'code' => 'TP-' . uniqid(), 'entity_id' => $entity->id]);
+        $cp = Counterparty::firstOrCreate(['registration_number' => 'REG-123'], ['legal_name' => 'Acme Corp', 'status' => 'Active']);
         $contract = new Contract([
             'title' => 'Test Contract',
             'contract_type' => 'Commercial',

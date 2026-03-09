@@ -34,7 +34,7 @@ class Contract extends Model
         $year = now()->format('Y');
 
         $lastRef = static::where('contract_ref', 'LIKE', "{$prefix}-{$year}-%")
-            ->orderByRaw("CAST(SUBSTRING_INDEX(contract_ref, '-', -1) AS UNSIGNED) DESC")
+            ->orderBy('contract_ref', 'desc')
             ->value('contract_ref');
 
         $nextSeq = 1;

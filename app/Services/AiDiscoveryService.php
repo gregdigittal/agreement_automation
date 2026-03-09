@@ -19,12 +19,21 @@ class AiDiscoveryService
      */
     public function processDiscoveryResults(Contract $contract, string $analysisId, array $discoveries): void
     {
+        $created = 0;
+        $skipped = 0;
+
         foreach ($discoveries as $discovery) {
             $type = $discovery['type'] ?? null;
             $data = $discovery['data'] ?? [];
             $confidence = $discovery['confidence'] ?? 0.0;
 
             if (! $type || empty($data)) {
+                continue;
+            }
+
+            // Dedup: skip if an identical pending draft already exists for this contract
+            if ($this->isDuplicatePending($contract->id, $type, $data)) {
+                $skipped++;
                 continue;
             }
 
@@ -40,9 +49,41 @@ class AiDiscoveryService
                 'confidence' => $confidence,
                 'status' => 'pending',
             ]);
+
+            $created++;
         }
 
-        Log::info("AI discovery created " . count($discoveries) . " drafts for contract {$contract->id}");
+        Log::info("AI discovery: created {$created}, skipped {$skipped} duplicates for contract {$contract->id}");
+    }
+
+    /**
+     * Check if a pending draft with the same identity fields already exists.
+     */
+    private function isDuplicatePending(string $contractId, string $type, array $data): bool
+    {
+        // Determine the primary key to match on
+        $nameValue = match ($type) {
+            'counterparty' => $data['legal_name'] ?? null,
+            'entity' => $data['name'] ?? null,
+            'jurisdiction' => $data['name'] ?? null,
+            'governing_law' => $data['name'] ?? null,
+            default => null,
+        };
+
+        if (! $nameValue) {
+            return false;
+        }
+
+        $jsonKey = match ($type) {
+            'counterparty' => 'legal_name',
+            default => 'name',
+        };
+
+        return AiDiscoveryDraft::where('contract_id', $contractId)
+            ->where('draft_type', $type)
+            ->where('status', 'pending')
+            ->whereRaw("json_extract(extracted_data, ?) = ?", ['$.' . $jsonKey, $nameValue])
+            ->exists();
     }
 
     private function findMatch(string $type, array $data): array
