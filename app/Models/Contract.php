@@ -13,7 +13,7 @@ use Laravel\Scout\Searchable;
 class Contract extends Model
 {
     use HasFactory, HasUuidPrimaryKey, Searchable;
-    protected $fillable = ['region_id', 'entity_id', 'second_entity_id', 'project_id', 'counterparty_id', 'governing_law_id', 'parent_contract_id', 'contract_type', 'contract_ref', 'title', 'storage_path', 'file_name', 'file_version', 'sharepoint_url', 'sharepoint_version', 'exchange_room_enabled', 'sharepoint_enabled', 'sharepoint_folder_id', 'sharepoint_site_id', 'sharepoint_drive_id', 'expiry_date', 'created_by', 'updated_by', 'is_restricted'];
+    protected $fillable = ['region_id', 'entity_id', 'second_entity_id', 'project_id', 'counterparty_id', 'governing_law_id', 'parent_contract_id', 'contract_type', 'contract_ref', 'title', 'storage_path', 'file_name', 'file_version', 'file_hash', 'sharepoint_url', 'sharepoint_version', 'exchange_room_enabled', 'sharepoint_enabled', 'sharepoint_folder_id', 'sharepoint_site_id', 'sharepoint_drive_id', 'expiry_date', 'created_by', 'updated_by', 'is_restricted'];
     protected $casts = ['file_version' => 'integer', 'workflow_state' => 'string', 'signing_status' => 'string', 'expiry_date' => 'date', 'is_restricted' => 'boolean', 'exchange_room_enabled' => 'boolean', 'sharepoint_enabled' => 'boolean'];
 
     protected static function booted(): void
@@ -79,6 +79,7 @@ class Contract extends Model
     public function renewals() { return $this->childLinks()->where('link_type', 'renewal')->with('childContract'); }
     public function sideLetters() { return $this->childLinks()->where('link_type', 'side_letter')->with('childContract'); }
     public function aiAnalyses(): HasMany { return $this->hasMany(AiAnalysisResult::class); }
+    public function aiDiscoveryDrafts(): HasMany { return $this->hasMany(AiDiscoveryDraft::class); }
     public function boldsignEnvelopes(): HasMany { return $this->hasMany(BoldsignEnvelope::class); }
     public function workflowInstances(): HasMany { return $this->hasMany(WorkflowInstance::class); }
     public function activeWorkflowInstance(): \Illuminate\Database\Eloquent\Relations\HasOne { return $this->hasOne(WorkflowInstance::class)->where('state', 'active'); }
