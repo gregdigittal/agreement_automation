@@ -373,6 +373,22 @@ class ContractResource extends Resource
                     }
                     $types = $data['analysis_types'] ?? [];
 
+                    // Warn if pending discoveries already exist
+                    if (in_array('discovery', $types)) {
+                        $pendingCount = \App\Models\AiDiscoveryDraft::where('contract_id', $record->id)
+                            ->where('status', 'pending')
+                            ->count();
+
+                        if ($pendingCount > 0) {
+                            Notification::make()
+                                ->title('Existing discoveries detected')
+                                ->body("This contract already has {$pendingCount} pending discovery draft(s) in the review queue. Re-running will not create duplicates.")
+                                ->warning()
+                                ->persistent()
+                                ->send();
+                        }
+                    }
+
                     \Illuminate\Support\Facades\Log::info('AI Analysis dispatch: starting', [
                         'contract_id' => $record->id,
                         'types' => $types,
