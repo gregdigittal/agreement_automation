@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use App\Traits\HasUuidPrimaryKey;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AiDiscoveryDraft extends Model
 {
-    use HasUuidPrimaryKey;
+    use HasFactory, HasUuidPrimaryKey;
 
     protected $fillable = [
         'contract_id', 'analysis_id', 'draft_type', 'extracted_data',
