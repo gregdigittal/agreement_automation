@@ -206,12 +206,42 @@ class ContractResource extends Resource
                         ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
                         ->maxSize(51200)
                         ->helperText('Upload the contract document (max 50 MB). Accepted formats: PDF, DOCX.')
-                        ->afterStateUpdated(function ($state, Set $set) {
+                        ->afterStateUpdated(function ($state, Set $set, $livewire) {
                             if ($state instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
-                                $set('file_name', $state->getClientOriginalName());
+                                $fileName = $state->getClientOriginalName();
+                                $set('file_name', $fileName);
+
+                                // Compute SHA-256 hash
+                                $hash = hash_file('sha256', $state->getRealPath());
+                                $set('file_hash', $hash);
+
+                                // Check for duplicate contracts
+                                $query = Contract::query();
+                                $query->where(function ($q) use ($hash, $fileName) {
+                                    $q->where('file_hash', $hash)
+                                      ->orWhere('file_name', $fileName);
+                                });
+
+                                // Exclude current record when editing
+                                if (isset($livewire->record) && $livewire->record?->id) {
+                                    $query->where('id', '!=', $livewire->record->id);
+                                }
+
+                                $duplicates = $query->limit(5)->get(['id', 'title', 'contract_ref', 'file_name', 'created_at']);
+
+                                if ($duplicates->isNotEmpty()) {
+                                    $details = $duplicates->map(fn ($c) => "• {$c->contract_ref}: {$c->title} ({$c->file_name})")->join("\n");
+                                    Notification::make()
+                                        ->title('Duplicate contract suspected')
+                                        ->body("The uploaded file matches {$duplicates->count()} existing contract(s):\n{$details}\n\nAre you sure you wish to proceed?")
+                                        ->warning()
+                                        ->persistent()
+                                        ->send();
+                                }
                             }
                         }),
                     Forms\Components\Hidden::make('file_name'),
+                    Forms\Components\Hidden::make('file_hash'),
                 ]),
             Forms\Components\Section::make('Collaboration')
                 ->description('Enable collaboration tools for document negotiation with counterparties.')
