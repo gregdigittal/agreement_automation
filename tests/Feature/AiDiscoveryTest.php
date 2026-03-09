@@ -117,4 +117,122 @@ class AiDiscoveryTest extends TestCase
         $this->assertEquals('rejected', $draft->fresh()->status);
         $this->assertDatabaseMissing('counterparties', ['legal_name' => 'Suspicious Corp']);
     }
+
+    public function test_duplicate_counterparty_discovery_is_not_created(): void
+    {
+        $contract = $this->makeContract();
+        $service = new AiDiscoveryService();
+
+        // First discovery run
+        $service->processDiscoveryResults($contract, 'analysis-1', [
+            [
+                'type' => 'counterparty',
+                'confidence' => 0.9,
+                'data' => ['legal_name' => 'Acme Corp', 'registration_number' => 'REG-123'],
+            ],
+        ]);
+
+        $this->assertDatabaseCount('ai_discovery_drafts', 1);
+
+        // Second discovery run with identical counterparty
+        $service->processDiscoveryResults($contract, 'analysis-2', [
+            [
+                'type' => 'counterparty',
+                'confidence' => 0.95,
+                'data' => ['legal_name' => 'Acme Corp', 'registration_number' => 'REG-123'],
+            ],
+        ]);
+
+        // Should still be 1 — duplicate was skipped
+        $this->assertDatabaseCount('ai_discovery_drafts', 1);
+    }
+
+    public function test_different_counterparty_discovery_is_created(): void
+    {
+        $contract = $this->makeContract();
+        $service = new AiDiscoveryService();
+
+        $service->processDiscoveryResults($contract, 'analysis-1', [
+            [
+                'type' => 'counterparty',
+                'confidence' => 0.9,
+                'data' => ['legal_name' => 'Acme Corp', 'registration_number' => 'REG-123'],
+            ],
+        ]);
+
+        // Different counterparty
+        $service->processDiscoveryResults($contract, 'analysis-2', [
+            [
+                'type' => 'counterparty',
+                'confidence' => 0.85,
+                'data' => ['legal_name' => 'Beta LLC', 'registration_number' => 'REG-999'],
+            ],
+        ]);
+
+        $this->assertDatabaseCount('ai_discovery_drafts', 2);
+    }
+
+    public function test_duplicate_jurisdiction_discovery_is_not_created(): void
+    {
+        $contract = $this->makeContract();
+        $service = new AiDiscoveryService();
+
+        $service->processDiscoveryResults($contract, 'analysis-1', [
+            ['type' => 'jurisdiction', 'confidence' => 0.8, 'data' => ['name' => 'DIFC']],
+        ]);
+
+        $service->processDiscoveryResults($contract, 'analysis-2', [
+            ['type' => 'jurisdiction', 'confidence' => 0.9, 'data' => ['name' => 'DIFC']],
+        ]);
+
+        $this->assertDatabaseCount('ai_discovery_drafts', 1);
+    }
+
+    public function test_approved_draft_does_not_block_new_discovery(): void
+    {
+        $contract = $this->makeContract();
+        $service = new AiDiscoveryService();
+
+        // First run
+        $service->processDiscoveryResults($contract, 'analysis-1', [
+            [
+                'type' => 'counterparty',
+                'confidence' => 0.9,
+                'data' => ['legal_name' => 'Acme Corp', 'registration_number' => 'REG-123'],
+            ],
+        ]);
+
+        // Approve the draft
+        $draft = AiDiscoveryDraft::first();
+        $admin = \App\Models\User::factory()->create();
+        $service->approveDraft($draft, $admin);
+
+        // Second run with same data — should create new draft since first is approved
+        $service->processDiscoveryResults($contract, 'analysis-2', [
+            [
+                'type' => 'counterparty',
+                'confidence' => 0.95,
+                'data' => ['legal_name' => 'Acme Corp', 'registration_number' => 'REG-123'],
+            ],
+        ]);
+
+        $this->assertDatabaseCount('ai_discovery_drafts', 2);
+    }
+
+    public function test_duplicate_across_different_contracts_is_allowed(): void
+    {
+        $contract1 = $this->makeContract();
+        $contract2 = $this->makeContract();
+        $service = new AiDiscoveryService();
+
+        $discovery = [
+            ['type' => 'counterparty', 'confidence' => 0.9, 'data' => ['legal_name' => 'Acme Corp']],
+        ];
+
+        $service->processDiscoveryResults($contract1, 'analysis-1', $discovery);
+        $service->processDiscoveryResults($contract2, 'analysis-2', $discovery);
+
+        // Different contracts — both should be created
+        $this->assertDatabaseCount('ai_discovery_drafts', 2);
+    }
 }
