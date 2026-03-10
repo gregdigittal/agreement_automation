@@ -315,8 +315,14 @@ class AiDiscoveryService
                 'legal_name' => $data['legal_name'] ?? 'Unknown',
                 'registration_number' => $data['registration_number'] ?? null,
                 'jurisdiction' => $data['jurisdiction'] ?? null,
-                'registered_address' => $data['registered_address'] ?? null,
+                'address' => $data['registered_address'] ?? null,
                 'status' => 'Active',
+            ])->id,
+            'entity' => Entity::create([
+                'legal_name' => $data['legal_name'] ?? 'Unknown',
+                'name' => $data['name'] ?? $data['legal_name'] ?? 'Unknown',
+                'registration_number' => $data['registration_number'] ?? null,
+                'registered_address' => $data['registered_address'] ?? null,
             ])->id,
             'governing_law' => GoverningLaw::create([
                 'name' => $data['name'] ?? 'Unknown',
