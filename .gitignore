@@ -41,6 +41,8 @@ coverage/
 /vendor/
 node_modules/
 public/build/
+database/*.sqlite
+database/*.sqlite-journal
 storage/app/public/
 storage/framework/cache/
 storage/framework/sessions/
