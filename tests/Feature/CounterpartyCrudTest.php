@@ -116,3 +116,43 @@ it('audit user cannot create counterparties', function () {
 
     $this->get('/admin/counterparties/create')->assertForbidden();
 });
+
+it('legal user can create counterparties', function () {
+    $legal = User::factory()->create();
+    $legal->assignRole('legal');
+    $this->actingAs($legal);
+
+    $this->get('/admin/counterparties/create')->assertSuccessful();
+});
+
+it('finance user cannot create counterparties', function () {
+    $finance = User::factory()->create();
+    $finance->assignRole('finance');
+    $this->actingAs($finance);
+
+    $this->get('/admin/counterparties/create')->assertForbidden();
+});
+
+it('operations user cannot create counterparties', function () {
+    $operations = User::factory()->create();
+    $operations->assignRole('operations');
+    $this->actingAs($operations);
+
+    $this->get('/admin/counterparties/create')->assertForbidden();
+});
+
+it('system_admin can delete a counterparty', function () {
+    $cp = Counterparty::create(['legal_name' => 'Delete Me Corp', 'status' => 'Active']);
+
+    expect(\App\Filament\Resources\CounterpartyResource::canDelete($cp))->toBeTrue();
+});
+
+it('commercial user cannot delete a counterparty', function () {
+    $commercial = User::factory()->create();
+    $commercial->assignRole('commercial');
+    $this->actingAs($commercial);
+
+    $cp = Counterparty::create(['legal_name' => 'Cannot Delete Corp', 'status' => 'Active']);
+
+    expect(\App\Filament\Resources\CounterpartyResource::canDelete($cp))->toBeFalse();
+});

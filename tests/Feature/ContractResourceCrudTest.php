@@ -133,3 +133,83 @@ it('finance user cannot create contracts', function () {
 
     $this->get('/admin/contracts/create')->assertForbidden();
 });
+
+it('legal user can create and edit contracts', function () {
+    $legal = User::factory()->create();
+    $legal->assignRole('legal');
+    $this->actingAs($legal);
+
+    $this->get('/admin/contracts/create')->assertSuccessful();
+
+    $contract = Contract::create([
+        'region_id' => $this->region->id,
+        'entity_id' => $this->entity->id,
+        'project_id' => $this->project->id,
+        'counterparty_id' => $this->counterparty->id,
+        'contract_type' => 'Commercial',
+        'title' => 'Legal Created',
+        'workflow_state' => 'draft',
+    ]);
+
+    $this->get("/admin/contracts/{$contract->id}/edit")->assertSuccessful();
+});
+
+it('audit user can view contract list but not create or edit', function () {
+    $audit = User::factory()->create();
+    $audit->assignRole('audit');
+    $this->actingAs($audit);
+
+    $this->get('/admin/contracts')->assertSuccessful();
+    $this->get('/admin/contracts/create')->assertForbidden();
+});
+
+it('system_admin cannot delete an executed contract', function () {
+    $contract = Contract::create([
+        'region_id' => $this->region->id,
+        'entity_id' => $this->entity->id,
+        'project_id' => $this->project->id,
+        'counterparty_id' => $this->counterparty->id,
+        'contract_type' => 'Commercial',
+        'title' => 'Executed Contract',
+    ]);
+
+    // workflow_state is not in $fillable — set directly to simulate a fully executed contract
+    \Illuminate\Support\Facades\DB::table('contracts')
+        ->where('id', $contract->id)
+        ->update(['workflow_state' => 'executed']);
+
+    $contract->refresh();
+
+    expect(\App\Filament\Resources\ContractResource::canDelete($contract))->toBeFalse();
+});
+
+it('system_admin can delete a draft contract', function () {
+    $contract = Contract::create([
+        'region_id' => $this->region->id,
+        'entity_id' => $this->entity->id,
+        'project_id' => $this->project->id,
+        'counterparty_id' => $this->counterparty->id,
+        'contract_type' => 'Commercial',
+        'title' => 'Draft Contract',
+        'workflow_state' => 'draft',
+    ]);
+
+    expect(\App\Filament\Resources\ContractResource::canDelete($contract))->toBeTrue();
+});
+
+it('legal user cannot delete any contract', function () {
+    $legal = User::factory()->create();
+    $legal->assignRole('legal');
+    $this->actingAs($legal);
+
+    $contract = Contract::create([
+        'region_id' => $this->region->id,
+        'entity_id' => $this->entity->id,
+        'project_id' => $this->project->id,
+        'counterparty_id' => $this->counterparty->id,
+        'contract_type' => 'Commercial',
+        'title' => 'Legal Cannot Delete',
+    ]);
+
+    expect(\App\Filament\Resources\ContractResource::canDelete($contract))->toBeFalse();
+});
