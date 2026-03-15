@@ -23,10 +23,12 @@ Route::get('/health/ready', function () {
 })->name('health.ready');
 
 // Database file storage — signed URL serving (replaces S3 pre-signed URLs)
-// Requires authentication on either guard; authorization is enforced inside the controller.
+// Signed URL is the first gate. Per-path authorization (contract access, vendor guard)
+// is enforced inside StorageServeController::authorise() — not here — so that non-contract
+// paths (e.g. bulk export files) work with a signed URL alone.
 Route::get('/storage/serve/{path}', \App\Http\Controllers\StorageServeController::class)
     ->where('path', '.*')
-    ->middleware(['signed', 'auth:web,vendor'])
+    ->middleware(['signed'])
     ->name('storage.serve');
 
 Route::get('/', function () {
