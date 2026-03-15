@@ -65,7 +65,6 @@ class UserResource extends Resource
                         ->revealable()
                         ->minLength(8)
                         ->dehydrated(fn (?string $state): bool => filled($state))
-                        ->required(fn (string $operation): bool => $operation === 'create')
                         ->label('Password'),
                     Forms\Components\TextInput::make('password_confirmation')
                         ->password()

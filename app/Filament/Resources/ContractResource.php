@@ -349,7 +349,7 @@ class ContractResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('contract')
                     ->label('Contract')
-                    ->options(fn () => Contract::query()
+                    ->options(fn () => static::getEloquentQuery()
                         ->orderByDesc('created_at')
                         ->limit(200)
                         ->get()
