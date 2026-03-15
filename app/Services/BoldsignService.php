@@ -16,22 +16,34 @@ use Illuminate\Support\Facades\Storage;
  * disabled. This class is retained for backward-compatibility with deployments
  * that still rely on BoldSign while transitioning to in-house signing.
  *
+ * All public signing methods guard against accidental use when in-house signing
+ * is active — they throw \RuntimeException immediately if called in that mode.
  * @see \App\Services\SigningService
  * @see \App\Helpers\Feature::inHouseSigning()
  */
 class BoldsignService
 {
+    private function assertNotInHouseSigning(): void
+    {
+        if (\App\Helpers\Feature::inHouseSigning()) {
+            throw new \RuntimeException(
+                'BoldsignService cannot be used when in-house signing is enabled (FEATURE_IN_HOUSE_SIGNING=true). Use SigningService instead.'
+            );
+        }
+    }
+
     public function sendToSign(Contract $contract, array $signers, string $signingOrder = 'sequential'): BoldsignEnvelope
     {
+        $this->assertNotInHouseSigning();
         $response = Http::withToken(config('ccrs.boldsign_api_key'))
-            ->post(config('ccrs.boldsign_api_url') . '/v1/document/send', [
+            ->post(config('ccrs.boldsign_api_url').'/v1/document/send', [
                 'title' => $contract->title ?? 'Contract',
                 'signerDetails' => $signers,
                 'signingOrder' => $signingOrder,
             ]);
 
-        if (!$response->successful()) {
-            throw new \RuntimeException('Boldsign API error: ' . $response->body());
+        if (! $response->successful()) {
+            throw new \RuntimeException('Boldsign API error: '.$response->body());
         }
 
         $documentId = $response->json('documentId');
@@ -61,19 +73,24 @@ class BoldsignService
     public function getSigningStatus(string $documentId): array
     {
         $response = Http::withToken(config('ccrs.boldsign_api_key'))
-            ->get(config('ccrs.boldsign_api_url') . '/v1/document/properties', [
+            ->get(config('ccrs.boldsign_api_url').'/v1/document/properties', [
                 'documentId' => $documentId,
             ]);
+
         return $response->successful() ? $response->json() : [];
     }
 
     public function handleWebhook(array $payload): void
     {
         $documentId = $payload['documentId'] ?? $payload['DocumentId'] ?? null;
-        if (!$documentId) return;
+        if (! $documentId) {
+            return;
+        }
 
         $envelope = BoldsignEnvelope::where('boldsign_document_id', $documentId)->first();
-        if (!$envelope) return;
+        if (! $envelope) {
+            return;
+        }
 
         $status = $payload['event'] ?? $payload['Event'] ?? $payload['status'] ?? 'unknown';
         $statusMap = [
@@ -108,13 +125,15 @@ class BoldsignService
      */
     public function createCountersignEnvelope(Contract $contract, array $internalSigners): BoldsignEnvelope
     {
+        $this->assertNotInHouseSigning();
+
         $storagePath = $contract->storage_path;
-        if (!$storagePath) {
+        if (! $storagePath) {
             throw new \RuntimeException("Contract {$contract->id} has no uploaded document to countersign.");
         }
 
         $documentContents = Storage::disk(config('ccrs.contracts_disk', 'database'))->get($storagePath);
-        if (!$documentContents) {
+        if (! $documentContents) {
             throw new \RuntimeException("Failed to download document from storage: {$storagePath}");
         }
 
@@ -127,15 +146,15 @@ class BoldsignService
 
         $response = Http::withToken(config('ccrs.boldsign_api_key'))
             ->attach('Files', $documentContents, basename($storagePath))
-            ->post(config('ccrs.boldsign_api_url') . '/v1/document/send', [
-                'title' => "Countersign: " . ($contract->title ?? 'Contract'),
+            ->post(config('ccrs.boldsign_api_url').'/v1/document/send', [
+                'title' => 'Countersign: '.($contract->title ?? 'Contract'),
                 'signers' => $signers,
                 'enableSigningOrder' => true,
                 'message' => 'Please countersign this contract on behalf of Digittal.',
             ]);
 
-        if (!$response->successful()) {
-            throw new \RuntimeException('BoldSign API error creating countersign envelope: ' . $response->body());
+        if (! $response->successful()) {
+            throw new \RuntimeException('BoldSign API error creating countersign envelope: '.$response->body());
         }
 
         $data = $response->json();
@@ -167,6 +186,7 @@ class BoldsignService
             return false;
         }
         $expected = hash_hmac('sha256', $rawBody, $secret);
+
         return hash_equals($expected, $signature);
     }
 }

@@ -25,13 +25,17 @@ use Illuminate\Database\Eloquent\Model;
 class ContractResource extends Resource
 {
     protected static ?string $model = Contract::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
+
     protected static ?string $navigationGroup = 'Contracts';
+
     protected static ?int $navigationSort = 1;
 
     public static function getNavigationBadge(): ?string
     {
         $count = static::getModel()::whereIn('workflow_state', ['review', 'approval', 'staging'])->count();
+
         return $count > 0 ? (string) $count : null;
     }
 
@@ -46,11 +50,11 @@ class ContractResource extends Resource
             ->with(['counterparty', 'region', 'entity', 'secondEntity', 'project']);
 
         $user = auth()->user();
-        if ($user && !$user->hasRole('system_admin')) {
+        if ($user && ! $user->hasRole('system_admin')) {
             $userId = $user->id;
             $query->where(function (Builder $q) use ($userId) {
                 $q->where('is_restricted', false)
-                  ->orWhereHas('authorizedUsers', fn (Builder $sub) => $sub->where('users.id', $userId));
+                    ->orWhereHas('authorizedUsers', fn (Builder $sub) => $sub->where('users.id', $userId));
             });
         }
 
@@ -65,7 +69,7 @@ class ContractResource extends Resource
                 ->schema([
                     Forms\Components\Placeholder::make('parent_link_info')
                         ->label('')
-                        ->content(fn (Contract $record) => $record->parentLinks->first() ? 'Link type: ' . $record->parentLinks->first()->link_type . ' | Parent: ' . ($record->parentLinks->first()->parentContract?->title ?? $record->parentLinks->first()->parent_contract_id) : ''),
+                        ->content(fn (Contract $record) => $record->parentLinks->first() ? 'Link type: '.$record->parentLinks->first()->link_type.' | Parent: '.($record->parentLinks->first()->parentContract?->title ?? $record->parentLinks->first()->parent_contract_id) : ''),
                 ])
                 ->columns(1),
             Forms\Components\Section::make('Contract Details')
@@ -219,7 +223,7 @@ class ContractResource extends Resource
                                 $query = Contract::query();
                                 $query->where(function ($q) use ($hash, $fileName) {
                                     $q->where('file_hash', $hash)
-                                      ->orWhere('file_name', $fileName);
+                                        ->orWhere('file_name', $fileName);
                                 });
 
                                 // Exclude current record when editing
@@ -297,9 +301,8 @@ class ContractResource extends Resource
                         ->visible(fn (Forms\Get $get): bool => (bool) $get('is_restricted'))
                         ->helperText('Select users who should have access to this restricted contract.'),
                 ]),
-        ])->disabled(fn (?Contract $record): bool =>
-        $record !== null && in_array($record->workflow_state, ['executed', 'archived'])
-    );
+        ])->disabled(fn (?Contract $record): bool => $record !== null && in_array($record->workflow_state, ['executed', 'archived'])
+        );
     }
 
     public static function table(Table $table): Table
@@ -315,14 +318,16 @@ class ContractResource extends Resource
                 ->color('primary'),
             Tables\Columns\TextColumn::make('title')->searchable()->sortable()->limit(40),
             Tables\Columns\TextColumn::make('contract_type')->badge(),
-            Tables\Columns\TextColumn::make('workflow_state')->badge()->description('Current lifecycle stage')->color(fn ($state) => match($state) { 'staging' => 'purple', 'draft' => 'gray', 'review' => 'warning', 'approval' => 'info', 'signing' => 'primary', 'countersign' => 'warning', 'executed' => 'success', 'archived' => 'gray', default => 'gray' }),
+            Tables\Columns\TextColumn::make('workflow_state')->badge()->description('Current lifecycle stage')->color(fn ($state) => match ($state) {
+                'staging' => 'purple', 'draft' => 'gray', 'review' => 'warning', 'approval' => 'info', 'signing' => 'primary', 'countersign' => 'warning', 'executed' => 'success', 'archived' => 'gray', default => 'gray'
+            }),
             Tables\Columns\TextColumn::make('counterparty.legal_name')->sortable()->limit(30)->placeholder('—')->toggleable(),
             Tables\Columns\TextColumn::make('region.name')->sortable(),
             Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
             Tables\Columns\TextColumn::make('languages_count')->badge()
                 ->label('Languages')
                 ->counts('languages')
-                
+
                 ->color('gray')
                 ->toggleable(isToggledHiddenByDefault: true),
             Tables\Columns\IconColumn::make('sharepoint_url')
@@ -341,376 +346,384 @@ class ContractResource extends Resource
                 ->falseColor('gray')
                 ->toggleable(isToggledHiddenByDefault: true),
         ])
-        ->filters([
-            Tables\Filters\SelectFilter::make('contract')
-                ->label('Contract')
-                ->options(fn () => Contract::query()
-                    ->orderByDesc('created_at')
-                    ->limit(200)
-                    ->get()
-                    ->mapWithKeys(fn (Contract $c) => [
-                        $c->id => ($c->contract_ref ? "{$c->contract_ref} — " : '') . ($c->title ?? 'Untitled'),
-                    ])
-                    ->toArray()
-                )
-                ->searchable()
-                ->query(fn (Builder $query, array $data) => $query->when($data['value'], fn (Builder $q, $id) => $q->where('contracts.id', $id)))
-                ->placeholder('Filter by contract...'),
-            Tables\Filters\SelectFilter::make('contract_type')->options(ContractType::options()),
-            Tables\Filters\SelectFilter::make('workflow_state')->options([
-                'staging' => 'Staging', 'draft' => 'Draft', 'review' => 'Review', 'approval' => 'Approval',
-                'signing' => 'Signing', 'countersign' => 'Countersign', 'executed' => 'Executed', 'archived' => 'Archived',
-            ]),
-            Tables\Filters\SelectFilter::make('region_id')->relationship('region', 'name'),
-        ])
-        ->actions([
-            Tables\Actions\EditAction::make()
-                ->visible(fn (Contract $record): bool => ! in_array($record->workflow_state, ['executed', 'completed'])),
-            Tables\Actions\Action::make('download')
-                ->icon('heroicon-o-arrow-down-tray')
-                ->url(fn (Contract $record) => $record->storage_path ? app(\App\Services\ContractFileService::class)->getSignedUrl($record->storage_path) : null)
-                ->openUrlInNewTab()
-                ->visible(fn (Contract $record) => (bool) $record->storage_path),
-            Tables\Actions\Action::make('trigger_ai_analysis')
-                ->label('AI Analysis')
-                ->icon('heroicon-o-cpu-chip')
-                ->color('info')
-                ->modalHeading('Run AI Analysis')
-                ->modalDescription('Select one or more analysis types to run. Results appear in the AI tabs and Discovery Review page.')
-                ->form([
-                    Forms\Components\CheckboxList::make('analysis_types')
-                        ->label('Analysis Types')
-                        ->options([
-                            'summary' => 'Summary — overall contract synopsis',
-                            'extraction' => 'Field Extraction — key terms, dates & values',
-                            'risk' => 'Risk Assessment — risk scores & red flags',
-                            'deviation' => 'Template Deviation — compare against standard templates',
-                            'obligations' => 'Obligations Register — deadlines & responsibilities',
-                            'discovery' => 'Auto-Discovery — extract counterparties, jurisdictions & governing law',
+            ->filters([
+                Tables\Filters\SelectFilter::make('contract')
+                    ->label('Contract')
+                    ->options(fn () => Contract::query()
+                        ->orderByDesc('created_at')
+                        ->limit(200)
+                        ->get()
+                        ->mapWithKeys(fn (Contract $c) => [
+                            $c->id => ($c->contract_ref ? "{$c->contract_ref} — " : '').($c->title ?? 'Untitled'),
                         ])
-                        ->required()
-                        ->columns(1)
-                        ->bulkToggleable(),
-                ])
-                ->action(function (Contract $record, array $data) {
-                    if (! $record->storage_path) {
-                        Notification::make()
-                            ->title('No file uploaded')
-                            ->body('Upload a contract file before running AI analysis.')
-                            ->danger()
-                            ->send();
-                        return;
-                    }
-                    $types = $data['analysis_types'] ?? [];
-
-                    // Warn if pending discoveries already exist
-                    if (in_array('discovery', $types)) {
-                        $pendingCount = \App\Models\AiDiscoveryDraft::where('contract_id', $record->id)
-                            ->where('status', 'pending')
-                            ->count();
-
-                        if ($pendingCount > 0) {
-                            Notification::make()
-                                ->title('Existing discoveries detected')
-                                ->body("This contract already has {$pendingCount} pending discovery draft(s) in the review queue. Re-running will not create duplicates.")
-                                ->warning()
-                                ->persistent()
-                                ->send();
-                        }
-                    }
-
-                    \Illuminate\Support\Facades\Log::info('AI Analysis dispatch: starting', [
-                        'contract_id' => $record->id,
-                        'types' => $types,
-                        'storage_path' => $record->storage_path,
-                        'queue_connection' => config('queue.default'),
-                        'actor' => auth()->user()?->email,
-                    ]);
-
-                    foreach ($types as $type) {
-                        ProcessAiAnalysis::dispatch(
-                            $record->id,
-                            $type,
-                            auth()->id(),
-                            auth()->user()?->email,
-                        );
-                        \Illuminate\Support\Facades\Log::info("AI Analysis dispatch: dispatched {$type}", [
-                            'contract_id' => $record->id,
-                            'analysis_type' => $type,
-                        ]);
-                    }
-                    $labels = collect($types)->join(', ');
-                    $discoveryNote = in_array('discovery', $types)
-                        ? ' Discovery results will appear on the AI Discovery Review page.'
-                        : '';
-                    Notification::make()
-                        ->title(count($types) . ' analysis job(s) queued')
-                        ->body("Running: {$labels}.{$discoveryNote}")
-                        ->success()
-                        ->send();
-                })
-                ->visible(fn (Contract $record) => $record->storage_path !== null),
-            Tables\Actions\ActionGroup::make([
-            Tables\Actions\Action::make('complete_setup')
-                ->label('Complete Setup')
-                ->icon('heroicon-o-check-circle')
-                ->color('purple')
-                ->visible(fn (Contract $record): bool => $record->workflow_state === 'staging')
-                ->form(fn (Contract $record) => [
-                    Forms\Components\Select::make('region_id')
-                        ->relationship('region', 'name')
-                        ->searchable()
-                        ->preload()
-                        ->required()
-                        ->default($record->region_id),
-                    Forms\Components\Select::make('entity_id')
-                        ->relationship('entity', 'name')
-                        ->searchable()
-                        ->preload()
-                        ->required()
-                        ->default($record->entity_id),
-                    Forms\Components\Select::make('project_id')
-                        ->relationship('project', 'name')
-                        ->searchable()
-                        ->preload()
-                        ->required()
-                        ->default($record->project_id),
-                    Forms\Components\Select::make('contract_type')
-                        ->options(ContractType::options())
-                        ->required()
-                        ->default($record->contract_type),
-                    Forms\Components\Select::make('counterparty_id')
-                        ->relationship('counterparty', 'legal_name')
-                        ->searchable()
-                        ->preload()
-                        ->default($record->counterparty_id),
-                    Forms\Components\TextInput::make('title')
-                        ->maxLength(255)
-                        ->default($record->title),
-                ])
-                ->modalHeading('Complete Contract Setup')
-                ->modalDescription('Fill in the required metadata to promote this staged contract to draft status.')
-                ->action(function (Contract $record, array $data): void {
-                    $record->update(array_merge($data, ['workflow_state' => 'draft']));
-                    Notification::make()
-                        ->title('Contract promoted to Draft')
-                        ->body('Metadata saved. The contract is now in draft status.')
-                        ->success()
-                        ->send();
-                }),
-            Tables\Actions\Action::make('create_amendment')
-                ->label('Create Amendment')
-                ->icon('heroicon-o-document-plus')
-                ->color('warning')
-                ->form([
-                    \Filament\Forms\Components\TextInput::make('title')->required()->placeholder('e.g. Amendment No. 1'),
-                    \Filament\Forms\Components\Textarea::make('notes')->rows(3)->nullable(),
-                ])
-                ->action(function (Contract $record, array $data) {
-                    $child = app(ContractLinkService::class)->createLinkedContract($record, 'amendment', $data['title'], auth()->user(), ['notes' => $data['notes'] ?? null]);
-                    if (! empty($data['notes'])) {
-                        \App\Services\AuditService::log('contract.amendment_notes', 'contract', $child->id, ['notes' => $data['notes']], auth()->user());
-                    }
-                    \Filament\Notifications\Notification::make()->title('Amendment created')->success()->send();
-                }),
-            Tables\Actions\Action::make('create_renewal')
-                ->label('Create Renewal')
-                ->icon('heroicon-o-arrow-path')
-                ->color('info')
-                ->form([
-                    \Filament\Forms\Components\TextInput::make('title')->required()->placeholder('e.g. Renewal 2027-2029'),
-                    \Filament\Forms\Components\Select::make('renewal_type')
-                        ->options(['extension' => 'Extension', 'new_version' => 'New Version'])
-                        ->required()
-                        ->default('new_version'),
-                    \Filament\Forms\Components\DatePicker::make('new_expiry_date')
-                        ->label('New Expiry Date')
-                        ->visible(fn ($get) => $get('renewal_type') === 'extension'),
-                ])
-                ->action(function (Contract $record, array $data) {
-                    app(ContractLinkService::class)->createLinkedContract(
-                        $record,
-                        'renewal',
-                        $data['title'],
-                        auth()->user(),
-                        [
-                            'renewal_type' => $data['renewal_type'],
-                            'new_expiry_date' => $data['new_expiry_date'] ?? null,
-                        ],
-                    );
-                    \Filament\Notifications\Notification::make()->title('Renewal created')->success()->send();
-                }),
-            Tables\Actions\Action::make('add_side_letter')
-                ->label('Add Side Letter')
-                ->icon('heroicon-o-paper-clip')
-                ->color('success')
-                ->form([
-                    \Filament\Forms\Components\TextInput::make('title')->required()->placeholder('e.g. Side Letter - Data Sharing'),
-                    \Filament\Forms\Components\FileUpload::make('file')
-                        ->label('File (PDF/DOCX)')
-                        ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
-                        ->maxSize(51200)
-                        ->disk(config('ccrs.contracts_disk'))
-                        ->visibility('private')
-                        ->directory('side_letters'),
-                ])
-                ->action(function (Contract $record, array $data) {
-                    app(ContractLinkService::class)->createLinkedContract($record, 'side_letter', $data['title'], auth()->user(), ['storage_path' => $data['file'] ?? null]);
-                    \Filament\Notifications\Notification::make()->title('Side letter linked')->success()->send();
-                }),
-            Tables\Actions\Action::make('sendForCountersigning')
-                ->label('Send for Countersigning')
-                ->icon('heroicon-o-pencil-square')
-                ->color('warning')
-                ->visible(function (Contract $record): bool {
-                    // Only visible when NOT using in-house signing (BoldSign legacy path)
-                    if (Feature::inHouseSigning()) {
-                        return false;
-                    }
-                    $instance = $record->activeWorkflowInstance;
-                    if (!$instance || !$instance->template) {
-                        return false;
-                    }
-                    $stages = collect($instance->template->stages);
-                    $currentStage = $stages->firstWhere('name', $instance->current_stage);
-                    return ($currentStage['type'] ?? null) === 'countersign';
-                })
-                ->form(function (Contract $record): array {
-                    $authorities = \App\Models\SigningAuthority::query()
-                        ->where('entity_id', $record->entity_id)
-                        ->where(function ($q) use ($record) {
-                            // "All Projects" authorities (no pivot rows) OR scoped to this project
-                            $q->whereDoesntHave('projects')
-                              ->orWhereHas('projects', fn ($sub) => $sub->where('projects.id', $record->project_id));
-                        })
-                        ->with('user')
-                        ->get();
-
-                    $defaultSigners = $authorities->map(fn ($auth, $index) => [
-                        'user_id' => $auth->user_id,
-                        'name' => $auth->user->name ?? '',
-                        'email' => $auth->user->email ?? '',
-                        'order' => $index + 1,
-                    ])->toArray();
-
-                    return [
-                        \Filament\Forms\Components\Repeater::make('signers')
-                            ->label('Internal Digittal Signers')
-                            ->schema([
-                                \Filament\Forms\Components\Select::make('user_id')
-                                    ->label('User')
-                                    ->options(\App\Models\User::pluck('name', 'id'))
-                                    ->searchable()
-                                    ->preload()
-                                    ->required()
-                                    ->live()
-                                    ->afterStateUpdated(function ($state, \Filament\Forms\Set $set) {
-                                        if ($state) {
-                                            $user = \App\Models\User::find($state);
-                                            $set('name', $user?->name ?? '');
-                                            $set('email', $user?->email ?? '');
-                                        }
-                                    }),
-                                \Filament\Forms\Components\TextInput::make('name')->required(),
-                                \Filament\Forms\Components\TextInput::make('email')->email()->required(),
-                                \Filament\Forms\Components\TextInput::make('order')
-                                    ->label('Signing Order')
-                                    ->numeric()
-                                    ->default(1)
-                                    ->required(),
-                            ])
-                            ->default($defaultSigners)
-                            ->minItems(1)
-                            ->columns(4),
-                    ];
-                })
-                ->requiresConfirmation()
-                ->modalHeading('Send for Countersigning')
-                ->modalDescription('This will create a BoldSign envelope with only the internal Digittal signers. The counterparty has already signed this document externally.')
-                ->action(function (Contract $record, array $data): void {
-                    $service = app(\App\Services\BoldsignService::class);
-                    $envelope = $service->createCountersignEnvelope($record, $data['signers']);
-                    Notification::make()
-                        ->title('Countersign envelope sent')
-                        ->body("BoldSign document ID: {$envelope->boldsign_document_id}")
-                        ->success()
-                        ->send();
-                }),
-            Tables\Actions\Action::make('startRedlineReview')
-                ->label('Start Redline Review')
-                ->icon('heroicon-o-scale')
-                ->color('info')
-                ->visible(function (Contract $record): bool {
-                    return Feature::enabled('redlining')
-                        && !empty($record->storage_path);
-                })
-                ->form(function (Contract $record) {
-                    return [
-                        Forms\Components\Select::make('wiki_contract_id')
-                            ->label('WikiContract Template')
-                            ->options(function () use ($record) {
-                                return WikiContract::where('status', 'published')
-                                    ->where('region_id', $record->region_id)
-                                    ->orderByDesc('version')
-                                    ->pluck('name', 'id')
-                                    ->toArray();
-                            })
-                            ->placeholder('Auto-select (latest for this region)')
-                            ->helperText('Choose a template to compare against, or leave blank to auto-select the latest published template for this contract\'s region.')
-                            ->searchable(),
-                    ];
-                })
-                ->requiresConfirmation()
-                ->modalHeading('Start Redline Review')
-                ->modalDescription('This will send the contract to the AI engine for clause-by-clause comparison against the selected WikiContract template. The analysis may take a few minutes for long contracts.')
-                ->action(function (Contract $record, array $data): void {
-                    $template = null;
-                    if (!empty($data['wiki_contract_id'])) {
-                        $template = WikiContract::find($data['wiki_contract_id']);
-                    }
-
-                    $session = app(RedlineService::class)->startSession(
-                        $record,
-                        $template,
-                        auth()->user(),
-                    );
-
-                    Notification::make()
-                        ->title('Redline review started')
-                        ->body('AI analysis is processing. You will be redirected to the review page.')
-                        ->success()
-                        ->send();
-
-                    redirect(ContractResource::getUrl('redline-session', [
-                        'record' => $record->id,
-                        'session' => $session->id,
-                    ]));
-                }),
+                        ->toArray()
+                    )
+                    ->searchable()
+                    ->query(fn (Builder $query, array $data) => $query->when($data['value'], fn (Builder $q, $id) => $q->where('contracts.id', $id)))
+                    ->placeholder('Filter by contract...'),
+                Tables\Filters\SelectFilter::make('contract_type')->options(ContractType::options()),
+                Tables\Filters\SelectFilter::make('workflow_state')->options([
+                    'staging' => 'Staging', 'draft' => 'Draft', 'review' => 'Review', 'approval' => 'Approval',
+                    'signing' => 'Signing', 'countersign' => 'Countersign', 'executed' => 'Executed', 'archived' => 'Archived',
+                ]),
+                Tables\Filters\SelectFilter::make('region_id')->relationship('region', 'name'),
             ])
-                ->label('More')
-                ->icon('heroicon-m-ellipsis-vertical')
-                ->tooltip('More actions'),
-        ])
-        ->bulkActions([
-            Tables\Actions\BulkAction::make('export')
-                ->label('Export Selected')
-                ->icon('heroicon-o-arrow-down-tray')
-                ->action(function (\Illuminate\Database\Eloquent\Collection $records) {
-                    $csv = "Title,Type,State,Counterparty,Region,Created\n";
-                    foreach ($records as $record) {
-                        $csv .= '"' . str_replace('"', '""', $record->title) . '","' . $record->contract_type . '","' . $record->workflow_state . '","' . str_replace('"', '""', $record->counterparty?->legal_name ?? '') . '","' . ($record->region?->name ?? '') . '","' . $record->created_at->format('Y-m-d') . "\"\n";
-                    }
-                    return response()->streamDownload(fn () => print($csv), 'contracts_export.csv', ['Content-Type' => 'text/csv']);
-                }),
-            Tables\Actions\DeleteBulkAction::make(),
-        ])
-        ->emptyStateHeading('No contracts yet')
-        ->emptyStateDescription('Create your first contract to get started.')
-        ->emptyStateIcon('heroicon-o-document-text')
-        ->emptyStateActions([
-            Tables\Actions\CreateAction::make()
-                ->label('Create Contract'),
-        ]);
+            ->actions([
+                Tables\Actions\EditAction::make()
+                    ->visible(fn (Contract $record): bool => ! in_array($record->workflow_state, ['executed', 'completed'])),
+                Tables\Actions\Action::make('download')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->url(fn (Contract $record) => $record->storage_path ? app(\App\Services\ContractFileService::class)->getSignedUrl($record->storage_path) : null)
+                    ->openUrlInNewTab()
+                    ->visible(fn (Contract $record) => (bool) $record->storage_path),
+                Tables\Actions\Action::make('trigger_ai_analysis')
+                    ->label('AI Analysis')
+                    ->icon('heroicon-o-cpu-chip')
+                    ->color('info')
+                    ->modalHeading('Run AI Analysis')
+                    ->modalDescription('Select one or more analysis types to run. Results appear in the AI tabs and Discovery Review page.')
+                    ->form([
+                        Forms\Components\CheckboxList::make('analysis_types')
+                            ->label('Analysis Types')
+                            ->options([
+                                'summary' => 'Summary — overall contract synopsis',
+                                'extraction' => 'Field Extraction — key terms, dates & values',
+                                'risk' => 'Risk Assessment — risk scores & red flags',
+                                'deviation' => 'Template Deviation — compare against standard templates',
+                                'obligations' => 'Obligations Register — deadlines & responsibilities',
+                                'discovery' => 'Auto-Discovery — extract counterparties, jurisdictions & governing law',
+                            ])
+                            ->required()
+                            ->columns(1)
+                            ->bulkToggleable(),
+                    ])
+                    ->action(function (Contract $record, array $data) {
+                        if (! $record->storage_path) {
+                            Notification::make()
+                                ->title('No file uploaded')
+                                ->body('Upload a contract file before running AI analysis.')
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+                        $types = $data['analysis_types'] ?? [];
+
+                        // Warn if pending discoveries already exist
+                        if (in_array('discovery', $types)) {
+                            $pendingCount = \App\Models\AiDiscoveryDraft::where('contract_id', $record->id)
+                                ->where('status', 'pending')
+                                ->count();
+
+                            if ($pendingCount > 0) {
+                                Notification::make()
+                                    ->title('Existing discoveries detected')
+                                    ->body("This contract already has {$pendingCount} pending discovery draft(s) in the review queue. Re-running will not create duplicates.")
+                                    ->warning()
+                                    ->persistent()
+                                    ->send();
+                            }
+                        }
+
+                        \Illuminate\Support\Facades\Log::info('AI Analysis dispatch: starting', [
+                            'contract_id' => $record->id,
+                            'types' => $types,
+                            'storage_path' => $record->storage_path,
+                            'queue_connection' => config('queue.default'),
+                            'actor' => auth()->user()?->email,
+                        ]);
+
+                        foreach ($types as $type) {
+                            ProcessAiAnalysis::dispatch(
+                                $record->id,
+                                $type,
+                                auth()->id(),
+                                auth()->user()?->email,
+                            );
+                            \Illuminate\Support\Facades\Log::info("AI Analysis dispatch: dispatched {$type}", [
+                                'contract_id' => $record->id,
+                                'analysis_type' => $type,
+                            ]);
+                        }
+                        $labels = collect($types)->join(', ');
+                        $discoveryNote = in_array('discovery', $types)
+                            ? ' Discovery results will appear on the AI Discovery Review page.'
+                            : '';
+                        Notification::make()
+                            ->title(count($types).' analysis job(s) queued')
+                            ->body("Running: {$labels}.{$discoveryNote}")
+                            ->success()
+                            ->send();
+                    })
+                    ->visible(fn (Contract $record) => $record->storage_path !== null),
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\Action::make('complete_setup')
+                        ->label('Complete Setup')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('purple')
+                        ->visible(fn (Contract $record): bool => $record->workflow_state === 'staging')
+                        ->form(fn (Contract $record) => [
+                            Forms\Components\Select::make('region_id')
+                                ->relationship('region', 'name')
+                                ->searchable()
+                                ->preload()
+                                ->required()
+                                ->default($record->region_id),
+                            Forms\Components\Select::make('entity_id')
+                                ->relationship('entity', 'name')
+                                ->searchable()
+                                ->preload()
+                                ->required()
+                                ->default($record->entity_id),
+                            Forms\Components\Select::make('project_id')
+                                ->relationship('project', 'name')
+                                ->searchable()
+                                ->preload()
+                                ->required()
+                                ->default($record->project_id),
+                            Forms\Components\Select::make('contract_type')
+                                ->options(ContractType::options())
+                                ->required()
+                                ->default($record->contract_type),
+                            Forms\Components\Select::make('counterparty_id')
+                                ->relationship('counterparty', 'legal_name')
+                                ->searchable()
+                                ->preload()
+                                ->default($record->counterparty_id),
+                            Forms\Components\TextInput::make('title')
+                                ->maxLength(255)
+                                ->default($record->title),
+                        ])
+                        ->modalHeading('Complete Contract Setup')
+                        ->modalDescription('Fill in the required metadata to promote this staged contract to draft status.')
+                        ->action(function (Contract $record, array $data): void {
+                            $record->update(array_merge($data, ['workflow_state' => 'draft']));
+                            Notification::make()
+                                ->title('Contract promoted to Draft')
+                                ->body('Metadata saved. The contract is now in draft status.')
+                                ->success()
+                                ->send();
+                        }),
+                    Tables\Actions\Action::make('create_amendment')
+                        ->label('Create Amendment')
+                        ->icon('heroicon-o-document-plus')
+                        ->color('warning')
+                        ->form([
+                            \Filament\Forms\Components\TextInput::make('title')->required()->placeholder('e.g. Amendment No. 1'),
+                            \Filament\Forms\Components\Textarea::make('notes')->rows(3)->nullable(),
+                        ])
+                        ->action(function (Contract $record, array $data) {
+                            $child = app(ContractLinkService::class)->createLinkedContract($record, 'amendment', $data['title'], auth()->user(), ['notes' => $data['notes'] ?? null]);
+                            if (! empty($data['notes'])) {
+                                \App\Services\AuditService::log('contract.amendment_notes', 'contract', $child->id, ['notes' => $data['notes']], auth()->user());
+                            }
+                            \Filament\Notifications\Notification::make()->title('Amendment created')->success()->send();
+                        }),
+                    Tables\Actions\Action::make('create_renewal')
+                        ->label('Create Renewal')
+                        ->icon('heroicon-o-arrow-path')
+                        ->color('info')
+                        ->form([
+                            \Filament\Forms\Components\TextInput::make('title')->required()->placeholder('e.g. Renewal 2027-2029'),
+                            \Filament\Forms\Components\Select::make('renewal_type')
+                                ->options(['extension' => 'Extension', 'new_version' => 'New Version'])
+                                ->required()
+                                ->default('new_version'),
+                            \Filament\Forms\Components\DatePicker::make('new_expiry_date')
+                                ->label('New Expiry Date')
+                                ->visible(fn ($get) => $get('renewal_type') === 'extension'),
+                        ])
+                        ->action(function (Contract $record, array $data) {
+                            app(ContractLinkService::class)->createLinkedContract(
+                                $record,
+                                'renewal',
+                                $data['title'],
+                                auth()->user(),
+                                [
+                                    'renewal_type' => $data['renewal_type'],
+                                    'new_expiry_date' => $data['new_expiry_date'] ?? null,
+                                ],
+                            );
+                            \Filament\Notifications\Notification::make()->title('Renewal created')->success()->send();
+                        }),
+                    Tables\Actions\Action::make('add_side_letter')
+                        ->label('Add Side Letter')
+                        ->icon('heroicon-o-paper-clip')
+                        ->color('success')
+                        ->form([
+                            \Filament\Forms\Components\TextInput::make('title')->required()->placeholder('e.g. Side Letter - Data Sharing'),
+                            \Filament\Forms\Components\FileUpload::make('file')
+                                ->label('File (PDF/DOCX)')
+                                ->acceptedFileTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
+                                ->maxSize(51200)
+                                ->disk(config('ccrs.contracts_disk'))
+                                ->visibility('private')
+                                ->directory('side_letters'),
+                        ])
+                        ->action(function (Contract $record, array $data) {
+                            app(ContractLinkService::class)->createLinkedContract($record, 'side_letter', $data['title'], auth()->user(), ['storage_path' => $data['file'] ?? null]);
+                            \Filament\Notifications\Notification::make()->title('Side letter linked')->success()->send();
+                        }),
+                    Tables\Actions\Action::make('sendForCountersigning')
+                        ->label('Send for Countersigning')
+                        ->icon('heroicon-o-pencil-square')
+                        ->color('warning')
+                        ->visible(function (Contract $record): bool {
+                            // Only visible when NOT using in-house signing (BoldSign legacy path)
+                            if (Feature::inHouseSigning()) {
+                                return false;
+                            }
+                            $instance = $record->activeWorkflowInstance;
+                            if (! $instance || ! $instance->template) {
+                                return false;
+                            }
+                            $stages = collect($instance->template->stages);
+                            $currentStage = $stages->firstWhere('name', $instance->current_stage);
+
+                            return ($currentStage['type'] ?? null) === 'countersign';
+                        })
+                        ->form(function (Contract $record): array {
+                            $authorities = \App\Models\SigningAuthority::query()
+                                ->where('entity_id', $record->entity_id)
+                                ->where(function ($q) use ($record) {
+                                    // "All Projects" authorities (no pivot rows) OR scoped to this project
+                                    $q->whereDoesntHave('projects')
+                                        ->orWhereHas('projects', fn ($sub) => $sub->where('projects.id', $record->project_id));
+                                })
+                                ->with('user')
+                                ->get();
+
+                            $defaultSigners = $authorities->map(fn ($auth, $index) => [
+                                'user_id' => $auth->user_id,
+                                'name' => $auth->user->name ?? '',
+                                'email' => $auth->user->email ?? '',
+                                'order' => $index + 1,
+                            ])->toArray();
+
+                            return [
+                                \Filament\Forms\Components\Repeater::make('signers')
+                                    ->label('Internal Digittal Signers')
+                                    ->schema([
+                                        \Filament\Forms\Components\Select::make('user_id')
+                                            ->label('User')
+                                            ->options(\App\Models\User::pluck('name', 'id'))
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->live()
+                                            ->afterStateUpdated(function ($state, \Filament\Forms\Set $set) {
+                                                if ($state) {
+                                                    $user = \App\Models\User::find($state);
+                                                    $set('name', $user?->name ?? '');
+                                                    $set('email', $user?->email ?? '');
+                                                }
+                                            }),
+                                        \Filament\Forms\Components\TextInput::make('name')->required(),
+                                        \Filament\Forms\Components\TextInput::make('email')->email()->required(),
+                                        \Filament\Forms\Components\TextInput::make('order')
+                                            ->label('Signing Order')
+                                            ->numeric()
+                                            ->default(1)
+                                            ->required(),
+                                    ])
+                                    ->default($defaultSigners)
+                                    ->minItems(1)
+                                    ->columns(4),
+                            ];
+                        })
+                        ->requiresConfirmation()
+                        ->modalHeading('Send for Countersigning')
+                        ->modalDescription('This will create a BoldSign envelope with only the internal Digittal signers. The counterparty has already signed this document externally.')
+                        ->action(function (Contract $record, array $data): void {
+                            if (Feature::inHouseSigning()) {
+                                Notification::make()->title('Action unavailable')->body('BoldSign is disabled — in-house signing is active.')->danger()->send();
+
+                                return;
+                            }
+                            $service = app(\App\Services\BoldsignService::class);
+                            $envelope = $service->createCountersignEnvelope($record, $data['signers']);
+                            Notification::make()
+                                ->title('Countersign envelope sent')
+                                ->body("BoldSign document ID: {$envelope->boldsign_document_id}")
+                                ->success()
+                                ->send();
+                        }),
+                    Tables\Actions\Action::make('startRedlineReview')
+                        ->label('Start Redline Review')
+                        ->icon('heroicon-o-scale')
+                        ->color('info')
+                        ->visible(function (Contract $record): bool {
+                            return Feature::enabled('redlining')
+                                && ! empty($record->storage_path);
+                        })
+                        ->form(function (Contract $record) {
+                            return [
+                                Forms\Components\Select::make('wiki_contract_id')
+                                    ->label('WikiContract Template')
+                                    ->options(function () use ($record) {
+                                        return WikiContract::where('status', 'published')
+                                            ->where('region_id', $record->region_id)
+                                            ->orderByDesc('version')
+                                            ->pluck('name', 'id')
+                                            ->toArray();
+                                    })
+                                    ->placeholder('Auto-select (latest for this region)')
+                                    ->helperText('Choose a template to compare against, or leave blank to auto-select the latest published template for this contract\'s region.')
+                                    ->searchable(),
+                            ];
+                        })
+                        ->requiresConfirmation()
+                        ->modalHeading('Start Redline Review')
+                        ->modalDescription('This will send the contract to the AI engine for clause-by-clause comparison against the selected WikiContract template. The analysis may take a few minutes for long contracts.')
+                        ->action(function (Contract $record, array $data): void {
+                            $template = null;
+                            if (! empty($data['wiki_contract_id'])) {
+                                $template = WikiContract::find($data['wiki_contract_id']);
+                            }
+
+                            $session = app(RedlineService::class)->startSession(
+                                $record,
+                                $template,
+                                auth()->user(),
+                            );
+
+                            Notification::make()
+                                ->title('Redline review started')
+                                ->body('AI analysis is processing. You will be redirected to the review page.')
+                                ->success()
+                                ->send();
+
+                            redirect(ContractResource::getUrl('redline-session', [
+                                'record' => $record->id,
+                                'session' => $session->id,
+                            ]));
+                        }),
+                ])
+                    ->label('More')
+                    ->icon('heroicon-m-ellipsis-vertical')
+                    ->tooltip('More actions'),
+            ])
+            ->bulkActions([
+                Tables\Actions\BulkAction::make('export')
+                    ->label('Export Selected')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->action(function (\Illuminate\Database\Eloquent\Collection $records) {
+                        $csv = "Title,Type,State,Counterparty,Region,Created\n";
+                        foreach ($records as $record) {
+                            $csv .= '"'.str_replace('"', '""', $record->title).'","'.$record->contract_type.'","'.$record->workflow_state.'","'.str_replace('"', '""', $record->counterparty?->legal_name ?? '').'","'.($record->region?->name ?? '').'","'.$record->created_at->format('Y-m-d')."\"\n";
+                        }
+
+                        return response()->streamDownload(fn () => print ($csv), 'contracts_export.csv', ['Content-Type' => 'text/csv']);
+                    }),
+                Tables\Actions\DeleteBulkAction::make(),
+            ])
+            ->emptyStateHeading('No contracts yet')
+            ->emptyStateDescription('Create your first contract to get started.')
+            ->emptyStateIcon('heroicon-o-document-text')
+            ->emptyStateActions([
+                Tables\Actions\CreateAction::make()
+                    ->label('Create Contract'),
+            ]);
     }
 
     public static function getRelationManagers(): array
@@ -772,6 +785,7 @@ class ContractResource extends Resource
         if (in_array($record->workflow_state, ['executed', 'archived'])) {
             return false;
         }
+
         return auth()->user()?->hasRole('system_admin') ?? false;
     }
 
@@ -790,7 +804,7 @@ class ContractResource extends Resource
     {
         $ref = $record->contract_ref ? "[{$record->contract_ref}] " : '';
 
-        return $ref . ($record->title ?? 'Untitled');
+        return $ref.($record->title ?? 'Untitled');
     }
 
     public static function getGlobalSearchResultDetails(Model $record): array
