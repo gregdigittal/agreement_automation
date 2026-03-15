@@ -288,3 +288,132 @@ it('after successful callback active user with role can access /admin', function
     // Verify user is authenticated
     $this->assertAuthenticatedAs(User::find($azureId));
 });
+
+// ── 9. Azure AD group map: roles synced and user auto-activated ──────────────
+
+it('user with Azure AD groups matching group_map gets roles synced and auto-activated', function () {
+    $groupId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+    $azureId = 'azure-groupmap-' . uniqid();
+
+    config(['ccrs.azure_ad.group_map' => [$groupId => 'legal']]);
+
+    // New pending user — no roles yet
+    $existingUser = new User(['email' => 'groupmap@example.com', 'name' => 'Group Map User', 'status' => 'pending']);
+    $existingUser->id = $azureId;
+    $existingUser->save();
+
+    $mockSocialiteUser = new class($azureId, 'groupmap@example.com', 'Group Map User', [$groupId]) implements \Laravel\Socialite\Contracts\User {
+        public array $user;
+        public function __construct(
+            private string $id,
+            private string $email,
+            private string $name,
+            array $groups,
+        ) {
+            $this->user = ['groups' => $groups];
+        }
+        public function getId() { return $this->id; }
+        public function getNickname() { return null; }
+        public function getName() { return $this->name; }
+        public function getEmail() { return $this->email; }
+        public function getAvatar() { return null; }
+        public $token = 'fake-token';
+    };
+
+    \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
+        ->with('azure')
+        ->andReturnSelf()
+        ->shouldReceive('user')
+        ->andReturn($mockSocialiteUser);
+
+    $response = $this->get(route('azure.callback'));
+
+    // Should be redirected to /admin (auto-activated, has role)
+    $response->assertRedirect('/admin');
+
+    $user = User::find($azureId);
+    expect($user->status->value)->toBe('active');
+    expect($user->hasRole('legal'))->toBeTrue();
+    $this->assertAuthenticatedAs($user);
+});
+
+// ── 10. Azure AD group map: no matching groups → no role sync ────────────────
+
+it('user with Azure AD groups not in group_map is not auto-activated', function () {
+    $azureId = 'azure-nomatch-' . uniqid();
+
+    // Group map has no entry for the group the user belongs to
+    config(['ccrs.azure_ad.group_map' => ['some-other-group-id' => 'legal']]);
+
+    $existingUser = new User(['email' => 'nomatch@example.com', 'name' => 'No Match User', 'status' => 'pending']);
+    $existingUser->id = $azureId;
+    $existingUser->save();
+
+    $mockSocialiteUser = new class($azureId, 'nomatch@example.com', 'No Match User') implements \Laravel\Socialite\Contracts\User {
+        public array $user = ['groups' => ['unrecognised-group-uuid']];
+        public function __construct(private string $id, private string $email, private string $name) {}
+        public function getId() { return $this->id; }
+        public function getNickname() { return null; }
+        public function getName() { return $this->name; }
+        public function getEmail() { return $this->email; }
+        public function getAvatar() { return null; }
+        public $token = 'fake-token';
+    };
+
+    \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
+        ->with('azure')
+        ->andReturnSelf()
+        ->shouldReceive('user')
+        ->andReturn($mockSocialiteUser);
+
+    $response = $this->get(route('azure.callback'));
+
+    // Still pending — no matching group → no auto-activation
+    $response->assertStatus(403);
+    $response->assertViewIs('auth.pending-approval');
+
+    $user = User::find($azureId);
+    expect($user->status->value)->toBe('pending');
+    expect($user->roles()->count())->toBe(0);
+});
+
+// ── 11. Azure AD group map: existing user roles synced on re-login ───────────
+
+it('existing active user has roles synced from Azure AD groups on re-login', function () {
+    $groupId = 'aaaaaaaa-bbbb-cccc-dddd-ffffffffffff';
+    $azureId = 'azure-resync-' . uniqid();
+
+    config(['ccrs.azure_ad.group_map' => [$groupId => 'commercial']]);
+
+    // Pre-existing user with 'legal' role — should be replaced by 'commercial' from group map
+    $existingUser = new User(['email' => 'resync@example.com', 'name' => 'Resync User', 'status' => 'active']);
+    $existingUser->id = $azureId;
+    $existingUser->save();
+    $existingUser->assignRole('legal');
+
+    $mockSocialiteUser = new class($azureId, 'resync@example.com', 'Resync User', [$groupId]) implements \Laravel\Socialite\Contracts\User {
+        public array $user;
+        public function __construct(private string $id, private string $email, private string $name, array $groups) {
+            $this->user = ['groups' => $groups];
+        }
+        public function getId() { return $this->id; }
+        public function getNickname() { return null; }
+        public function getName() { return $this->name; }
+        public function getEmail() { return $this->email; }
+        public function getAvatar() { return null; }
+        public $token = 'fake-token';
+    };
+
+    \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
+        ->with('azure')
+        ->andReturnSelf()
+        ->shouldReceive('user')
+        ->andReturn($mockSocialiteUser);
+
+    $this->get(route('azure.callback'));
+
+    $user = User::find($azureId);
+    // Role should now be 'commercial' (synced from group map), not 'legal'
+    expect($user->hasRole('commercial'))->toBeTrue();
+    expect($user->hasRole('legal'))->toBeFalse();
+});
