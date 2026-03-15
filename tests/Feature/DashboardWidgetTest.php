@@ -39,6 +39,44 @@ it('ExpiryHorizonWidget renders with date buckets', function () {
         ->assertSuccessful();
 });
 
+it('ExpiryHorizonWidget counts expired contracts separately', function () {
+    $contract = Contract::factory()->create();
+
+    // Already expired
+    ContractKeyDate::create([
+        'contract_id' => $contract->id,
+        'date_type' => 'expiry_date',
+        'date_value' => now()->subDays(5),
+        'label' => 'Expired Contract',
+    ]);
+
+    $contract2 = Contract::factory()->create();
+
+    // Expiring in 15 days
+    ContractKeyDate::create([
+        'contract_id' => $contract2->id,
+        'date_type' => 'expiry_date',
+        'date_value' => now()->addDays(15),
+        'label' => 'Imminent Expiry',
+    ]);
+
+    // Expired bucket should count 1, not include future dates
+    expect(
+        \App\Models\ContractKeyDate::where('date_type', 'expiry_date')
+            ->where('date_value', '<', now())
+            ->count()
+    )->toBe(1);
+
+    expect(
+        \App\Models\ContractKeyDate::where('date_type', 'expiry_date')
+            ->whereBetween('date_value', [now(), now()->addDays(30)])
+            ->count()
+    )->toBe(1);
+
+    Livewire::test(ExpiryHorizonWidget::class)
+        ->assertSuccessful();
+});
+
 it('PendingWorkflowsWidget renders', function () {
     Livewire::test(PendingWorkflowsWidget::class)
         ->assertSuccessful();
