@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Helpers\TenantCache;
 use App\Models\Contract;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -25,7 +26,7 @@ class SharePointService
      */
     private function getToken(): string
     {
-        return Cache::remember('sharepoint_graph_token', now()->addMinutes(50), function () {
+        return Cache::remember(TenantCache::key('sharepoint_graph_token'), now()->addMinutes(50), function () {
             $response = Http::asForm()->post(config('ccrs.teams.token_endpoint'), [
                 'grant_type' => 'client_credentials',
                 'client_id' => config('services.azure.client_id'),
@@ -52,10 +53,10 @@ class SharePointService
     public function resolveShareUrl(string $shareUrl): array
     {
         $token = $this->getToken();
-        $encoded = 'u!' . rtrim(base64_encode($shareUrl), '=');
+        $encoded = 'u!'.rtrim(base64_encode($shareUrl), '=');
 
         $response = Http::withToken($token)
-            ->get(self::GRAPH_BASE . "/shares/{$encoded}/driveItem", [
+            ->get(self::GRAPH_BASE."/shares/{$encoded}/driveItem", [
                 '$select' => 'id,name,parentReference',
             ]);
 
@@ -105,6 +106,7 @@ class SharePointService
                 'contract_id' => $contract->id,
                 'status' => $response->status(),
             ]);
+
             return [];
         }
 

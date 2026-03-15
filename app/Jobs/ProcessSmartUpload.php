@@ -3,18 +3,12 @@
 namespace App\Jobs;
 
 use App\Models\Contract;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class ProcessSmartUpload implements ShouldQueue
+class ProcessSmartUpload extends TenantAwareJob
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
     public int $timeout = 300;
+
     public int $tries = 1;
 
     public function __construct(
@@ -28,11 +22,13 @@ class ProcessSmartUpload implements ShouldQueue
 
         if (! $contract) {
             Log::error('ProcessSmartUpload: contract not found', ['contract_id' => $this->contractId]);
+
             return;
         }
 
         if (! $contract->storage_path) {
             Log::error('ProcessSmartUpload: no storage_path', ['contract_id' => $this->contractId]);
+
             return;
         }
 

@@ -3,14 +3,10 @@
 namespace App\Jobs;
 
 use App\Services\EscalationService;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 
-class CheckSlaBreaches implements ShouldQueue
+class CheckSlaBreaches extends TenantAwareJob
 {
-    use Queueable;
-
     public function handle(EscalationService $service): void
     {
         $count = $service->checkSlaBreaches();

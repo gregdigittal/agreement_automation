@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Helpers\TenantCache;
 use App\Traits\HasUuidPrimaryKey;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -30,7 +31,7 @@ class ContractType extends Model
      */
     public static function options(): array
     {
-        return Cache::remember('contract_types.options', now()->addMinutes(5), function () {
+        return Cache::remember(TenantCache::key('contract_types.options'), now()->addMinutes(5), function () {
             return static::where('is_active', true)
                 ->orderBy('sort_order')
                 ->orderBy('name')
@@ -44,7 +45,7 @@ class ContractType extends Model
      */
     public static function slugOptions(): array
     {
-        return Cache::remember('contract_types.slug_options', now()->addMinutes(5), function () {
+        return Cache::remember(TenantCache::key('contract_types.slug_options'), now()->addMinutes(5), function () {
             return static::where('is_active', true)
                 ->orderBy('sort_order')
                 ->orderBy('name')
@@ -59,8 +60,8 @@ class ContractType extends Model
     protected static function booted(): void
     {
         $flush = function () {
-            Cache::forget('contract_types.options');
-            Cache::forget('contract_types.slug_options');
+            Cache::forget(TenantCache::key('contract_types.options'));
+            Cache::forget(TenantCache::key('contract_types.slug_options'));
         };
 
         static::saved($flush);

@@ -5,21 +5,16 @@ namespace App\Jobs;
 use App\Models\ComplianceFinding;
 use App\Models\Contract;
 use App\Models\RegulatoryFramework;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class ProcessComplianceCheck implements ShouldQueue
+class ProcessComplianceCheck extends TenantAwareJob
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
     public int $tries = 2;
+
     public int $timeout = 300;
+
     public array $backoff = [10, 60];
 
     public function __construct(

@@ -2,7 +2,7 @@
 
 namespace App\Livewire;
 
-use App\Helpers\StorageHelper;
+use App\Helpers\TenantCache;
 use App\Models\Contract;
 use App\Models\Entity;
 use App\Models\EntityShareholding;
@@ -20,26 +20,36 @@ class OrganisationStructureViewer extends Component implements HasForms, HasTabl
 {
     use InteractsWithForms;
     use InteractsWithTable;
+
     /**
      * Maximum number of entities to load, matching AgreementTree::TREE_NODE_LIMIT.
      */
     private const ENTITY_LIMIT = 200;
 
     public ?string $selectedEntityId = null;
+
     public bool $showContractsModal = false;
 
     // Shareholding editor state (Step D + Item 10)
     public ?string $editingShareholdingId = null;
+
     public ?float $editingPercentage = null;
+
     public ?string $editingOwnershipType = null;
+
     public ?string $editingEffectiveDate = null;
+
     public ?string $editingNotes = null;
 
     // New shareholding creation state (Item 11)
     public ?string $newShareholdingOwnerId = null;
+
     public ?string $newShareholdingOwnedId = null;
+
     public ?float $newShareholdingPercentage = null;
+
     public ?string $newShareholdingOwnershipType = 'direct';
+
     public bool $showNewShareholdingForm = false;
 
     /**
@@ -54,11 +64,16 @@ class OrganisationStructureViewer extends Component implements HasForms, HasTabl
      */
     private const TREE_CACHE_KEY = 'org_structure_tree_data';
 
+    private static function treeCacheKey(): string
+    {
+        return TenantCache::key(self::TREE_CACHE_KEY);
+    }
+
     private const TREE_CACHE_TTL = 300; // 5 minutes
 
     public function getTreeDataProperty(): array
     {
-        return Cache::remember(self::TREE_CACHE_KEY, self::TREE_CACHE_TTL, function () {
+        return Cache::remember(self::treeCacheKey(), self::TREE_CACHE_TTL, function () {
             return $this->buildTreeData();
         });
     }
@@ -152,7 +167,7 @@ class OrganisationStructureViewer extends Component implements HasForms, HasTabl
      */
     public static function flushTreeCache(): void
     {
-        Cache::forget(self::TREE_CACHE_KEY);
+        Cache::forget(self::treeCacheKey());
     }
 
     /**

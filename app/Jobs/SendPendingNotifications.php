@@ -4,13 +4,9 @@ namespace App\Jobs;
 
 use App\Models\Notification;
 use App\Services\NotificationService;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
 
-class SendPendingNotifications implements ShouldQueue
+class SendPendingNotifications extends TenantAwareJob
 {
-    use Queueable;
-
     public function handle(): void
     {
         $notifications = Notification::where('status', 'pending')
