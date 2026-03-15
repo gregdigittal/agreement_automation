@@ -1,6 +1,5 @@
 <?php
 
-use App\Mail\ContractReminderCalendar;
 use App\Models\Contract;
 use App\Models\ContractKeyDate;
 use App\Models\EscalationEvent;
@@ -17,7 +16,6 @@ use App\Services\ReminderService;
 use App\Services\TeamsNotificationService;
 use Filament\Facades\Filament;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Mail;
 
 beforeEach(function () {
     $this->user = User::factory()->create();
@@ -368,7 +366,7 @@ it('skips inactive reminders during processing', function () {
 // ---------------------------------------------------------------------------
 it('SLA breach creates escalation event', function () {
     $this->mock(NotificationService::class, function ($mock) {
-        $mock->shouldReceive('create')->andReturn(new \App\Models\Notification());
+        $mock->shouldReceive('create')->andReturn(new \App\Models\Notification);
     });
 
     $contract = Contract::factory()->create();
@@ -413,7 +411,7 @@ it('SLA breach creates escalation event', function () {
 // ---------------------------------------------------------------------------
 it('does not duplicate unresolved escalation events for same tier', function () {
     $this->mock(NotificationService::class, function ($mock) {
-        $mock->shouldReceive('create')->andReturn(new \App\Models\Notification());
+        $mock->shouldReceive('create')->andReturn(new \App\Models\Notification);
     });
 
     $contract = Contract::factory()->create();
@@ -492,8 +490,12 @@ it('sends message to Teams channel via webhook', function () {
         if (! str_contains($req->url(), '/messages')) {
             return false;
         }
-        $content = $req->data()['body']['content'] ?? '';
-        return str_contains($content, 'Contract Approved');
+        // Adaptive Card: subject is in the attachments content, not the body HTML
+        $attachments = $req->data()['attachments'] ?? [];
+        $cardContent = $attachments[0]['content'] ?? '';
+
+        return str_contains($cardContent, 'Contract Approved')
+            && ($req->data()['attachments'][0]['contentType'] ?? '') === 'application/vnd.microsoft.card.adaptive';
     });
 });
 
