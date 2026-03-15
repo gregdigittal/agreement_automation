@@ -8,7 +8,7 @@ use Tests\TestCase;
 
 class TeamsNotificationTest extends TestCase
 {
-    public function test_sends_message_to_teams_channel(): void
+    private function configureTeams(): void
     {
         config([
             'ccrs.teams.team_id' => 'test-team-id',
@@ -18,6 +18,11 @@ class TeamsNotificationTest extends TestCase
             'services.azure.client_id' => 'client-id',
             'services.azure.client_secret' => 'client-secret',
         ]);
+    }
+
+    public function test_sends_adaptive_card_to_teams_channel(): void
+    {
+        $this->configureTeams();
 
         Http::fake([
             '*oauth2/v2.0/token*' => Http::response(['access_token' => 'fake-token'], 200),
@@ -33,11 +38,20 @@ class TeamsNotificationTest extends TestCase
             if (! str_contains($req->url(), '/messages')) {
                 return false;
             }
-            $content = $req->data()['body']['content'] ?? '';
-            // Verify structured card format
-            return str_contains($content, '<table')
-                && str_contains($content, 'Contract Approved')
-                && str_contains($content, 'CCRS');
+
+            $data = $req->data();
+
+            // Must use Adaptive Card attachment, not raw HTML content
+            $contentType = $data['body']['contentType'] ?? '';
+            $attachments = $data['attachments'] ?? [];
+            $attachmentContentType = $attachments[0]['contentType'] ?? '';
+            $cardContent = json_decode($attachments[0]['content'] ?? '{}', true);
+
+            return $contentType === 'html'
+                && $attachmentContentType === 'application/vnd.microsoft.card.adaptive'
+                && ($cardContent['type'] ?? '') === 'AdaptiveCard'
+                && str_contains($attachments[0]['content'], 'Contract Approved')
+                && str_contains($attachments[0]['content'], 'CCRS');
         });
     }
 
@@ -53,5 +67,41 @@ class TeamsNotificationTest extends TestCase
         app(TeamsNotificationService::class)->sendToChannel('Test', 'Body');
 
         Http::assertNothingSent();
+    }
+
+    public function test_adaptive_card_structure_is_valid(): void
+    {
+        $service = app(TeamsNotificationService::class);
+        $card = $service->buildAdaptiveCard('Test Subject', 'Test body text');
+
+        $this->assertSame('AdaptiveCard', $card['type']);
+        $this->assertSame('http://adaptivecards.io/schemas/adaptive-card.json', $card['$schema']);
+        $this->assertSame('1.5', $card['version']);
+        $this->assertArrayHasKey('body', $card);
+        $this->assertNotEmpty($card['body']);
+    }
+
+    public function test_adaptive_card_contains_subject_and_body(): void
+    {
+        $service = app(TeamsNotificationService::class);
+        $card = $service->buildAdaptiveCard('SLA Breach Alert', 'Contract ABC exceeded SLA by 12 hours');
+
+        $encoded = json_encode($card);
+
+        $this->assertStringContainsString('SLA Breach Alert', $encoded);
+        $this->assertStringContainsString('Contract ABC exceeded SLA by 12 hours', $encoded);
+        $this->assertStringContainsString('CCRS', $encoded);
+    }
+
+    public function test_adaptive_card_is_valid_json(): void
+    {
+        $service = app(TeamsNotificationService::class);
+        $card = $service->buildAdaptiveCard('Subject', 'Body');
+
+        $json = json_encode($card);
+        $decoded = json_decode($json, true);
+
+        $this->assertNotNull($decoded);
+        $this->assertSame(JSON_ERROR_NONE, json_last_error());
     }
 }

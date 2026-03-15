@@ -35,11 +35,11 @@ class TeamsNotificationService
     }
 
     /**
-     * Post a message to the configured Teams channel.
+     * Post an Adaptive Card message to the configured Teams channel.
      *
-     * @param  string  $subject  Bold header line
-     * @param  string  $body  Message body (plain text or simple HTML)
-     * @param  string  $color  Accent color hex (default: indigo)
+     * @param  string  $subject  Bold header displayed in the card title
+     * @param  string  $body  Card body text (plain text)
+     * @param  string  $color  Accent colour hex — mapped to Adaptive Card accent colour (default: indigo)
      */
     public function sendToChannel(string $subject, string $body, string $color = '#4f46e5'): void
     {
@@ -48,6 +48,7 @@ class TeamsNotificationService
 
         if (! $teamId || ! $channelId) {
             Log::warning('Teams notification skipped — TEAMS_TEAM_ID or TEAMS_CHANNEL_ID not configured');
+
             return;
         }
 
@@ -60,12 +61,20 @@ class TeamsNotificationService
             $channelId
         );
 
-        $html = $this->formatCard($subject, $body, $color);
+        $attachmentId = substr(md5($subject.$body.now()->timestamp), 0, 20);
+        $card = $this->buildAdaptiveCard($subject, $body, $color);
 
         $response = Http::withToken($token)->post($url, [
             'body' => [
                 'contentType' => 'html',
-                'content' => $html,
+                'content' => "<attachment id=\"{$attachmentId}\"></attachment>",
+            ],
+            'attachments' => [
+                [
+                    'id' => $attachmentId,
+                    'contentType' => 'application/vnd.microsoft.card.adaptive',
+                    'content' => json_encode($card),
+                ],
             ],
         ]);
 
@@ -75,28 +84,69 @@ class TeamsNotificationService
                 'response' => $response->json(),
                 'subject' => $subject,
             ]);
-            throw new \RuntimeException('Teams notification failed: ' . $response->status());
+            throw new \RuntimeException('Teams notification failed: '.$response->status());
         }
     }
 
     /**
-     * Format a structured HTML card for Teams.
+     * Build an Adaptive Card payload (v1.5) for a CCRS notification.
+     *
+     * @return array<string, mixed>
      */
-    private function formatCard(string $subject, string $body, string $color): string
+    public function buildAdaptiveCard(string $subject, string $body, string $color = '#4f46e5'): array
     {
-        $escapedSubject = e($subject);
-        $escapedBody = e($body);
-        $timestamp = now()->format('d M Y H:i');
-
-        return '<table style="border-collapse:collapse;width:100%;max-width:500px;">'
-            . '<tr>'
-            . '<td style="background-color:' . $color . ';width:4px;"></td>'
-            . '<td style="padding:12px 16px;">'
-            . '<div style="font-size:16px;font-weight:bold;color:#1a1a1a;margin-bottom:8px;">' . $escapedSubject . '</div>'
-            . '<div style="font-size:14px;color:#4a4a4a;line-height:1.5;">' . $escapedBody . '</div>'
-            . '<div style="font-size:11px;color:#9ca3af;margin-top:10px;border-top:1px solid #e5e7eb;padding-top:8px;">CCRS &middot; ' . $timestamp . '</div>'
-            . '</td>'
-            . '</tr>'
-            . '</table>';
+        return [
+            '$schema' => 'http://adaptivecards.io/schemas/adaptive-card.json',
+            'type' => 'AdaptiveCard',
+            'version' => '1.5',
+            'body' => [
+                [
+                    'type' => 'ColumnSet',
+                    'columns' => [
+                        [
+                            'type' => 'Column',
+                            'width' => 'auto',
+                            'style' => 'emphasis',
+                            'items' => [
+                                [
+                                    'type' => 'TextBlock',
+                                    'text' => ' ',
+                                    'color' => 'Accent',
+                                ],
+                            ],
+                        ],
+                        [
+                            'type' => 'Column',
+                            'width' => 'stretch',
+                            'items' => [
+                                [
+                                    'type' => 'TextBlock',
+                                    'text' => $subject,
+                                    'weight' => 'Bolder',
+                                    'size' => 'Medium',
+                                    'wrap' => true,
+                                    'color' => 'Default',
+                                ],
+                                [
+                                    'type' => 'TextBlock',
+                                    'text' => $body,
+                                    'wrap' => true,
+                                    'spacing' => 'Small',
+                                    'color' => 'Default',
+                                ],
+                                [
+                                    'type' => 'TextBlock',
+                                    'text' => 'CCRS · '.now()->format('d M Y H:i'),
+                                    'size' => 'Small',
+                                    'color' => 'Light',
+                                    'spacing' => 'Medium',
+                                    'wrap' => false,
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
     }
 }
