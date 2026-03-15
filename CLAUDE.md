@@ -259,3 +259,50 @@ DPP has 50 security requirements (R-SEC-001 to R-SEC-050) defined in `docs/refer
 | `docker-compose.yml` | Local dev environment |
 
 If you need infrastructure changes, describe what you need — the CTO will make the change.
+
+---
+
+## 12. Review Gate Tooling
+
+Run these before marking any task complete. All checks must pass.
+
+### PHP Style (Pint)
+```bash
+./vendor/bin/pint --test          # check only (no modifications)
+./vendor/bin/pint                  # auto-fix
+```
+No `pint.json` — uses default Laravel preset. Pint is installed as a dev dependency.
+
+### Static Analysis
+phpstan is **not installed**. No static analysis step at this time.
+
+### PHP Tests (Pest)
+```bash
+composer test                                    # standard (config:clear + artisan test)
+php -d memory_limit=512M artisan test            # full 826+ test suite
+php artisan test --filter=ContractLifecycle      # run a specific test
+```
+Tests use SQLite in-memory. All migrations must be SQLite-compatible.
+
+### Frontend Build
+```bash
+npm run build                     # Vite production build — catches CSS/JS errors
+```
+No TypeScript or ESLint configured — Vite build is the only frontend check.
+
+### Python AI Worker
+```bash
+cd ai-worker && pip install pytest && pytest      # no pytest.ini — runs all discoverable tests
+```
+No ruff, mypy, or flake8 configured in the sidecar. Manual review is the primary quality gate for Python code.
+
+### Full Check Sequence (run all)
+```bash
+./vendor/bin/pint --test && composer test && npm run build
+```
+
+### Project-level Claude Config
+See `.claude/rules/` for CCRS-specific extensions to the global review gate:
+- `review-gate-extensions.md` — CCRS/FastAPI-specific gate checks + DPP migration advisory
+- `project-conventions.md` — naming, directory layout, enums, role names, test patterns
+- `architecture.md` — layer rules, state machine, AI sidecar, signing, storage, auth patterns
