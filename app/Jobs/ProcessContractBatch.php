@@ -9,20 +9,15 @@ use App\Models\Entity;
 use App\Models\Project;
 use App\Models\Region;
 use App\Services\AuditService;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-class ProcessContractBatch implements ShouldQueue
+class ProcessContractBatch extends TenantAwareJob
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
     public int $tries = 3;
+
     public int $timeout = 120;
+
     public array $backoff = [10, 60];
 
     public function __construct(
@@ -42,8 +37,8 @@ class ProcessContractBatch implements ShouldQueue
             $project = Project::where('code', $data['project_code'])->where('entity_id', $entity->id)->firstOrFail();
             $counterparty = Counterparty::where('registration_number', $data['counterparty_registration'])->firstOrFail();
 
-            $sourceKey = 'bulk_uploads/files/' . $data['file_path'];
-            $destKey = 'contracts/' . Str::uuid() . '/' . basename($data['file_path']);
+            $sourceKey = 'bulk_uploads/files/'.$data['file_path'];
+            $destKey = 'contracts/'.Str::uuid().'/'.basename($data['file_path']);
             Storage::disk(config('ccrs.contracts_disk', 'database'))->copy($sourceKey, $destKey);
 
             $contract = new Contract([

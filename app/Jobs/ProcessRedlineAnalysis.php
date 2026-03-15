@@ -4,20 +4,15 @@ namespace App\Jobs;
 
 use App\Models\RedlineSession;
 use App\Services\AiWorkerClient;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
-class ProcessRedlineAnalysis implements ShouldQueue
+class ProcessRedlineAnalysis extends TenantAwareJob
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
     public int $tries = 2;
+
     public int $timeout = 600;
+
     public array $backoff = [10, 60];
 
     public function __construct(
@@ -28,8 +23,9 @@ class ProcessRedlineAnalysis implements ShouldQueue
     {
         $session = RedlineSession::with(['contract', 'wikiContract'])->find($this->sessionId);
 
-        if (!$session) {
+        if (! $session) {
             Log::error("ProcessRedlineAnalysis: session {$this->sessionId} not found");
+
             return;
         }
 
@@ -90,23 +86,24 @@ class ProcessRedlineAnalysis implements ShouldQueue
         $disk = config('ccrs.contracts_disk', 'database');
         $contents = Storage::disk($disk)->get($storagePath);
 
-        if (!$contents) {
+        if (! $contents) {
             return '';
         }
 
         $extension = strtolower(pathinfo($storagePath, PATHINFO_EXTENSION));
 
-        $tempPath = tempnam(sys_get_temp_dir(), 'redline_') . '.' . $extension;
+        $tempPath = tempnam(sys_get_temp_dir(), 'redline_').'.'.$extension;
         file_put_contents($tempPath, $contents);
 
         try {
             if ($extension === 'pdf') {
                 $outputLines = [];
                 $exitCode = 0;
-                exec("pdftotext " . escapeshellarg($tempPath) . " -", $outputLines, $exitCode);
+                exec('pdftotext '.escapeshellarg($tempPath).' -', $outputLines, $exitCode);
                 if ($exitCode === 0) {
                     return implode("\n", $outputLines);
                 }
+
                 return '';
             }
 
@@ -114,8 +111,8 @@ class ProcessRedlineAnalysis implements ShouldQueue
                 $outputLines = [];
                 $exitCode = 0;
                 exec(
-                    "python3 -c \"import docx; " .
-                    "doc = docx.Document(" . escapeshellarg($tempPath) . "); " .
+                    'python3 -c "import docx; '.
+                    'doc = docx.Document('.escapeshellarg($tempPath).'); '.
                     "print('\\n'.join(p.text for p in doc.paragraphs))\"",
                     $outputLines,
                     $exitCode
@@ -123,6 +120,7 @@ class ProcessRedlineAnalysis implements ShouldQueue
                 if ($exitCode === 0) {
                     return implode("\n", $outputLines);
                 }
+
                 return '';
             }
 
