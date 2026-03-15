@@ -1,9 +1,8 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Auth\AzureAdController;
-
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 
 // Kubernetes liveness probe — returns 200 if app is running
 Route::get('/health', function () {
@@ -14,17 +13,20 @@ Route::get('/health', function () {
 Route::get('/health/ready', function () {
     try {
         \Illuminate\Support\Facades\DB::connection()->getPdo();
+
         return response()->json(['status' => 'ready']);
     } catch (\Throwable $e) {
         \Illuminate\Support\Facades\Log::warning('Health readiness check failed', ['error' => $e->getMessage()]);
+
         return response()->json(['status' => 'not_ready'], 503);
     }
 })->name('health.ready');
 
 // Database file storage — signed URL serving (replaces S3 pre-signed URLs)
+// Requires authentication on either guard; authorization is enforced inside the controller.
 Route::get('/storage/serve/{path}', \App\Http\Controllers\StorageServeController::class)
     ->where('path', '.*')
-    ->middleware('signed')
+    ->middleware(['signed', 'auth:web,vendor'])
     ->name('storage.serve');
 
 Route::get('/', function () {
@@ -38,18 +40,20 @@ Route::post('/logout', function () {
     Auth::logout();
     request()->session()->invalidate();
     request()->session()->regenerateToken();
+
     return redirect('/');
 })->name('logout');
 
 Route::get('/contracts/{contract}/download', function (\App\Models\Contract $contract) {
-    if (!auth()->user()?->hasAnyRole(['system_admin', 'legal', 'commercial', 'finance', 'audit'])) {
+    if (! auth()->user()?->hasAnyRole(['system_admin', 'legal', 'commercial', 'finance', 'audit'])) {
         abort(403);
     }
-    if (!$contract->storage_path) {
+    if (! $contract->storage_path) {
         abort(404, 'No document uploaded for this contract.');
     }
     $service = app(\App\Services\ContractFileService::class);
     $url = $service->getSignedUrl($contract->storage_path);
+
     return $url ? redirect($url) : abort(404);
 })->middleware('auth')->name('contract.download');
 
@@ -61,12 +65,15 @@ Route::post('/vendor/logout', [\App\Http\Controllers\VendorAuthController::class
 
 Route::get('/vendor/contracts/{contract}/download', function (\App\Models\Contract $contract) {
     $user = auth('vendor')->user();
-    if (!$user || $contract->counterparty_id !== $user->counterparty_id) abort(403);
-    if (!$contract->storage_path) {
+    if (! $user || $contract->counterparty_id !== $user->counterparty_id) {
+        abort(403);
+    }
+    if (! $contract->storage_path) {
         abort(404, 'No document uploaded for this contract.');
     }
     $service = app(\App\Services\ContractFileService::class);
     $url = $service->getSignedUrl($contract->storage_path);
+
     return $url ? redirect($url) : abort(404);
 })->middleware('auth:vendor')->name('vendor.contract.download');
 
