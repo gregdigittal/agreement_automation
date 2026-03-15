@@ -5,20 +5,29 @@ namespace App\Services;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Http\Client\RequestException;
-use App\Services\TelemetryService;
 
 class AiWorkerClient
 {
     private string $baseUrl;
-    private string $secret;
+
     private int $timeout;
 
     public function __construct()
     {
         $this->baseUrl = rtrim(config('ccrs.ai_worker_url'), '/');
-        $this->secret = config('ccrs.ai_worker_secret');
         $this->timeout = config('ccrs.ai_analysis_timeout', 120);
+    }
+
+    /**
+     * Resolve the AI worker secret for the current request context.
+     *
+     * Single-tenant: returns the global AI_WORKER_SECRET env value.
+     * To-do (P0-4 follow-up): when stancl/tenancy is installed, resolve the
+     * tenant-specific secret from tenant config or a secrets store here.
+     */
+    protected function resolveSecret(): string
+    {
+        return (string) config('ccrs.ai_worker_secret', '');
     }
 
     /**
@@ -47,7 +56,7 @@ class AiWorkerClient
                 'file_name' => $fileName,
                 'disk' => $disk,
                 'ai_worker_url' => $this->baseUrl,
-                'has_secret' => ! empty($this->secret),
+                'has_secret' => ! empty($this->resolveSecret()),
                 'timeout' => $this->timeout,
             ]);
 
@@ -64,9 +73,9 @@ class AiWorkerClient
             ]);
 
             $response = Http::withHeaders([
-                    'X-AI-Worker-Secret' => $this->secret,
-                    'Content-Type' => 'application/json',
-                ])
+                'X-AI-Worker-Secret' => $this->resolveSecret(),
+                'Content-Type' => 'application/json',
+            ])
                 ->timeout($this->timeout)
                 ->post("{$this->baseUrl}/analyze", [
                     'contract_id' => $contractId,
@@ -91,12 +100,12 @@ class AiWorkerClient
                     'response_body' => substr($body, 0, 2000),
                 ]);
                 // Throw with the actual error detail from AI worker
-                $detail = 'AI worker returned HTTP ' . $statusCode;
+                $detail = 'AI worker returned HTTP '.$statusCode;
                 $json = $response->json();
                 if (is_array($json) && isset($json['detail'])) {
-                    $detail .= ': ' . (is_string($json['detail']) ? $json['detail'] : json_encode($json['detail']));
+                    $detail .= ': '.(is_string($json['detail']) ? $json['detail'] : json_encode($json['detail']));
                 } else {
-                    $detail .= ': ' . substr($body, 0, 500);
+                    $detail .= ': '.substr($body, 0, 500);
                 }
                 throw new \RuntimeException($detail);
             }
@@ -116,7 +125,7 @@ class AiWorkerClient
                 'url' => $this->baseUrl,
                 'error' => $e->getMessage(),
             ]);
-            throw new \RuntimeException("AI Worker unreachable at {$this->baseUrl}: " . $e->getMessage(), 0, $e);
+            throw new \RuntimeException("AI Worker unreachable at {$this->baseUrl}: ".$e->getMessage(), 0, $e);
         } finally {
             $span?->end();
         }
@@ -127,7 +136,7 @@ class AiWorkerClient
      */
     public function generateWorkflow(string $description, ?string $regionId = null, ?string $entityId = null, ?string $projectId = null): array
     {
-        $response = Http::withHeaders(['X-AI-Worker-Secret' => $this->secret])
+        $response = Http::withHeaders(['X-AI-Worker-Secret' => $this->resolveSecret()])
             ->timeout(60)
             ->post("{$this->baseUrl}/generate-workflow", [
                 'description' => $description,
@@ -137,6 +146,7 @@ class AiWorkerClient
             ]);
 
         $response->throw();
+
         return $response->json();
     }
 
@@ -156,9 +166,9 @@ class AiWorkerClient
         ]);
         try {
             $response = Http::withHeaders([
-                    'X-AI-Worker-Secret' => $this->secret,
-                    'Content-Type' => 'application/json',
-                ])
+                'X-AI-Worker-Secret' => $this->resolveSecret(),
+                'Content-Type' => 'application/json',
+            ])
                 ->timeout(600) // Redline analysis can take longer for large contracts
                 ->post("{$this->baseUrl}/analyze-redline", [
                     'contract_text' => $contractText,
@@ -168,6 +178,7 @@ class AiWorkerClient
                 ]);
 
             $response->throw();
+
             return $response->json();
         } finally {
             $span?->end();
@@ -180,6 +191,7 @@ class AiWorkerClient
     public function health(): array
     {
         $response = Http::timeout(5)->get("{$this->baseUrl}/health");
+
         return $response->json();
     }
 }
