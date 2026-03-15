@@ -188,15 +188,26 @@ git checkout sandbox && git merge main && git push origin sandbox
 
 ## 7. Known Issues (P0)
 
-| ID | Issue | Branch |
-|---|---|---|
-| P0-1 | BoldSign cleanup | `feat/p0-boldsign-cleanup` |
-| P0-2 | Storage path scoping | `feat/p0-storage-scoping` |
-| P0-3 | TenantAwareJob wrapper | `feat/p0-tenant-aware-jobs` |
-| P0-4 | Per-tenant AI secret | `feat/p0-ai-worker-tenant` |
-| P0-5 | Azure AD group map | `feat/p0-azure-group-map` |
-| P0-6 | SQLite parity | `feat/p0-sqlite-parity` |
-| P0-7 | SharePoint governance | `docs/sharepoint-governance` |
+All P0 items resolved and merged to `laravel-migration` (2026-03-15).
+
+| ID | Issue | Branch | Status |
+|---|---|---|---|
+| P0-1 | BoldSign cleanup — runtime guards in service + Filament action | `feat/p0-boldsign-cleanup` | ✅ merged |
+| P0-2 | Storage path scoping — contract + vendor auth in `StorageServeController` | `feat/p0-storage-scoping` | ✅ merged |
+| P0-3 | TenantAwareJob wrapper + `TenantCache::key()` for all unscoped cache keys | `feat/p0-tenant-aware-jobs` | ✅ merged |
+| P0-4 | Per-tenant AI secret via `resolveSecret()` override point | `feat/p0-ai-worker-tenant` | ✅ merged |
+| P0-5 | Azure AD group-to-role mapping on SSO callback + 3 new tests | `feat/p0-azure-group-map` | ✅ merged |
+| P0-6 | SQLite parity audit — all migrations already guarded, no changes needed | `feat/p0-sqlite-parity` | ✅ merged |
+| P0-7 | SharePoint governance doc at `docs/sharepoint-governance.md` | `docs/sharepoint-governance` | ✅ merged |
+
+**CTO-only items (infrastructure — not yet addressed):**
+- `APP_DEBUG=true` in `deploy/k8s/deployment.yaml` (line 45)
+- Hardcoded DB credentials in `deploy/k8s/deployment.yaml` (lines 58-59, 84, 155-161, 210)
+- Azure AD App Registration: `groupMembershipClaims` config + `Sites.Read.All`/`Files.Read.All` Graph permissions
+
+**Pre-existing test failures (unrelated to P0 work):**
+- `ContractAccessControlTest > it restricted contract is not in list for unauthorized user` — Filament HTTP render test; Livewire-level tests pass ✅
+- `UserManagement\UserResourceTest > it creates user with roles and sends invite email` — password validation issue in test setup
 
 **Cache bugs**: `org_structure_tree_data`, `contract_types.options`, `sharepoint_graph_token` — all need tenant-scoped keys.
 
