@@ -1,10 +1,11 @@
 <x-filament-panels::page>
     @php $stats = $this->getDashboardStats() @endphp
 
-    <div class="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-6">
+    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 mb-6">
         @foreach ([
             ['Active Agreements', $stats['active_agreements'], 'heroicon-o-document-check', 'text-emerald-600'],
             ['Pending Signing', $stats['pending_signing'], 'heroicon-o-pencil', 'text-amber-600'],
+            ['Pending KYC', $stats['pending_kyc'], 'heroicon-o-identification', 'text-orange-600'],
             ['Documents Uploaded', $stats['documents_uploaded'], 'heroicon-o-folder', 'text-blue-600'],
             ['Unread Notifications', $stats['unread_notifications'], 'heroicon-o-bell', 'text-red-500'],
         ] as [$label, $value, $icon, $color])

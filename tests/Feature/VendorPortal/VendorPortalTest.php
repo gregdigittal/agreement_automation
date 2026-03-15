@@ -1,9 +1,11 @@
 <?php
 
 use App\Filament\Resources\VendorUserResource\Pages\CreateVendorUser;
-use App\Filament\Resources\VendorUserResource\Pages\ListVendorUsers;
+use App\Filament\Vendor\Pages\VendorDashboard;
 use App\Models\Contract;
 use App\Models\Counterparty;
+use App\Models\KycPack;
+use App\Models\KycTemplate;
 use App\Models\User;
 use App\Models\VendorDocument;
 use App\Models\VendorLoginToken;
@@ -184,7 +186,7 @@ it('vendor documents are scoped to their counterparty', function () {
         'counterparty_id' => $cpA->id,
         'contract_id' => $contractA->id,
         'filename' => 'doc-a.pdf',
-        'storage_path' => 'vendor_documents/' . $cpA->id . '/doc-a.pdf',
+        'storage_path' => 'vendor_documents/'.$cpA->id.'/doc-a.pdf',
         'document_type' => 'supporting',
         'uploaded_by_vendor_user_id' => $vendorA->id,
     ]);
@@ -194,7 +196,7 @@ it('vendor documents are scoped to their counterparty', function () {
         'counterparty_id' => $cpB->id,
         'contract_id' => Contract::factory()->create(['counterparty_id' => $cpB->id])->id,
         'filename' => 'doc-b.pdf',
-        'storage_path' => 'vendor_documents/' . $cpB->id . '/doc-b.pdf',
+        'storage_path' => 'vendor_documents/'.$cpB->id.'/doc-b.pdf',
         'document_type' => 'certificate',
     ]);
 
@@ -218,7 +220,7 @@ it('uploaded documents reference the uploading vendor user', function () {
         'counterparty_id' => $cp->id,
         'contract_id' => $contract->id,
         'filename' => 'uploaded.pdf',
-        'storage_path' => 'vendor_documents/' . $cp->id . '/uploaded.pdf',
+        'storage_path' => 'vendor_documents/'.$cp->id.'/uploaded.pdf',
         'document_type' => 'supporting',
         'uploaded_by_vendor_user_id' => $vendor->id,
     ]);
@@ -240,7 +242,7 @@ it('PDF upload creates a VendorDocument record', function () {
     $vendor = VendorUser::factory()->create(['counterparty_id' => $cp->id]);
     $contract = Contract::factory()->create(['counterparty_id' => $cp->id]);
 
-    $storagePath = 'vendor_documents/' . $cp->id . '/test.pdf';
+    $storagePath = 'vendor_documents/'.$cp->id.'/test.pdf';
     Storage::disk(config('ccrs.contracts_disk'))->put($storagePath, 'fake pdf content');
 
     VendorDocument::create([
@@ -271,7 +273,7 @@ it('DOCX upload also creates a VendorDocument record', function () {
     $vendor = VendorUser::factory()->create(['counterparty_id' => $cp->id]);
     $contract = Contract::factory()->create(['counterparty_id' => $cp->id]);
 
-    $storagePath = 'vendor_documents/' . $cp->id . '/agreement.docx';
+    $storagePath = 'vendor_documents/'.$cp->id.'/agreement.docx';
     Storage::disk(config('ccrs.contracts_disk'))->put($storagePath, 'fake docx content');
 
     VendorDocument::create([
@@ -293,9 +295,9 @@ it('DOCX upload also creates a VendorDocument record', function () {
 // ---------------------------------------------------------------------------
 it('storage path is scoped to counterparty directory', function () {
     $cp = Counterparty::factory()->create();
-    $expectedPrefix = 'vendor_documents/' . $cp->id . '/';
+    $expectedPrefix = 'vendor_documents/'.$cp->id.'/';
 
-    $storagePath = $expectedPrefix . 'scoped-doc.pdf';
+    $storagePath = $expectedPrefix.'scoped-doc.pdf';
 
     expect($storagePath)->toStartWith($expectedPrefix);
 });
@@ -479,4 +481,91 @@ it('admin can render vendor user list page with filter', function () {
     Filament::setCurrentPanel(Filament::getPanel('admin'));
 
     $this->get('/admin/vendor-users')->assertSuccessful();
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// VENDOR DASHBOARD (23-25)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ---------------------------------------------------------------------------
+// 23. getDashboardStats returns pending_kyc count
+// ---------------------------------------------------------------------------
+it('vendor dashboard counts incomplete KYC packs as pending_kyc', function () {
+    $cp = Counterparty::factory()->create();
+    $vendor = VendorUser::factory()->create(['counterparty_id' => $cp->id]);
+    $this->actingAs($vendor, 'vendor');
+
+    $contract = Contract::factory()->create(['counterparty_id' => $cp->id]);
+    $template = KycTemplate::factory()->create(['contract_type_pattern' => '*']);
+
+    KycPack::create([
+        'id' => Str::uuid()->toString(),
+        'contract_id' => $contract->id,
+        'kyc_template_id' => $template->id,
+        'template_version' => 1,
+        'status' => 'incomplete',
+    ]);
+
+    // KYC pack for a different counterparty should NOT be counted
+    $otherContract = Contract::factory()->create();
+    KycPack::create([
+        'id' => Str::uuid()->toString(),
+        'contract_id' => $otherContract->id,
+        'kyc_template_id' => $template->id,
+        'template_version' => 1,
+        'status' => 'incomplete',
+    ]);
+
+    $page = new VendorDashboard;
+    $stats = $page->getDashboardStats();
+
+    expect($stats['pending_kyc'])->toBe(1);
+});
+
+// ---------------------------------------------------------------------------
+// 24. getDashboardStats returns zero pending_kyc when all packs complete
+// ---------------------------------------------------------------------------
+it('vendor dashboard shows zero pending_kyc when all KYC packs are complete', function () {
+    $cp = Counterparty::factory()->create();
+    $vendor = VendorUser::factory()->create(['counterparty_id' => $cp->id]);
+    $this->actingAs($vendor, 'vendor');
+
+    $contract = Contract::factory()->create(['counterparty_id' => $cp->id]);
+    $template = KycTemplate::factory()->create(['contract_type_pattern' => '*']);
+
+    KycPack::create([
+        'id' => Str::uuid()->toString(),
+        'contract_id' => $contract->id,
+        'kyc_template_id' => $template->id,
+        'template_version' => 1,
+        'status' => 'complete',
+    ]);
+
+    $page = new VendorDashboard;
+    $stats = $page->getDashboardStats();
+
+    expect($stats['pending_kyc'])->toBe(0);
+});
+
+// ---------------------------------------------------------------------------
+// 25. getRecentActivity includes vendor notifications
+// ---------------------------------------------------------------------------
+it('vendor dashboard recent activity includes unread notifications', function () {
+    $cp = Counterparty::factory()->create();
+    $vendor = VendorUser::factory()->create(['counterparty_id' => $cp->id]);
+    $this->actingAs($vendor, 'vendor');
+
+    VendorNotification::create([
+        'id' => Str::uuid()->toString(),
+        'vendor_user_id' => $vendor->id,
+        'subject' => 'Your contract has been updated',
+        'body' => 'Please review the latest changes.',
+        'read_at' => null,
+    ]);
+
+    $page = new VendorDashboard;
+    $activity = $page->getRecentActivity();
+
+    $descriptions = array_column($activity, 'description');
+    expect($descriptions)->toContain('Your contract has been updated');
 });
