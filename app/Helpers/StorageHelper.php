@@ -17,11 +17,12 @@ class StorageHelper
     {
         $minutes = match ($context) {
             'preview' => 2,
-            'api'     => 0.5,
-            default   => 10,
+            'api' => 0.5,
+            default => 10,
         };
 
-        $disk = config('ccrs.contracts_disk', 'database');
+        $disk = config('ccrs.contracts_disk');
+
         return Storage::disk($disk)->temporaryUrl($path, now()->addMinutes($minutes));
     }
 }

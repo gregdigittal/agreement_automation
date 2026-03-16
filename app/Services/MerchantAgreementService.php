@@ -23,11 +23,11 @@ class MerchantAgreementService
             $fileService = app(ContractFileService::class);
             $contents = $fileService->download($wikiTemplate->storage_path);
             $tempDir = storage_path('app/temp');
-            if (!is_dir($tempDir)) {
+            if (! is_dir($tempDir)) {
                 mkdir($tempDir, 0775, true);
             }
-            $templatePath = $tempDir . '/tpl_' . $wikiTemplate->id . '.docx';
-            $outputPath = $tempDir . '/ma_' . $contract->id . '.docx';
+            $templatePath = $tempDir.'/tpl_'.$wikiTemplate->id.'.docx';
+            $outputPath = $tempDir.'/ma_'.$contract->id.'.docx';
             file_put_contents($templatePath, $contents);
 
             try {
@@ -44,8 +44,8 @@ class MerchantAgreementService
                 }
                 $processor->saveAs($outputPath);
 
-                $disk = config('ccrs.contracts_disk', 'database');
-                $s3Path = "contracts/{$contract->id}/merchant-agreement-" . now()->format('YmdHis') . ".docx";
+                $disk = config('ccrs.contracts_disk');
+                $s3Path = "contracts/{$contract->id}/merchant-agreement-".now()->format('YmdHis').'.docx';
                 Storage::disk($disk)->put($s3Path, file_get_contents($outputPath));
 
                 $contract->update([
@@ -96,7 +96,7 @@ class MerchantAgreementService
         // Resolve template: wiki template first, then fall back to master
         $templateContent = $this->resolveTemplate($agreement);
 
-        $tempTemplatePath = tempnam(sys_get_temp_dir(), 'agr_template_') . '.docx';
+        $tempTemplatePath = tempnam(sys_get_temp_dir(), 'agr_template_').'.docx';
         file_put_contents($tempTemplatePath, $templateContent);
 
         $regionTerms = is_string($agreement->region_terms)
@@ -105,15 +105,15 @@ class MerchantAgreementService
 
         // Build placeholder values — all agreement types share the common set
         $values = [
-            'vendor_name'             => $counterparty->legal_name,
-            'effective_date'          => now()->format('d F Y'),
-            'region_terms'            => $regionTerms,
-            'entity_name'             => $agreement->entity->name ?? '',
-            'project_name'            => $agreement->project->name ?? '',
-            'agreement_type'          => $agreementType,
-            'governing_law'           => $agreement->governingLaw?->name ?? '',
-            'description'             => $agreement->description ?? '',
-            'signing_authority_name'  => $signingAuth?->role_or_name ?? '',
+            'vendor_name' => $counterparty->legal_name,
+            'effective_date' => now()->format('d F Y'),
+            'region_terms' => $regionTerms,
+            'entity_name' => $agreement->entity->name ?? '',
+            'project_name' => $agreement->project->name ?? '',
+            'agreement_type' => $agreementType,
+            'governing_law' => $agreement->governingLaw?->name ?? '',
+            'description' => $agreement->description ?? '',
+            'signing_authority_name' => $signingAuth?->role_or_name ?? '',
             'signing_authority_title' => $signingAuth?->contract_type_pattern ?? '',
         ];
 
@@ -123,7 +123,7 @@ class MerchantAgreementService
         }
 
         // Additional counterparties
-        if (!empty($agreement->additional_counterparty_ids)) {
+        if (! empty($agreement->additional_counterparty_ids)) {
             $additionalNames = \App\Models\Counterparty::whereIn('id', $agreement->additional_counterparty_ids)
                 ->pluck('legal_name')
                 ->implode(', ');
@@ -131,7 +131,7 @@ class MerchantAgreementService
         }
 
         // Jurisdictions
-        if (!empty($agreement->jurisdiction_ids)) {
+        if (! empty($agreement->jurisdiction_ids)) {
             $jurisdictionNames = \App\Models\Jurisdiction::whereIn('id', $agreement->jurisdiction_ids)
                 ->pluck('name')
                 ->implode(', ');
@@ -143,16 +143,16 @@ class MerchantAgreementService
             $processor->setValue($key, htmlspecialchars((string) $value));
         }
 
-        $outputTempPath = tempnam(sys_get_temp_dir(), 'agr_output_') . '.docx';
+        $outputTempPath = tempnam(sys_get_temp_dir(), 'agr_output_').'.docx';
         $processor->saveAs($outputTempPath);
 
-        $disk = config('ccrs.contracts_disk', 'database');
+        $disk = config('ccrs.contracts_disk');
         $typeSlug = Str::slug($agreementType, '_');
         $s3OutputKey = sprintf(
             '%s_agreements/%s/%s.docx',
             $typeSlug,
             $counterparty->id,
-            now()->format('Ymd_His') . '_' . Str::random(6)
+            now()->format('Ymd_His').'_'.Str::random(6)
         );
         Storage::disk($disk)->put($s3OutputKey, file_get_contents($outputTempPath));
 
@@ -160,15 +160,15 @@ class MerchantAgreementService
         @unlink($outputTempPath);
 
         $contract = new Contract([
-            'title'           => "{$agreementType} Agreement — {$counterparty->legal_name}",
-            'contract_type'   => $agreementType,
+            'title' => "{$agreementType} Agreement — {$counterparty->legal_name}",
+            'contract_type' => $agreementType,
             'counterparty_id' => $counterparty->id,
-            'region_id'       => $agreement->region_id,
-            'entity_id'       => $agreement->entity_id,
-            'project_id'      => $agreement->project_id,
+            'region_id' => $agreement->region_id,
+            'entity_id' => $agreement->entity_id,
+            'project_id' => $agreement->project_id,
             'governing_law_id' => $agreement->governing_law_id,
-            'storage_path'    => $s3OutputKey,
-            'created_by'      => $actor->id,
+            'storage_path' => $s3OutputKey,
+            'created_by' => $actor->id,
         ]);
         $contract->workflow_state = 'draft';
         $contract->save();
@@ -194,7 +194,7 @@ class MerchantAgreementService
      */
     private function resolveTemplate(MerchantAgreement $agreement): string
     {
-        $disk = config('ccrs.contracts_disk', 'database');
+        $disk = config('ccrs.contracts_disk');
 
         // 1. Try wiki template if selected
         if ($agreement->wiki_contract_id) {

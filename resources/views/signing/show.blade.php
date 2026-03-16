@@ -67,8 +67,9 @@
                     <label for="field-{{ $field->id }}"
                            class="block text-sm font-medium text-gray-700 mb-1">
                         {{ $field->label }}
-                        @if ($field->is_required)
-                            <span class="text-red-500">*</span>
+                                @if ($field->is_required)
+                            <span class="text-red-500" aria-hidden="true">*</span>
+                            <span class="sr-only">(required)</span>
                         @endif
                     </label>
 
@@ -117,7 +118,10 @@
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 @foreach ($storedSignatures as $stored)
                 @php $storedImageUrl = $stored->getImageUrl(); @endphp
-                <div class="stored-signature-item border border-gray-200 rounded-lg p-3 cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
+                <div class="stored-signature-item border border-gray-200 rounded-lg p-3 cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                     role="button"
+                     tabindex="0"
+                     aria-label="Use saved {{ $stored->label ?? $stored->type }} signature{{ $stored->is_default ? ' (default)' : '' }}"
                      data-image-src="{{ $storedImageUrl }}"
                      data-sig-type="{{ $stored->type }}">
                     <div class="bg-white border border-gray-100 rounded p-2 flex items-center justify-center mb-2" style="min-height: 60px;">
@@ -145,6 +149,7 @@
             {{-- Signature Method Tabs --}}
             <div class="flex space-x-1 mb-4" role="tablist" aria-label="Signature method">
                 <button type="button"
+                        id="tab-btn-draw"
                         class="signature-tab tab-active px-4 py-2 rounded-md text-sm font-medium transition-colors"
                         data-method="draw"
                         role="tab"
@@ -153,6 +158,7 @@
                     Draw
                 </button>
                 <button type="button"
+                        id="tab-btn-type"
                         class="signature-tab tab-inactive px-4 py-2 rounded-md text-sm font-medium transition-colors"
                         data-method="type"
                         role="tab"
@@ -161,6 +167,7 @@
                     Type
                 </button>
                 <button type="button"
+                        id="tab-btn-upload"
                         class="signature-tab tab-inactive px-4 py-2 rounded-md text-sm font-medium transition-colors"
                         data-method="upload"
                         role="tab"
@@ -169,6 +176,7 @@
                     Upload
                 </button>
                 <button type="button"
+                        id="tab-btn-webcam"
                         class="signature-tab tab-inactive px-4 py-2 rounded-md text-sm font-medium transition-colors"
                         data-method="webcam"
                         role="tab"
@@ -179,39 +187,43 @@
             </div>
 
             {{-- Draw Panel --}}
-            <div id="tab-panel-draw" class="signature-panel" role="tabpanel">
+            <div id="tab-panel-draw" class="signature-panel" role="tabpanel" aria-labelledby="tab-btn-draw">
+                <p class="sr-only">Draw your signature below using a mouse or touch. Keyboard users: switch to the Type or Upload tab for an accessible alternative.</p>
                 <div class="border-2 border-dashed border-gray-300 rounded-lg p-2 bg-white">
                     <canvas id="signature-pad-canvas"
                             class="w-full border border-gray-200 rounded"
                             width="600"
                             height="200"
-                            aria-label="Signature drawing area">
+                            aria-hidden="true">
                     </canvas>
                 </div>
                 <button type="button"
                         id="clear-signature"
-                        class="mt-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+                        class="mt-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                        aria-label="Clear signature drawing">
                     Clear signature
                 </button>
             </div>
 
             {{-- Type Panel --}}
-            <div id="tab-panel-type" class="signature-panel hidden" role="tabpanel">
+            <div id="tab-panel-type" class="signature-panel hidden" role="tabpanel" aria-labelledby="tab-btn-type">
+                <label for="typed-signature" class="sr-only">Type your full name as your signature</label>
                 <input type="text"
                        id="typed-signature"
                        placeholder="Type your full name"
+                       autocomplete="name"
                        class="w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-2xl"
                        style="font-family: 'Brush Script MT', 'Dancing Script', cursive;">
                 <p class="mt-1 text-xs text-gray-500">Your typed name will be used as your signature.</p>
             </div>
 
             {{-- Upload Panel --}}
-            <div id="tab-panel-upload" class="signature-panel hidden" role="tabpanel">
+            <div id="tab-panel-upload" class="signature-panel hidden" role="tabpanel" aria-labelledby="tab-btn-upload">
                 <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                     <input type="file"
                            id="signature-upload"
                            accept="image/png,image/jpeg"
-                           class="hidden">
+                           class="sr-only">
                     <label for="signature-upload" class="cursor-pointer">
                         <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -224,7 +236,7 @@
             </div>
 
             {{-- Webcam Panel --}}
-            <div id="tab-panel-webcam" class="signature-panel hidden" role="tabpanel">
+            <div id="tab-panel-webcam" class="signature-panel hidden" role="tabpanel" aria-labelledby="tab-btn-webcam">
                 <div id="webcam-start" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                     <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -236,7 +248,7 @@
                     <p class="mt-1 text-xs text-gray-400">Hold your signature on white paper up to the camera</p>
                 </div>
                 <div id="webcam-active" class="hidden">
-                    <video id="webcam-video" autoplay playsinline class="w-full max-w-lg rounded-lg border border-gray-300"></video>
+                    <video id="webcam-video" autoplay playsinline class="w-full max-w-lg rounded-lg border border-gray-300" aria-label="Camera feed for signature capture"></video>
                     <div class="flex items-center space-x-3 mt-2">
                         <button type="button" id="capture-btn" class="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700">
                             Capture
@@ -288,7 +300,9 @@
         <div class="flex items-center justify-between border-t border-gray-200 pt-6">
             <button type="button"
                     id="decline-btn"
-                    class="text-red-600 hover:text-red-800 text-sm font-medium">
+                    class="text-red-600 hover:text-red-800 text-sm font-medium"
+                    aria-haspopup="dialog"
+                    aria-controls="decline-modal">
                 Decline to Sign
             </button>
 

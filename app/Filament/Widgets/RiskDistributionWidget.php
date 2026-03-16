@@ -8,11 +8,15 @@ use Illuminate\Support\Facades\DB;
 class RiskDistributionWidget extends ChartWidget
 {
     protected static ?string $heading = 'Risk Distribution';
+
     protected static ?string $description = 'Contracts by AI risk score grouped by region';
+
     protected static ?int $sort = 2;
 
     protected function getData(): array
     {
+        // json_extract() works on both SQLite and MySQL (case-insensitive).
+        // MySQL's JSON_UNQUOTE() is not needed — json_extract returns unquoted scalars on both drivers.
         $results = DB::table('contracts')
             ->join('regions', 'contracts.region_id', '=', 'regions.id')
             ->leftJoin('ai_analysis_results', function ($join) {
@@ -21,7 +25,7 @@ class RiskDistributionWidget extends ChartWidget
             })
             ->select(
                 'regions.name as region_name',
-                DB::raw("COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ai_analysis_results.result, '$.risk_level')), 'unscored') as risk_level"),
+                DB::raw("COALESCE(json_extract(ai_analysis_results.result, '$.risk_level'), 'unscored') as risk_level"),
                 DB::raw('COUNT(*) as count')
             )
             ->whereNotIn('contracts.workflow_state', ['cancelled'])

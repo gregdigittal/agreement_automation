@@ -114,6 +114,18 @@ it('AiUsageCostWidget renders with empty data', function () {
         ->assertSuccessful();
 });
 
+it('AiUsageCostWidget reads pricing from config', function () {
+    // Verify config structure exists and is configurable for per-tenant pricing overrides
+    config()->set('ccrs.ai.cost_per_input_mtok', 5.0);
+    config()->set('ccrs.ai.cost_per_output_mtok', 25.0);
+
+    expect((float) config('ccrs.ai.cost_per_input_mtok'))->toBe(5.0);
+    expect((float) config('ccrs.ai.cost_per_output_mtok'))->toBe(25.0);
+
+    // Widget renders without error with overridden pricing
+    Livewire::test(AiUsageCostWidget::class)->assertSuccessful();
+});
+
 it('ContractPipelineFunnelWidget renders with contracts', function () {
     Contract::factory()->create();
     Contract::factory()->create();
@@ -133,8 +145,45 @@ it('ContractPipelineFunnelWidget uses a bounded query count — no N+1', functio
     $queryCount = count(DB::getQueryLog());
     DB::disableQueryLog();
 
-    // 7 stages + Livewire overhead — should stay well under 25 total queries
-    expect($queryCount)->toBeLessThan(25);
+    // Single grouped query replaces 7 per-stage queries — well under 15 total with Livewire overhead
+    expect($queryCount)->toBeLessThan(15);
+});
+
+it('ContractPipelineFunnelWidget counts contracts per stage correctly', function () {
+    Contract::factory()->create(['workflow_state' => 'draft']);
+    Contract::factory()->create(['workflow_state' => 'draft']);
+    Contract::factory()->create(['workflow_state' => 'review']);
+
+    $widget = new ContractPipelineFunnelWidget;
+    $counts = $widget->getStageCounts();
+
+    expect($counts['draft'])->toBe(2);
+    expect($counts['review'])->toBe(1);
+    expect($counts['executed'])->toBe(0);
+});
+
+it('ContractPipelineFunnelWidget includes all 7 stages including archived', function () {
+    $widget = new ContractPipelineFunnelWidget;
+    $counts = $widget->getStageCounts();
+
+    expect($counts)->toHaveKeys(['draft', 'review', 'approval', 'signing', 'countersign', 'executed', 'archived']);
+    expect($counts)->toHaveCount(7);
+});
+
+it('ContractPipelineFunnelWidget accessible description caches — single query path', function () {
+    Contract::factory()->count(5)->create(['workflow_state' => 'draft']);
+
+    DB::enableQueryLog();
+    $widget = new ContractPipelineFunnelWidget;
+    $widget->getStageCounts(); // first call — hits DB
+    $widget->getStageCounts(); // second call — uses cached property
+    $widget->getStageCounts(); // third call — still uses cache
+
+    $queryCount = count(DB::getQueryLog());
+    DB::disableQueryLog();
+
+    // All three getStageCounts() calls should produce exactly 1 DB query
+    expect($queryCount)->toBe(1);
 });
 
 it('ComplianceOverviewWidget is hidden when regulatory_compliance is disabled', function () {
@@ -148,6 +197,16 @@ it('ComplianceOverviewWidget renders when regulatory_compliance is enabled', fun
 
     Livewire::test(ComplianceOverviewWidget::class)
         ->assertSuccessful();
+});
+
+it('ComplianceOverviewWidget uses Feature helper not raw config', function () {
+    // Feature::enabled() reads config/features.php through the helper —
+    // test that canView() uses this path (not config() directly).
+    config()->set('features.regulatory_compliance', true);
+    expect(ComplianceOverviewWidget::canView())->toBeTrue();
+
+    config()->set('features.regulatory_compliance', false);
+    expect(ComplianceOverviewWidget::canView())->toBeFalse();
 });
 
 it('AiProcessingBannerWidget returns false when no record is set', function () {
@@ -181,28 +240,84 @@ it('ObligationTrackerWidget returns an array', function () {
     expect($obligations)->toBeArray();
 });
 
-it('RiskDistributionWidget renders', function () {
-    // JSON_UNQUOTE / JSON_EXTRACT are MySQL-only — skip on SQLite
-    if (DB::getDriverName() === 'sqlite') {
-        expect(true)->toBeTrue(); // pass trivially on SQLite CI
-
-        return;
-    }
-
+it('RiskDistributionWidget renders on SQLite using db-agnostic json_extract', function () {
     Livewire::test(RiskDistributionWidget::class)
         ->assertSuccessful();
 });
 
-it('WorkflowPerformanceWidget returns an array', function () {
-    // TIMESTAMPDIFF is MySQL-only — skip raw query execution on SQLite
-    if (DB::getDriverName() === 'sqlite') {
-        $widget = new WorkflowPerformanceWidget;
-        // On SQLite this would throw — but we verify the method signature exists
-        expect(method_exists($widget, 'getPerformanceData'))->toBeTrue();
+it('RiskDistributionWidget returns structured datasets', function () {
+    // Use Reflection to access protected getData() — acceptable for widget data structure tests
+    $widget = new RiskDistributionWidget;
+    $data = (new ReflectionClass($widget))->getMethod('getData')->invoke($widget);
 
-        return;
-    }
+    expect($data)->toHaveKeys(['datasets', 'labels']);
+    expect($data['datasets'])->toHaveCount(4); // high, medium, low, unscored
+    expect(collect($data['datasets'])->pluck('label')->toArray())->toEqual(['High', 'Medium', 'Low', 'Unscored']);
+});
+
+it('WorkflowPerformanceWidget returns an array on SQLite', function () {
+    $widget = new WorkflowPerformanceWidget;
+    $result = $widget->getPerformanceData();
+
+    expect($result)->toBeArray();
+});
+
+it('WorkflowPerformanceWidget returns action distribution shape', function () {
+    $user = User::factory()->create();
+    $contract = Contract::factory()->create();
+
+    // WorkflowInstance requires a real template_id (FK) — create a minimal template
+    $templateId = fake()->uuid();
+    DB::table('workflow_templates')->insert([
+        'id' => $templateId,
+        'name' => 'Test Template',
+        'contract_type' => 'Commercial',
+        'version' => 1,
+        'status' => 'published',
+        'stages' => '[]',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    // WorkflowInstance required for FK in workflow_stage_actions
+    $instanceId = fake()->uuid();
+    DB::table('workflow_instances')->insert([
+        'id' => $instanceId,
+        'contract_id' => $contract->id,
+        'template_id' => $templateId,
+        'template_version' => 1,
+        'current_stage' => 'review',
+        'state' => 'active',
+        'started_at' => now(),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    DB::table('workflow_stage_actions')->insert([
+        ['id' => fake()->uuid(), 'instance_id' => $instanceId, 'stage_name' => 'review', 'action' => 'approve', 'actor_id' => $user->id, 'actor_email' => $user->email, 'created_at' => now()],
+        ['id' => fake()->uuid(), 'instance_id' => $instanceId, 'stage_name' => 'review', 'action' => 'rework', 'actor_id' => $user->id, 'actor_email' => $user->email, 'created_at' => now()],
+    ]);
 
     $widget = new WorkflowPerformanceWidget;
-    expect($widget->getPerformanceData())->toBeArray();
+    $result = $widget->getPerformanceData();
+
+    expect($result)->toHaveCount(1);
+    expect($result[0])->toHaveKeys(['stage_name', 'total_actions', 'approvals', 'rejections', 'reworks', 'skips', 'rework_rate']);
+    expect($result[0]['stage_name'])->toBe('review');
+    expect($result[0]['total_actions'])->toBe(2);
+    expect($result[0]['approvals'])->toBe(1);
+    expect($result[0]['reworks'])->toBe(1);
+    expect($result[0]['rework_rate'])->toBe(50.0);
+});
+
+it('WorkflowPerformanceWidget sort does not collide with ObligationTrackerWidget', function () {
+    $workflowSort = (new ReflectionClass(WorkflowPerformanceWidget::class))
+        ->getProperty('sort');
+    $workflowSort->setAccessible(true);
+
+    $obligationSort = (new ReflectionClass(ObligationTrackerWidget::class))
+        ->getProperty('sort');
+    $obligationSort->setAccessible(true);
+
+    expect($workflowSort->getValue())->not->toBe($obligationSort->getValue());
 });

@@ -585,34 +585,42 @@ function showWebcamState(state) {
 
 function initStoredSignatures() {
     var storedItems = document.querySelectorAll('.stored-signature-item');
+
+    function activateStoredSignature(item) {
+        var imgSrc = item.dataset.imageSrc;
+        if (!imgSrc) return;
+
+        var imageInput = document.getElementById('signature-image-input');
+        var methodInput = document.getElementById('signature-method-input');
+
+        fetch(imgSrc)
+            .then(function (resp) { return resp.blob(); })
+            .then(function (blob) {
+                var reader = new FileReader();
+                reader.onload = function () {
+                    var base64 = reader.result.replace(/^data:image\/\w+;base64,/, '');
+                    if (imageInput) imageInput.value = base64;
+                    if (methodInput) methodInput.value = 'draw'; // stored sigs use the same pipeline
+                };
+                reader.readAsDataURL(blob);
+            });
+
+        storedItems.forEach(function (s) {
+            s.classList.remove('ring-2', 'ring-indigo-500');
+        });
+        item.classList.add('ring-2', 'ring-indigo-500');
+    }
+
     storedItems.forEach(function (item) {
         item.addEventListener('click', function () {
-            var imgSrc = item.dataset.imageSrc;
-            var sigType = item.dataset.sigType;
+            activateStoredSignature(item);
+        });
 
-            if (imgSrc) {
-                // Set signature image and mark method
-                var imageInput = document.getElementById('signature-image-input');
-                var methodInput = document.getElementById('signature-method-input');
-
-                // Fetch the stored signature image and convert to base64
-                fetch(imgSrc)
-                    .then(function (resp) { return resp.blob(); })
-                    .then(function (blob) {
-                        var reader = new FileReader();
-                        reader.onload = function () {
-                            var base64 = reader.result.replace(/^data:image\/\w+;base64,/, '');
-                            if (imageInput) imageInput.value = base64;
-                            if (methodInput) methodInput.value = 'draw'; // stored sigs use the same pipeline
-                        };
-                        reader.readAsDataURL(blob);
-                    });
-
-                // Highlight selected
-                storedItems.forEach(function (s) {
-                    s.classList.remove('ring-2', 'ring-indigo-500');
-                });
-                item.classList.add('ring-2', 'ring-indigo-500');
+        // Keyboard activation for role="button" elements (Enter or Space)
+        item.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                activateStoredSignature(item);
             }
         });
     });
@@ -623,43 +631,72 @@ function initStoredSignatures() {
 // ---------------------------------------------------------------------------
 
 function initSignatureTabs() {
-    const tabs = document.querySelectorAll('.signature-tab');
+    const tabs = Array.from(document.querySelectorAll('.signature-tab'));
     const panels = document.querySelectorAll('.signature-panel');
     const methodInput = document.getElementById('signature-method-input');
 
+    function activateTab(tab) {
+        const method = tab.dataset.method;
+
+        tabs.forEach(function (t) {
+            t.classList.remove('tab-active');
+            t.classList.add('tab-inactive');
+            t.setAttribute('aria-selected', 'false');
+            t.setAttribute('tabindex', '-1');
+        });
+        tab.classList.remove('tab-inactive');
+        tab.classList.add('tab-active');
+        tab.setAttribute('aria-selected', 'true');
+        tab.setAttribute('tabindex', '0');
+
+        panels.forEach(function (p) {
+            p.classList.add('hidden');
+        });
+        const targetPanel = document.getElementById('tab-panel-' + method);
+        if (targetPanel) {
+            targetPanel.classList.remove('hidden');
+        }
+
+        if (methodInput) {
+            methodInput.value = method;
+        }
+
+        if (method !== 'webcam' && webcamStream) {
+            stopCamera();
+        }
+    }
+
     tabs.forEach(function (tab) {
         tab.addEventListener('click', function () {
-            const method = tab.dataset.method;
+            activateTab(tab);
+        });
 
-            // Update tab styles
-            tabs.forEach(function (t) {
-                t.classList.remove('tab-active');
-                t.classList.add('tab-inactive');
-                t.setAttribute('aria-selected', 'false');
-            });
-            tab.classList.remove('tab-inactive');
-            tab.classList.add('tab-active');
-            tab.setAttribute('aria-selected', 'true');
+        // WAI-ARIA tab pattern: arrow keys move between tabs
+        tab.addEventListener('keydown', function (e) {
+            const currentIndex = tabs.indexOf(tab);
+            let nextTab = null;
 
-            // Show/hide panels
-            panels.forEach(function (p) {
-                p.classList.add('hidden');
-            });
-            const targetPanel = document.getElementById('tab-panel-' + method);
-            if (targetPanel) {
-                targetPanel.classList.remove('hidden');
+            if (e.key === 'ArrowRight') {
+                nextTab = tabs[(currentIndex + 1) % tabs.length];
+            } else if (e.key === 'ArrowLeft') {
+                nextTab = tabs[(currentIndex - 1 + tabs.length) % tabs.length];
+            } else if (e.key === 'Home') {
+                nextTab = tabs[0];
+            } else if (e.key === 'End') {
+                nextTab = tabs[tabs.length - 1];
             }
 
-            // Update hidden method input
-            if (methodInput) {
-                methodInput.value = method;
-            }
-
-            // Stop camera when switching away from webcam tab
-            if (method !== 'webcam' && webcamStream) {
-                stopCamera();
+            if (nextTab) {
+                e.preventDefault();
+                activateTab(nextTab);
+                nextTab.focus();
             }
         });
+    });
+
+    // Initialise tabindex: only the active tab is in the tab order
+    tabs.forEach(function (tab) {
+        tab.setAttribute('tabindex', tab.getAttribute('aria-selected') === 'true' ? '0' : '-1');
     });
 }
 
@@ -672,26 +709,62 @@ function initDeclineModal() {
     const modal = document.getElementById('decline-modal');
     const cancelBtn = document.getElementById('cancel-decline');
 
+    const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input:not([type="hidden"]), select, [tabindex]:not([tabindex="-1"])';
+
+    function openModal() {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        // Move focus to first focusable element inside the modal
+        const first = modal.querySelector(FOCUSABLE);
+        if (first) first.focus();
+    }
+
+    function closeModal() {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        // Return focus to the button that opened the modal
+        if (declineBtn) declineBtn.focus();
+    }
+
     if (declineBtn && modal) {
-        declineBtn.addEventListener('click', function () {
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        });
+        declineBtn.addEventListener('click', openModal);
     }
 
-    if (cancelBtn && modal) {
-        cancelBtn.addEventListener('click', function () {
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        });
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeModal);
     }
 
-    // Close on backdrop click
     if (modal) {
+        // Close on backdrop click
         modal.addEventListener('click', function (e) {
-            if (e.target === modal) {
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
+            if (e.target === modal) closeModal();
+        });
+
+        // Trap focus inside modal and close on Escape
+        modal.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeModal();
+                return;
+            }
+
+            if (e.key !== 'Tab') return;
+
+            const focusable = Array.from(modal.querySelectorAll(FOCUSABLE));
+            if (focusable.length === 0) return;
+
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+
+            if (e.shiftKey) {
+                if (document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                }
+            } else {
+                if (document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
             }
         });
     }

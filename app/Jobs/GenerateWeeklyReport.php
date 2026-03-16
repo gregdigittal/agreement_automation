@@ -32,7 +32,7 @@ class GenerateWeeklyReport extends TenantAwareJob
         $pdfContent = $pdf->output();
 
         $filename = 'reports/weekly/ccrs-weekly-report-'.now()->format('Y-m-d').'.pdf';
-        Storage::disk(config('ccrs.contracts_disk', 'database'))->put($filename, $pdfContent);
+        Storage::disk(config('ccrs.contracts_disk'))->put($filename, $pdfContent);
 
         $recipients = User::whereHas('roles', function ($q) {
             $q->whereIn('name', ['system_admin', 'legal']);

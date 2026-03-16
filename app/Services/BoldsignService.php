@@ -132,7 +132,7 @@ class BoldsignService
             throw new \RuntimeException("Contract {$contract->id} has no uploaded document to countersign.");
         }
 
-        $documentContents = Storage::disk(config('ccrs.contracts_disk', 'database'))->get($storagePath);
+        $documentContents = Storage::disk(config('ccrs.contracts_disk'))->get($storagePath);
         if (! $documentContents) {
             throw new \RuntimeException("Failed to download document from storage: {$storagePath}");
         }

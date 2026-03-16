@@ -16,7 +16,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(AiWorkerClient::class, fn () => new AiWorkerClient());
+        $this->app->singleton(AiWorkerClient::class, fn () => new AiWorkerClient);
     }
 
     /**
@@ -45,12 +45,17 @@ class AppServiceProvider extends ServiceProvider
         });
         // C2: Rate-limit public signing routes to prevent brute-force / spam
         \Illuminate\Support\Facades\RateLimiter::for('signing', function ($request) {
+            // E2E/local/testing environments run many automated requests — relax the limit
+            if (app()->environment(['e2e', 'local', 'testing'])) {
+                return \Illuminate\Cache\RateLimiting\Limit::perMinute(1000)->by($request->ip());
+            }
+
             return \Illuminate\Cache\RateLimiting\Limit::perMinute(10)->by($request->ip());
         });
 
         // Register 'database' filesystem driver for MySQL BLOB storage
         Storage::extend('database', function ($app, $config) {
-            $adapter = new DatabaseAdapter();
+            $adapter = new DatabaseAdapter;
             $flysystem = new \League\Flysystem\Filesystem($adapter);
 
             return new \Illuminate\Filesystem\FilesystemAdapter($flysystem, $adapter, $config);

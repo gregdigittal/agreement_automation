@@ -1,5 +1,5 @@
 <x-filament-widgets::widget>
-    <x-filament::section heading="Workflow Performance" description="Average stage durations and SLA breach rates (last 90 days)">
+    <x-filament::section heading="Workflow Performance" description="Action distribution per stage (last 90 days)">
         @php $metrics = $this->getPerformanceData(); @endphp
 
         @if (empty($metrics))
@@ -10,40 +10,42 @@
                     <thead>
                         <tr class="text-left text-gray-600 dark:text-gray-400 border-b dark:border-gray-700">
                             <th class="py-2 px-2">Stage</th>
-                            <th class="py-2 px-2 text-right">Avg Duration (hrs)</th>
-                            <th class="py-2 px-2 text-right">Min (hrs)</th>
-                            <th class="py-2 px-2 text-right">Max (hrs)</th>
-                            <th class="py-2 px-2 text-right">Actions</th>
-                            <th class="py-2 px-2 text-right">SLA Breaches</th>
-                            <th class="py-2 px-2 text-right">Breach Rate</th>
+                            <th class="py-2 px-2 text-right">Total Actions</th>
+                            <th class="py-2 px-2 text-right">Approved</th>
+                            <th class="py-2 px-2 text-right">Rejected</th>
+                            <th class="py-2 px-2 text-right">Rework</th>
+                            <th class="py-2 px-2 text-right">Skipped</th>
+                            <th class="py-2 px-2 text-right">Rework Rate</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($metrics as $metric)
                             @php
-                                $isBottleneck = $metric['avg_hours'] > 48;
+                                $isHighRework = $metric['rework_rate'] > 20;
                             @endphp
-                            <tr class="border-b dark:border-gray-700 {{ $isBottleneck ? 'bg-amber-50 dark:bg-amber-900/20' : '' }}">
+                            <tr class="border-b dark:border-gray-700 {{ $isHighRework ? 'bg-amber-50 dark:bg-amber-900/20' : '' }}">
                                 <td class="py-2 px-2 text-gray-900 dark:text-gray-100 font-medium">
                                     {{ ucwords(str_replace('_', ' ', $metric['stage_name'])) }}
-                                    @if ($isBottleneck)
-                                        <span class="text-xs text-amber-600 ml-1" title="Potential bottleneck">(bottleneck)</span>
+                                    @if ($isHighRework)
+                                        <span class="text-xs text-amber-600 ml-1" title="High rework rate">(review quality)</span>
                                     @endif
                                 </td>
-                                <td class="py-2 px-2 text-right text-gray-900 dark:text-gray-100">{{ $metric['avg_hours'] }}</td>
-                                <td class="py-2 px-2 text-right text-gray-600 dark:text-gray-400">{{ $metric['min_hours'] }}</td>
-                                <td class="py-2 px-2 text-right text-gray-600 dark:text-gray-400">{{ $metric['max_hours'] }}</td>
-                                <td class="py-2 px-2 text-right text-gray-600 dark:text-gray-400">{{ $metric['total_actions'] }}</td>
-                                <td class="py-2 px-2 text-right {{ $metric['sla_breaches'] > 0 ? 'text-red-600 font-semibold' : 'text-gray-600 dark:text-gray-400' }}">
-                                    {{ $metric['sla_breaches'] }}
+                                <td class="py-2 px-2 text-right text-gray-900 dark:text-gray-100">{{ $metric['total_actions'] }}</td>
+                                <td class="py-2 px-2 text-right text-green-600 dark:text-green-400">{{ $metric['approvals'] }}</td>
+                                <td class="py-2 px-2 text-right {{ $metric['rejections'] > 0 ? 'text-red-600 font-semibold' : 'text-gray-600 dark:text-gray-400' }}">
+                                    {{ $metric['rejections'] }}
                                 </td>
+                                <td class="py-2 px-2 text-right {{ $metric['reworks'] > 0 ? 'text-amber-600' : 'text-gray-600 dark:text-gray-400' }}">
+                                    {{ $metric['reworks'] }}
+                                </td>
+                                <td class="py-2 px-2 text-right text-gray-600 dark:text-gray-400">{{ $metric['skips'] }}</td>
                                 <td class="py-2 px-2 text-right">
                                     <span class="inline-flex px-2 py-0.5 text-xs rounded
-                                        {{ $metric['sla_breach_rate'] > 20 ? 'bg-red-100 text-red-700' : '' }}
-                                        {{ $metric['sla_breach_rate'] > 5 && $metric['sla_breach_rate'] <= 20 ? 'bg-amber-100 text-amber-700' : '' }}
-                                        {{ $metric['sla_breach_rate'] <= 5 ? 'bg-green-100 text-green-700' : '' }}
+                                        {{ $metric['rework_rate'] > 20 ? 'bg-red-100 text-red-700' : '' }}
+                                        {{ $metric['rework_rate'] > 5 && $metric['rework_rate'] <= 20 ? 'bg-amber-100 text-amber-700' : '' }}
+                                        {{ $metric['rework_rate'] <= 5 ? 'bg-green-100 text-green-700' : '' }}
                                     ">
-                                        {{ $metric['sla_breach_rate'] }}%
+                                        {{ $metric['rework_rate'] }}%
                                     </span>
                                 </td>
                             </tr>

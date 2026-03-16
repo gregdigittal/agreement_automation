@@ -2,13 +2,13 @@
 
 namespace App\Console\Commands;
 
-use App\Services\AiWorkerClient;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 
 class TestAiWorker extends Command
 {
     protected $signature = 'ccrs:test-ai-worker';
+
     protected $description = 'Test connectivity and configuration of the AI Worker sidecar';
 
     public function handle(): int
@@ -16,13 +16,13 @@ class TestAiWorker extends Command
         $url = config('ccrs.ai_worker_url');
         $hasSecret = ! empty(config('ccrs.ai_worker_secret'));
         $timeout = config('ccrs.ai_analysis_timeout', 120);
-        $disk = config('ccrs.contracts_disk', 'database');
+        $disk = config('ccrs.contracts_disk');
 
         $this->info('AI Worker Configuration');
         $this->table(['Setting', 'Value'], [
             ['AI_WORKER_URL', $url ?: '(empty)'],
             ['AI_WORKER_SECRET', $hasSecret ? '***set***' : '(empty — PROBLEM!)'],
-            ['AI_ANALYSIS_TIMEOUT', $timeout . 's'],
+            ['AI_ANALYSIS_TIMEOUT', $timeout.'s'],
             ['CCRS_STORAGE_DISK', $disk],
         ]);
 
@@ -30,19 +30,21 @@ class TestAiWorker extends Command
         $this->newLine();
         $this->info('Test 1: Health Check');
         try {
-            $response = Http::timeout(5)->get(rtrim($url, '/') . '/health');
+            $response = Http::timeout(5)->get(rtrim($url, '/').'/health');
             if ($response->successful()) {
                 $data = $response->json();
                 $this->line('  ✅ AI Worker is responding');
-                $this->line('  Model: ' . ($data['model'] ?? 'unknown'));
-                $this->line('  Status: ' . ($data['status'] ?? 'unknown'));
+                $this->line('  Model: '.($data['model'] ?? 'unknown'));
+                $this->line('  Status: '.($data['status'] ?? 'unknown'));
             } else {
-                $this->error('  ❌ AI Worker returned HTTP ' . $response->status());
-                $this->line('  Body: ' . substr($response->body(), 0, 500));
+                $this->error('  ❌ AI Worker returned HTTP '.$response->status());
+                $this->line('  Body: '.substr($response->body(), 0, 500));
+
                 return self::FAILURE;
             }
         } catch (\Exception $e) {
-            $this->error('  ❌ Cannot reach AI Worker: ' . $e->getMessage());
+            $this->error('  ❌ Cannot reach AI Worker: '.$e->getMessage());
+
             return self::FAILURE;
         }
 
@@ -55,7 +57,7 @@ class TestAiWorker extends Command
                 'Content-Type' => 'application/json',
             ])
                 ->timeout(10)
-                ->post(rtrim($url, '/') . '/analyze', [
+                ->post(rtrim($url, '/').'/analyze', [
                     'contract_id' => 'test-000',
                     'analysis_type' => 'summary',
                     'file_content_base64' => base64_encode('This is a test document.'),
@@ -66,6 +68,7 @@ class TestAiWorker extends Command
             $status = $response->status();
             if ($status === 401) {
                 $this->error('  ❌ Authentication failed — AI_WORKER_SECRET mismatch between app and worker');
+
                 return self::FAILURE;
             } elseif ($status === 422) {
                 // 422 means "could not extract text" — but auth passed and endpoint works!
@@ -74,7 +77,7 @@ class TestAiWorker extends Command
                 $this->line('  ✅ Authentication passed — analysis returned successfully');
                 $data = $response->json();
                 $model = $data['usage']['model_used'] ?? 'unknown';
-                $this->line('  Model used: ' . $model);
+                $this->line('  Model used: '.$model);
             } else {
                 $body = $response->json();
                 $detail = $body['detail'] ?? $response->body();
@@ -87,7 +90,8 @@ class TestAiWorker extends Command
                 }
             }
         } catch (\Exception $e) {
-            $this->error('  ❌ Request failed: ' . $e->getMessage());
+            $this->error('  ❌ Request failed: '.$e->getMessage());
+
             return self::FAILURE;
         }
 
@@ -96,9 +100,9 @@ class TestAiWorker extends Command
         $this->info('Test 3: Storage Disk');
         try {
             $files = \Illuminate\Support\Facades\Storage::disk($disk)->files('contracts');
-            $this->line("  ✅ Storage disk '{$disk}' accessible — " . count($files) . ' files in contracts/');
+            $this->line("  ✅ Storage disk '{$disk}' accessible — ".count($files).' files in contracts/');
         } catch (\Exception $e) {
-            $this->warn("  ⚠️  Storage disk '{$disk}' error: " . $e->getMessage());
+            $this->warn("  ⚠️  Storage disk '{$disk}' error: ".$e->getMessage());
         }
 
         // Test 4: Queue check
@@ -109,7 +113,7 @@ class TestAiWorker extends Command
             $size = \Illuminate\Support\Facades\Queue::size();
             $this->line("  ✅ Queue connection '{$connection}' is working — {$size} jobs pending");
         } catch (\Exception $e) {
-            $this->error("  ❌ Queue error: " . $e->getMessage());
+            $this->error('  ❌ Queue error: '.$e->getMessage());
         }
 
         $this->newLine();

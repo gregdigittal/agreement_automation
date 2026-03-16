@@ -2,19 +2,23 @@
 
 namespace App\Filament\Widgets;
 
+use App\Helpers\Feature;
 use App\Models\ComplianceFinding;
 use Filament\Widgets\ChartWidget;
 
 class ComplianceOverviewWidget extends ChartWidget
 {
     protected static ?string $heading = 'Compliance Overview';
+
     protected static ?string $description = 'Aggregate compliance findings across all active contracts';
+
     protected static ?int $sort = 7;
+
     protected int|string|array $columnSpan = 1;
 
     public static function canView(): bool
     {
-        return config('features.regulatory_compliance', false);
+        return Feature::enabled('regulatory_compliance');
     }
 
     protected function getData(): array
@@ -27,10 +31,12 @@ class ComplianceOverviewWidget extends ChartWidget
             'not_applicable' => '#9ca3af',
         ];
 
-        $counts = [];
-        foreach ($statuses as $status) {
-            $counts[] = ComplianceFinding::where('status', $status)->count();
-        }
+        $countsRaw = ComplianceFinding::whereIn('status', $statuses)
+            ->selectRaw('status, COUNT(*) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status');
+
+        $counts = array_map(fn ($s) => (int) ($countsRaw[$s] ?? 0), $statuses);
 
         return [
             'datasets' => [

@@ -10,7 +10,6 @@ use App\Models\ExchangeRoomPost;
 use App\Models\User;
 use App\Services\ExchangeRoomService;
 use App\Services\TeamsNotificationService;
-use Illuminate\Support\Facades\Mail;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -19,14 +18,18 @@ use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Support\Facades\Mail;
 
 class VendorExchangeRoomPage extends Page implements HasTable
 {
     use InteractsWithTable;
 
     protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-left-right';
+
     protected static string $view = 'filament.vendor.pages.exchange-room';
+
     protected static bool $shouldRegisterNavigation = false;
+
     protected static ?string $slug = 'exchange-room/{contractId}';
 
     public ?Contract $contract = null;
@@ -47,7 +50,7 @@ class VendorExchangeRoomPage extends Page implements HasTable
 
     public function getTitle(): string|Htmlable
     {
-        return 'Document Exchange: ' . ($this->contract?->title ?? '');
+        return 'Document Exchange: '.($this->contract?->title ?? '');
     }
 
     public function table(Table $table): Table
@@ -120,7 +123,7 @@ class VendorExchangeRoomPage extends Page implements HasTable
 
                         $uploadedFile = null;
                         if (! empty($data['file'])) {
-                            $disk = config('ccrs.contracts_disk', 'database');
+                            $disk = config('ccrs.contracts_disk');
                             $filePath = $data['file'];
                             // Read from storage disk (works with database disk where files are in MySQL)
                             $content = \Illuminate\Support\Facades\Storage::disk($disk)->get($filePath);
@@ -146,8 +149,8 @@ class VendorExchangeRoomPage extends Page implements HasTable
                             if ($teamsService->isConfigured()) {
                                 $teamsService->sendToChannel(
                                     "Vendor document exchange: {$this->contract->title}",
-                                    "**{$vendorUser->name}** (vendor) posted " .
-                                    ($post->hasFile() ? "version v{$post->version_number}" : 'a message') .
+                                    "**{$vendorUser->name}** (vendor) posted ".
+                                    ($post->hasFile() ? "version v{$post->version_number}" : 'a message').
                                     " in the exchange room for \"{$this->contract->title}\".",
                                 );
                             }

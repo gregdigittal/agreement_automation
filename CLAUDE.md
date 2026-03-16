@@ -273,7 +273,66 @@ If you need infrastructure changes, describe what you need — the CTO will make
 
 ---
 
-## 12. Review Gate Tooling
+## 12. E2E Testing (Playwright)
+
+Playwright functional tests live in `e2e/` and require a running Laravel server in the `e2e` environment.
+
+### First-time setup
+
+```bash
+# 1. Install Playwright browsers (one-time)
+npx playwright install chromium
+
+# 2. Create E2E env file
+cp .env.e2e.example .env.e2e
+# Then set APP_KEY in .env.e2e (copy from .env, or run: php artisan key:generate --env=e2e)
+
+# 3. Create and migrate the E2E SQLite database
+touch database/e2e.sqlite
+APP_ENV=e2e php artisan migrate --force
+
+# 4. Build frontend assets (required for signing page)
+npm run build
+```
+
+### Running E2E tests
+
+```bash
+npm run e2e          # headless (Chromium only)
+npm run e2e:smoke    # smoke tests only (health, redirect, login page)
+npm run e2e:ui       # Playwright UI for interactive debugging
+npm run e2e:debug    # debug mode
+```
+
+The test runner automatically:
+1. Seeds the E2E database via `php artisan e2e:seed` (global setup)
+2. Starts a Laravel dev server if not already running on port 8000
+3. Tears down all E2E fixtures after the run
+
+### Test structure
+
+```
+e2e/
+├── global-setup.js          # Seeds DB, runs before all tests
+├── global-teardown.js       # Cleans up fixtures after all tests
+├── fixtures/
+│   └── seeded.json          # Generated at runtime (gitignored)
+├── smoke/
+│   └── pages.spec.js        # Public page availability and structure
+└── functional/
+    ├── signing.spec.js      # E-signing page: tabs, keyboard nav, decline modal
+    └── vendor-login.spec.js # Vendor portal login flow
+```
+
+### Environment
+
+- `APP_ENV=e2e` loads `.env.e2e` overlay (SQLite, file session/cache, log mailer)
+- The E2E SQLite database (`database/e2e.sqlite`) is isolated from unit tests (in-memory) and production (MySQL)
+- Signing rate limit is relaxed to 1000/min in `e2e`/`local`/`testing` environments
+
+---
+
+## 13. Review Gate Tooling
 
 Run these before marking any task complete. All checks must pass.
 

@@ -23,8 +23,11 @@ class BulkContractUploadPage extends Page implements HasForms
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-arrow-up-tray';
+
     protected static string $view = 'filament.pages.bulk-contract-upload';
+
     protected static ?string $navigationGroup = 'Administration';
+
     protected static ?int $navigationSort = 90;
 
     public static function canAccess(): bool
@@ -33,9 +36,13 @@ class BulkContractUploadPage extends Page implements HasForms
     }
 
     public ?array $data = [];
+
     public ?array $individualData = [];
+
     public ?array $smartUploadData = [];
+
     public ?string $currentBulkUploadId = null;
+
     public array $smartUploadContractIds = [];
 
     public function mount(): void
@@ -61,7 +68,7 @@ class BulkContractUploadPage extends Page implements HasForms
                 FileUpload::make('contract_files')
                     ->label('Contract Files')
                     ->multiple()
-                    ->disk(config('ccrs.contracts_disk', 'database'))
+                    ->disk(config('ccrs.contracts_disk'))
                     ->visibility('private')
                     ->directory('bulk_uploads/files')
                     ->acceptedFileTypes([
@@ -81,6 +88,7 @@ class BulkContractUploadPage extends Page implements HasForms
 
         if (empty($data['contract_files'])) {
             Notification::make()->title('No files selected')->warning()->send();
+
             return;
         }
 
@@ -142,17 +150,18 @@ class BulkContractUploadPage extends Page implements HasForms
 
         if (empty($rows)) {
             Notification::make()->title('CSV is empty')->danger()->send();
+
             return;
         }
 
         // When no ZIP is provided, verify that all referenced files already exist (uploaded individually)
         if (empty($data['zip_file'])) {
-            $contractsDisk = Storage::disk(config('ccrs.contracts_disk', 'database'));
+            $contractsDisk = Storage::disk(config('ccrs.contracts_disk'));
             $missingFiles = [];
             foreach ($rows as $row) {
                 $rowData = json_decode($row['row_data'], true);
                 if (! empty($rowData['file_path'])) {
-                    $sourceKey = 'bulk_uploads/files/' . $rowData['file_path'];
+                    $sourceKey = 'bulk_uploads/files/'.$rowData['file_path'];
                     if (! $contractsDisk->exists($sourceKey)) {
                         $missingFiles[] = $rowData['file_path'];
                     }
@@ -162,19 +171,20 @@ class BulkContractUploadPage extends Page implements HasForms
             if (! empty($missingFiles)) {
                 $list = implode(', ', array_slice($missingFiles, 0, 5));
                 $count = count($missingFiles);
-                $extra = $count > 5 ? " (and " . ($count - 5) . " more)" : '';
+                $extra = $count > 5 ? ' (and '.($count - 5).' more)' : '';
                 Notification::make()
                     ->title("Missing {$count} file(s)")
                     ->body("Files not found: {$list}{$extra}. Upload them individually or provide a ZIP archive.")
                     ->danger()
                     ->send();
+
                 return;
             }
         }
 
         if (! empty($data['zip_file'])) {
             $zipPath = Storage::disk('local')->path($data['zip_file']);
-            $zip = new \ZipArchive();
+            $zip = new \ZipArchive;
             if ($zip->open($zipPath) === true) {
                 $maxFiles = 500;
                 $maxFileSize = 50 * 1024 * 1024; // 50 MB per file
@@ -182,6 +192,7 @@ class BulkContractUploadPage extends Page implements HasForms
                 if ($zip->numFiles > $maxFiles) {
                     $zip->close();
                     Notification::make()->title("ZIP contains too many files ({$zip->numFiles}). Maximum is {$maxFiles}.")->danger()->send();
+
                     return;
                 }
 
@@ -189,7 +200,8 @@ class BulkContractUploadPage extends Page implements HasForms
                     $stat = $zip->statIndex($i);
                     if ($stat['size'] > $maxFileSize) {
                         $zip->close();
-                        Notification::make()->title('File "' . $stat['name'] . '" exceeds 50 MB limit.')->danger()->send();
+                        Notification::make()->title('File "'.$stat['name'].'" exceeds 50 MB limit.')->danger()->send();
+
                         return;
                     }
 
@@ -198,7 +210,7 @@ class BulkContractUploadPage extends Page implements HasForms
                         continue;
                     }
                     $contents = $zip->getFromIndex($i);
-                    Storage::disk(config('ccrs.contracts_disk', 'database'))->put('bulk_uploads/files/' . $filename, $contents);
+                    Storage::disk(config('ccrs.contracts_disk'))->put('bulk_uploads/files/'.$filename, $contents);
                 }
                 $zip->close();
             }
@@ -259,7 +271,7 @@ class BulkContractUploadPage extends Page implements HasForms
                 FileUpload::make('smart_files')
                     ->label('Contract Files')
                     ->multiple()
-                    ->disk(config('ccrs.contracts_disk', 'database'))
+                    ->disk(config('ccrs.contracts_disk'))
                     ->visibility('private')
                     ->directory('smart_uploads/pending')
                     ->acceptedFileTypes([
@@ -279,16 +291,17 @@ class BulkContractUploadPage extends Page implements HasForms
 
         if (empty($data['smart_files'])) {
             Notification::make()->title('No files selected')->warning()->send();
+
             return;
         }
 
-        $disk = Storage::disk(config('ccrs.contracts_disk', 'database'));
+        $disk = Storage::disk(config('ccrs.contracts_disk'));
         $contractIds = [];
 
         foreach ($data['smart_files'] as $filePath) {
             $filename = basename($filePath);
             $contractUuid = Str::uuid()->toString();
-            $destKey = 'contracts/' . $contractUuid . '/' . $filename;
+            $destKey = 'contracts/'.$contractUuid.'/'.$filename;
 
             // Move file from pending upload location to permanent contract storage
             $sourcePath = $filePath;
@@ -357,7 +370,7 @@ class BulkContractUploadPage extends Page implements HasForms
         $headers = ['title', 'contract_type', 'region_code', 'entity_code', 'project_code', 'counterparty_registration', 'file_path'];
         $example = ['Service Agreement - Acme Corp', 'service', 'AE', 'ENT001', 'PRJ001', 'REG-12345', 'acme_contract.pdf'];
 
-        $csv = implode(',', $headers) . "\n" . implode(',', $example) . "\n";
+        $csv = implode(',', $headers)."\n".implode(',', $example)."\n";
 
         return response()->streamDownload(function () use ($csv) {
             echo $csv;

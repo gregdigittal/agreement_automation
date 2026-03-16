@@ -8,14 +8,17 @@ use Illuminate\Support\Facades\DB;
 class AiUsageCostWidget extends ChartWidget
 {
     protected static ?string $heading = 'AI Usage & Cost';
+
     protected static ?string $description = 'Daily token usage and estimated cost over last 30 days';
+
     protected static ?int $sort = 5;
 
     protected function getData(): array
     {
+        // date() is case-insensitive and works on both MySQL and SQLite.
         $results = DB::table('ai_analysis_results')
             ->select(
-                DB::raw('DATE(created_at) as day'),
+                DB::raw('date(created_at) as day'),
                 DB::raw('SUM(COALESCE(token_usage_input, 0)) as input_tokens'),
                 DB::raw('SUM(COALESCE(token_usage_output, 0)) as output_tokens'),
                 DB::raw('COUNT(*) as analysis_count')
@@ -24,6 +27,9 @@ class AiUsageCostWidget extends ChartWidget
             ->groupBy('day')
             ->orderBy('day')
             ->get();
+
+        $inputRate = (float) config('ccrs.ai.cost_per_input_mtok', 3.0);
+        $outputRate = (float) config('ccrs.ai.cost_per_output_mtok', 15.0);
 
         $labels = [];
         $tokenData = [];
@@ -34,10 +40,10 @@ class AiUsageCostWidget extends ChartWidget
             $inputTokens = (int) ($row->input_tokens ?? 0);
             $outputTokens = (int) ($row->output_tokens ?? 0);
             $tokenData[] = $inputTokens + $outputTokens;
-
-            // Estimate cost: Claude Sonnet pricing (~$3/MTok input, ~$15/MTok output)
-            $cost = ($inputTokens / 1_000_000 * 3.0) + ($outputTokens / 1_000_000 * 15.0);
-            $costData[] = round($cost, 2);
+            $costData[] = round(
+                ($inputTokens / 1_000_000 * $inputRate) + ($outputTokens / 1_000_000 * $outputRate),
+                2
+            );
         }
 
         return [

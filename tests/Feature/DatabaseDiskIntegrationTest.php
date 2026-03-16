@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\Contract;
 use App\Models\FileStorage;
+use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 
 it('registers the database disk driver', function () {
@@ -37,7 +39,7 @@ it('serves files via signed URL controller', function () {
     $parsedUrl = parse_url($url);
     $queryString = $parsedUrl['query'] ?? '';
 
-    $response = $this->get($parsedUrl['path'] . '?' . $queryString);
+    $response = $this->get($parsedUrl['path'].'?'.$queryString);
     $response->assertOk();
     $response->assertHeader('Content-Type', 'application/pdf');
     // StreamedResponse: use streamedContent() or capture output buffer
@@ -62,4 +64,59 @@ it('deletes files via Storage facade', function () {
 
 it('ccrs.contracts_disk config defaults to database', function () {
     expect(config('ccrs.contracts_disk'))->toBe('database');
+});
+
+// ---------------------------------------------------------------------------
+// S3 / SeaweedFS disk branch — StorageServeController
+// ---------------------------------------------------------------------------
+
+it('StorageServeController redirects to pre-signed URL when disk is s3', function () {
+    Storage::fake('s3');
+    Storage::disk('s3')->put('integration/s3-test.pdf', '%PDF-1.4 s3 content');
+
+    config(['ccrs.contracts_disk' => 's3']);
+
+    $user = User::factory()->create();
+    $user->assignRole('system_admin');
+
+    // Use a non-contracts/ path so no contract FK lookup is needed
+    $url = Storage::disk('database')->temporaryUrl('integration/s3-test.pdf', now()->addMinutes(5));
+    $parsedUrl = parse_url($url);
+
+    // Replace the database disk URL with a direct serve path to test the S3 branch
+    $response = $this->actingAs($user)->get(route('storage.serve', ['path' => 'integration/s3-test.pdf']).'?'.($parsedUrl['query'] ?? ''));
+
+    // S3 branch redirects — the 302 proves the S3 path was taken, not the BLOB stream path
+    $response->assertRedirect();
+});
+
+it('StorageServeController returns 404 when file not found on s3 disk', function () {
+    Storage::fake('s3');
+    config(['ccrs.contracts_disk' => 's3']);
+
+    $user = User::factory()->create();
+    $user->assignRole('system_admin');
+
+    $url = Storage::disk('database')->temporaryUrl('integration/missing.pdf', now()->addMinutes(5));
+    $parsedUrl = parse_url($url);
+
+    $response = $this->actingAs($user)->get(route('storage.serve', ['path' => 'integration/missing.pdf']).'?'.($parsedUrl['query'] ?? ''));
+
+    $response->assertNotFound();
+});
+
+it('StorageServeController streams BLOB when disk is database', function () {
+    Storage::disk('database')->put('integration/blob-branch.pdf', '%PDF-1.4 blob');
+    config(['ccrs.contracts_disk' => 'database']);
+
+    $user = User::factory()->create();
+    $user->assignRole('system_admin');
+
+    $url = Storage::disk('database')->temporaryUrl('integration/blob-branch.pdf', now()->addMinutes(5));
+    $parsedUrl = parse_url($url);
+
+    $response = $this->actingAs($user)->get($parsedUrl['path'].'?'.($parsedUrl['query'] ?? ''));
+
+    $response->assertOk();
+    expect($response->streamedContent())->toBe('%PDF-1.4 blob');
 });

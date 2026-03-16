@@ -3,9 +3,9 @@
 namespace App\Models;
 
 use App\Traits\HasUuidPrimaryKey;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Storage;
 
 class StoredSignature extends Model
@@ -36,11 +36,11 @@ class StoredSignature extends Model
      */
     public function getImageUrl(): ?string
     {
-        if (!$this->image_path) {
+        if (! $this->image_path) {
             return null;
         }
 
-        $disk = config('ccrs.contracts_disk', 'database');
+        $disk = config('ccrs.contracts_disk');
 
         if (method_exists(Storage::disk($disk), 'temporaryUrl')) {
             try {
@@ -58,7 +58,7 @@ class StoredSignature extends Model
      */
     public function scopeForSigner(Builder $query, ?string $userId = null, ?string $email = null): Builder
     {
-        if (!$userId && !$email) {
+        if (! $userId && ! $email) {
             return $query->whereRaw('1 = 0');
         }
 
