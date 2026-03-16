@@ -4,7 +4,6 @@ namespace App\Filament\Resources\ContractResource\RelationManagers;
 
 use App\Helpers\Feature;
 use App\Helpers\StorageHelper;
-use App\Models\ExchangeRoom;
 use App\Models\ExchangeRoomPost;
 use App\Services\ExchangeRoomService;
 use App\Services\VendorNotificationService;
@@ -20,6 +19,7 @@ use Illuminate\Database\Eloquent\Model;
 class ExchangeRoomRelationManager extends RelationManager
 {
     protected static string $relationship = 'exchangeRoom';
+
     protected static ?string $title = 'Document Exchange Room';
 
     public function table(Table $table): Table
@@ -114,7 +114,7 @@ class ExchangeRoomRelationManager extends RelationManager
 
                         $uploadedFile = null;
                         if (! empty($data['file'])) {
-                            $disk = config('ccrs.contracts_disk', 'database');
+                            $disk = config('ccrs.contracts_disk');
                             $filePath = $data['file'];
                             // Read from storage disk (works with database disk where files are in MySQL)
                             $content = \Illuminate\Support\Facades\Storage::disk($disk)->get($filePath);
@@ -170,6 +170,7 @@ class ExchangeRoomRelationManager extends RelationManager
                                         $options[$stage] = ucwords(str_replace('_', ' ', $stage));
                                     }
                                 }
+
                                 return $options;
                             })
                             ->required(),
@@ -180,7 +181,7 @@ class ExchangeRoomRelationManager extends RelationManager
 
                         Notification::make()
                             ->title('Stage advanced')
-                            ->body('Negotiation stage updated to: ' . ucwords(str_replace('_', ' ', $data['new_stage'])))
+                            ->body('Negotiation stage updated to: '.ucwords(str_replace('_', ' ', $data['new_stage'])))
                             ->success()
                             ->send();
                     }),

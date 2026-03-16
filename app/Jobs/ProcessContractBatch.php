@@ -39,7 +39,7 @@ class ProcessContractBatch extends TenantAwareJob
 
             $sourceKey = 'bulk_uploads/files/'.$data['file_path'];
             $destKey = 'contracts/'.Str::uuid().'/'.basename($data['file_path']);
-            Storage::disk(config('ccrs.contracts_disk', 'database'))->copy($sourceKey, $destKey);
+            Storage::disk(config('ccrs.contracts_disk'))->copy($sourceKey, $destKey);
 
             $contract = new Contract([
                 'title' => $data['title'],

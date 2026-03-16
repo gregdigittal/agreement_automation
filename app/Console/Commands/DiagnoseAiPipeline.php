@@ -78,7 +78,7 @@ class DiagnoseAiPipeline extends Command
                     $this->line('      Check: supervisord → queue-worker process');
                     $ok = false;
                 } else {
-                    $this->line('   ✅ Horizon master supervisor(s) running: ' . count($horizonStatus));
+                    $this->line('   ✅ Horizon master supervisor(s) running: '.count($horizonStatus));
                     foreach ($horizonStatus as $master) {
                         $this->line("      Name: {$master->name}, PID: {$master->pid}, Status: {$master->status}");
                     }
@@ -95,7 +95,7 @@ class DiagnoseAiPipeline extends Command
                 $this->line("   Failed jobs table: {$failedJobs} failed");
             } catch (\Exception $e) {
                 // Database queue driver tables may not exist if using Redis exclusively
-                $this->line("   (jobs/failed_jobs tables not checked — using Redis driver)");
+                $this->line('   (jobs/failed_jobs tables not checked — using Redis driver)');
             }
 
             // Check failed jobs in Redis via Horizon
@@ -103,7 +103,7 @@ class DiagnoseAiPipeline extends Command
                 $failedRepo = app(\Laravel\Horizon\Contracts\JobRepository::class);
                 $recentFailed = $failedRepo->getFailed(0, 5);
                 if ($recentFailed->isNotEmpty()) {
-                    $this->warn("   ⚠️  Recent failed jobs in Horizon:");
+                    $this->warn('   ⚠️  Recent failed jobs in Horizon:');
                     foreach ($recentFailed as $job) {
                         $name = $job->name ?? 'unknown';
                         $failedAt = $job->failed_at ?? '?';
@@ -126,13 +126,13 @@ class DiagnoseAiPipeline extends Command
         $aiUrl = config('ccrs.ai_worker_url');
         $aiSecret = config('ccrs.ai_worker_secret');
         $this->line("   URL: {$aiUrl}");
-        $this->line("   Secret configured: " . (! empty($aiSecret) ? 'yes' : '❌ NO'));
+        $this->line('   Secret configured: '.(! empty($aiSecret) ? 'yes' : '❌ NO'));
 
         try {
-            $health = Http::timeout(5)->get(rtrim($aiUrl, '/') . '/health');
+            $health = Http::timeout(5)->get(rtrim($aiUrl, '/').'/health');
             if ($health->successful()) {
                 $data = $health->json();
-                $this->line("   ✅ Health OK — model: " . ($data['model'] ?? 'unknown') . ", status: " . ($data['status'] ?? 'unknown'));
+                $this->line('   ✅ Health OK — model: '.($data['model'] ?? 'unknown').', status: '.($data['status'] ?? 'unknown'));
             } else {
                 $this->error("   ❌ Health check returned HTTP {$health->status()}");
                 $ok = false;
@@ -145,11 +145,11 @@ class DiagnoseAiPipeline extends Command
         // ── 5. Storage disk ───────────────────────────────────────
         $this->newLine();
         $this->info('5. Storage Disk');
-        $disk = config('ccrs.contracts_disk', 'database');
+        $disk = config('ccrs.contracts_disk');
         $this->line("   Configured disk: {$disk}");
         try {
             $contractFiles = Storage::disk($disk)->files('contracts');
-            $this->line("   ✅ Disk accessible — " . count($contractFiles) . " file(s) in contracts/");
+            $this->line('   ✅ Disk accessible — '.count($contractFiles).' file(s) in contracts/');
         } catch (\Exception $e) {
             $this->error("   ❌ Storage disk error: {$e->getMessage()}");
             $ok = false;
@@ -166,7 +166,7 @@ class DiagnoseAiPipeline extends Command
                 $this->line('      Horizon is not processing jobs (jobs never reach handle()).');
             } else {
                 $rows = $recent->map(fn ($r) => [
-                    substr($r->contract_id, 0, 8) . '…',
+                    substr($r->contract_id, 0, 8).'…',
                     $r->analysis_type,
                     $r->status,
                     $r->error_message ? substr($r->error_message, 0, 50) : '—',
@@ -186,20 +186,21 @@ class DiagnoseAiPipeline extends Command
             $contract = Contract::find($contractId);
             if (! $contract) {
                 $this->error("   ❌ Contract not found: {$contractId}");
+
                 return self::FAILURE;
             }
 
-            $this->line("   Title: " . ($contract->title ?? '(untitled)'));
+            $this->line('   Title: '.($contract->title ?? '(untitled)'));
             $this->line("   Workflow state: {$contract->workflow_state}");
-            $this->line("   Storage path: " . ($contract->storage_path ?? '❌ NONE'));
-            $this->line("   File name: " . ($contract->file_name ?? '(null)'));
+            $this->line('   Storage path: '.($contract->storage_path ?? '❌ NONE'));
+            $this->line('   File name: '.($contract->file_name ?? '(null)'));
 
             if ($contract->storage_path) {
                 try {
                     $exists = Storage::disk($disk)->exists($contract->storage_path);
                     $size = $exists ? Storage::disk($disk)->size($contract->storage_path) : 0;
                     if ($exists) {
-                        $this->line("   ✅ File exists on disk — " . number_format($size) . " bytes");
+                        $this->line('   ✅ File exists on disk — '.number_format($size).' bytes');
                     } else {
                         $this->error("   ❌ File NOT found on disk: {$contract->storage_path}");
                         $ok = false;
@@ -232,14 +233,14 @@ class DiagnoseAiPipeline extends Command
                     $a->error_message ? substr($a->error_message, 0, 60) : '—',
                     $a->model_used ?? '—',
                     $a->confidence_score ?? '—',
-                    $a->processing_time_ms ? round($a->processing_time_ms / 1000, 1) . 's' : '—',
+                    $a->processing_time_ms ? round($a->processing_time_ms / 1000, 1).'s' : '—',
                     $a->created_at?->format('Y-m-d H:i') ?? '—',
                 ])->toArray();
                 $this->table(['Type', 'Status', 'Error', 'Model', 'Confidence', 'Time', 'Created'], $rows);
 
                 // Summarize statuses
                 $statusCounts = $analyses->groupBy('status')->map->count();
-                $this->line("   Summary: " . $statusCounts->map(fn ($c, $s) => "{$s}={$c}")->join(', '));
+                $this->line('   Summary: '.$statusCounts->map(fn ($c, $s) => "{$s}={$c}")->join(', '));
 
                 // Check for the silent-empty-discovery problem
                 $discoveryAnalyses = $analyses->where('analysis_type', 'discovery');
@@ -253,8 +254,8 @@ class DiagnoseAiPipeline extends Command
                         $this->info("   Discovery analysis (id: {$da->id}):");
                         $this->line("   Discoveries in result JSON: {$discoveryCount}");
                         if ($discoveryCount === 0 || $discoveryCount === 'N/A') {
-                            $this->warn("   ⚠️  ZERO discoveries found — AI may have returned empty result");
-                            $this->line("   Result JSON preview: " . substr(json_encode($result), 0, 300));
+                            $this->warn('   ⚠️  ZERO discoveries found — AI may have returned empty result');
+                            $this->line('   Result JSON preview: '.substr(json_encode($result), 0, 300));
                         }
                     } elseif ($da->status === 'processing') {
                         $age = $da->created_at?->diffInMinutes(now()) ?? 0;

@@ -14,14 +14,13 @@ use App\Models\WikiContract;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
-use App\Services\ContractFileService;
 
 class SigningService
 {
     /**
      * Create a new signing session for a contract.
      *
-     * @param array $options Optional settings: wiki_contract_id, require_all_pages_viewed, require_page_initials
+     * @param  array  $options  Optional settings: wiki_contract_id, require_all_pages_viewed, require_page_initials
      */
     public function createSession(Contract $contract, array $signers, string $order = 'sequential', array $options = []): SigningSession
     {
@@ -55,7 +54,7 @@ class SigningService
             }
 
             // Copy template signing fields if a wiki contract template is specified
-            if (!empty($options['wiki_contract_id'])) {
+            if (! empty($options['wiki_contract_id'])) {
                 $this->copyTemplateFieldsToSession($session, $options['wiki_contract_id'], $createdSigners);
             }
 
@@ -96,9 +95,9 @@ class SigningService
         // Build a role-to-signer mapping
         $roleMap = [];
         foreach ($signers as $signer) {
-            if ($signer->signer_type === 'internal' && !isset($roleMap['company'])) {
+            if ($signer->signer_type === 'internal' && ! isset($roleMap['company'])) {
                 $roleMap['company'] = $signer->id;
-            } elseif ($signer->signer_type === 'external' && !isset($roleMap['counterparty'])) {
+            } elseif ($signer->signer_type === 'external' && ! isset($roleMap['counterparty'])) {
                 $roleMap['counterparty'] = $signer->id;
             }
         }
@@ -118,7 +117,7 @@ class SigningService
         foreach ($templateFields as $tf) {
             $assignedSignerId = $roleMap[$tf->signer_role] ?? ($signers[0]->id ?? null);
 
-            if (!$assignedSignerId) {
+            if (! $assignedSignerId) {
                 continue;
             }
 
@@ -184,7 +183,7 @@ class SigningService
         $hashedToken = hash('sha256', $token);
         $signer = SigningSessionSigner::where('token', $hashedToken)->first();
 
-        if (!$signer) {
+        if (! $signer) {
             throw new \RuntimeException('Invalid signing token.');
         }
 
@@ -201,7 +200,7 @@ class SigningService
         }
 
         $session = $signer->session;
-        if (!$session || $session->status !== 'active') {
+        if (! $session || $session->status !== 'active') {
             throw new \RuntimeException('This signing session is no longer active.');
         }
 
@@ -212,7 +211,7 @@ class SigningService
         }
 
         // Record first view
-        if (!$signer->viewed_at) {
+        if (! $signer->viewed_at) {
             $signer->update(['viewed_at' => now()]);
 
             SigningAuditLog::create([
@@ -242,13 +241,13 @@ class SigningService
             throw new \InvalidArgumentException('Invalid base64 signature data.');
         }
         $imageInfo = @getimagesizefromstring($imageData);
-        if ($imageInfo === false || !in_array($imageInfo['mime'], ['image/png', 'image/jpeg'])) {
+        if ($imageInfo === false || ! in_array($imageInfo['mime'], ['image/png', 'image/jpeg'])) {
             throw new \InvalidArgumentException('Signature must be a valid PNG or JPEG image.');
         }
 
         // Store signature image
         $path = "signing/{$signer->signing_session_id}/{$signer->id}.png";
-        $disk = config('ccrs.contracts_disk', 'database');
+        $disk = config('ccrs.contracts_disk');
         Storage::disk($disk)->put($path, $imageData);
 
         $signer->update([
@@ -262,7 +261,7 @@ class SigningService
 
         // Update field values
         foreach ($fieldValues as $fieldData) {
-            if (!isset($fieldData['id'])) {
+            if (! isset($fieldData['id'])) {
                 continue;
             }
 
@@ -307,6 +306,7 @@ class SigningService
                 if ($nextSigner->status === 'pending') {
                     $this->sendToSigner($nextSigner);
                 }
+
                 return;
             }
         }
@@ -335,7 +335,7 @@ class SigningService
         // --- 1. Overlay signatures onto the contract PDF ----------------------
         $signatures = [];
         foreach ($session->signers as $signer) {
-            if (!$signer->signature_image_path) {
+            if (! $signer->signature_image_path) {
                 continue;
             }
 
@@ -379,7 +379,7 @@ class SigningService
         $pdfService->generateAuditCertificate($session);
 
         // --- 3. Compute final document hash -----------------------------------
-        $finalContent = Storage::disk(config('ccrs.contracts_disk', 'database'))
+        $finalContent = Storage::disk(config('ccrs.contracts_disk'))
             ->get($finalStoragePath);
         $finalHash = $pdfService->computeHash($finalContent);
 

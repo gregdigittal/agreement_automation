@@ -47,7 +47,7 @@ class AiWorkerClient
             'analysis_type' => $analysisType,
         ]);
         try {
-            $disk = config('ccrs.contracts_disk', 'database');
+            $disk = config('ccrs.contracts_disk');
 
             Log::info('AiWorkerClient: starting analysis', [
                 'contract_id' => $contractId,

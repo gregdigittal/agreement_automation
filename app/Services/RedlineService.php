@@ -10,8 +10,8 @@ use App\Models\User;
 use App\Models\WikiContract;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\IOFactory;
+use PhpOffice\PhpWord\PhpWord;
 
 class RedlineService
 {
@@ -23,17 +23,17 @@ class RedlineService
      */
     public function startSession(Contract $contract, ?WikiContract $template, User $actor): RedlineSession
     {
-        if (!$template) {
+        if (! $template) {
             $template = WikiContract::where('status', 'published')
                 ->where('region_id', $contract->region_id)
                 ->latest('version')
                 ->first();
         }
 
-        if (!$template) {
+        if (! $template) {
             throw new \RuntimeException(
-                'No published WikiContract template found for region ' .
-                ($contract->region?->name ?? $contract->region_id) .
+                'No published WikiContract template found for region '.
+                ($contract->region?->name ?? $contract->region_id).
                 '. Upload a template before starting a redline review.'
             );
         }
@@ -70,7 +70,7 @@ class RedlineService
         ?string $finalText,
         User $actor,
     ): RedlineClause {
-        if (!in_array($status, ['accepted', 'rejected', 'modified'])) {
+        if (! in_array($status, ['accepted', 'rejected', 'modified'])) {
             throw new \InvalidArgumentException("Invalid review status: {$status}");
         }
 
@@ -112,6 +112,7 @@ class RedlineService
      * Generate a final DOCX document from all reviewed clauses.
      *
      * @return string The S3 storage path of the generated DOCX.
+     *
      * @throws \RuntimeException if not all clauses have been reviewed.
      */
     public function generateFinalDocument(RedlineSession $session): string
@@ -124,12 +125,12 @@ class RedlineService
 
         if ($unreviewedCount > 0) {
             throw new \RuntimeException(
-                "{$unreviewedCount} clause(s) have not been reviewed. " .
+                "{$unreviewedCount} clause(s) have not been reviewed. ".
                 'All clauses must be accepted, rejected, or modified before generating the final document.'
             );
         }
 
-        $phpWord = new PhpWord();
+        $phpWord = new PhpWord;
 
         $properties = $phpWord->getDocInfo();
         $properties->setCreator('CCRS — Redline Engine');
@@ -171,14 +172,14 @@ class RedlineService
             $section->addTextBreak();
         }
 
-        $tempPath = tempnam(sys_get_temp_dir(), 'redline_final_') . '.docx';
+        $tempPath = tempnam(sys_get_temp_dir(), 'redline_final_').'.docx';
         $writer = IOFactory::createWriter($phpWord, 'Word2007');
         $writer->save($tempPath);
 
         $contractId = $session->contract_id;
         $s3Path = "contracts/{$contractId}/redline-final-{$session->id}.docx";
 
-        $disk = config('ccrs.contracts_disk', 'database');
+        $disk = config('ccrs.contracts_disk');
         Storage::disk($disk)->put($s3Path, file_get_contents($tempPath));
         @unlink($tempPath);
 

@@ -18,6 +18,10 @@ return [
         ], fn ($v, $k) => $k !== '', ARRAY_FILTER_USE_BOTH),
     ],
     'contracts_disk' => env('CCRS_STORAGE_DISK', 'database'),
+    'ai' => [
+        'cost_per_input_mtok' => (float) env('AI_COST_PER_INPUT_MTOK', 3.0),
+        'cost_per_output_mtok' => (float) env('AI_COST_PER_OUTPUT_MTOK', 15.0),
+    ],
     'tito_api_key' => env('TITO_API_KEY', ''),
     'merchant_agreement_template_key' => env('MA_TEMPLATE_STORAGE_KEY', 'templates/merchant_agreement_master.docx'),
     'wiki_contracts_disk' => env('CCRS_STORAGE_DISK', 'database'),
@@ -33,7 +37,7 @@ return [
         'channel_id' => env('TEAMS_CHANNEL_ID', ''),
         'graph_scope' => 'https://graph.microsoft.com/.default',
         'graph_base_url' => 'https://graph.microsoft.com/v1.0',
-        'token_endpoint' => 'https://login.microsoftonline.com/' . (env('AZURE_AD_TENANT_ID') ?? '') . '/oauth2/v2.0/token',
+        'token_endpoint' => 'https://login.microsoftonline.com/'.(env('AZURE_AD_TENANT_ID') ?? '').'/oauth2/v2.0/token',
     ],
 
 ];

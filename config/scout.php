@@ -140,9 +140,59 @@ return [
         'host' => env('MEILISEARCH_HOST', 'http://localhost:7700'),
         'key' => env('MEILISEARCH_KEY'),
         'index-settings' => [
-            // 'users' => [
-            //     'filterableAttributes'=> ['id', 'name', 'email'],
-            // ],
+            // Sync with: php artisan scout:sync-index-settings
+            'contracts' => [
+                'searchableAttributes' => [
+                    'title',
+                    'contract_ref',
+                    'contract_type',
+                    'counterparty',
+                    'region',
+                    'entity',
+                    'project',
+                ],
+                'filterableAttributes' => [
+                    'workflow_state',
+                    'contract_type',
+                    'region',
+                    'entity',
+                    'project',
+                ],
+                'sortableAttributes' => [
+                    'title',
+                    'contract_ref',
+                    'contract_type',
+                ],
+            ],
+            'counterparties' => [
+                'searchableAttributes' => [
+                    'legal_name',
+                    'registration_number',
+                    'jurisdiction',
+                ],
+                'filterableAttributes' => [
+                    'status',
+                    'jurisdiction',
+                ],
+                'sortableAttributes' => [
+                    'legal_name',
+                    'status',
+                ],
+            ],
+            'wiki_contracts' => [
+                'searchableAttributes' => [
+                    'title',
+                    'description',
+                    'contract_type',
+                ],
+                'filterableAttributes' => [
+                    'contract_type',
+                ],
+                'sortableAttributes' => [
+                    'title',
+                    'contract_type',
+                ],
+            ],
         ],
     ],
 

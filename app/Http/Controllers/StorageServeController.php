@@ -4,15 +4,33 @@ namespace App\Http\Controllers;
 
 use App\Models\Contract;
 use App\Models\FileStorage;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class StorageServeController extends Controller
 {
-    public function __invoke(Request $request, string $path): StreamedResponse
+    public function __invoke(Request $request, string $path): StreamedResponse|RedirectResponse
     {
         $this->authorise($path);
 
+        $disk = config('ccrs.contracts_disk');
+
+        if ($disk !== 'database') {
+            // S3 / SeaweedFS: redirect to a short-lived pre-signed URL.
+            // The client downloads directly from object storage — no PHP proxying needed.
+            if (! Storage::disk($disk)->exists($path)) {
+                abort(404, 'File not found.');
+            }
+
+            $expiresAt = now()->addMinutes(5);
+            $temporaryUrl = Storage::disk($disk)->temporaryUrl($path, $expiresAt);
+
+            return redirect()->away($temporaryUrl);
+        }
+
+        // database disk: stream BLOB from the file_storage table.
         $file = FileStorage::where('path', $path)->first();
 
         if (! $file) {

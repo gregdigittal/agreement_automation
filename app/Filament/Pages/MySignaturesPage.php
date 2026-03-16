@@ -19,13 +19,19 @@ class MySignaturesPage extends Page implements HasForms
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-pencil-square';
+
     protected static ?string $navigationGroup = 'Settings';
+
     protected static string $view = 'filament.pages.my-signatures';
+
     protected static ?int $navigationSort = 95;
+
     protected static ?string $title = 'My Signatures';
+
     protected static ?string $navigationLabel = 'My Signatures';
 
     public ?array $data = [];
+
     public bool $showAddForm = false;
 
     public function mount(): void
@@ -90,7 +96,7 @@ class MySignaturesPage extends Page implements HasForms
 
     public function toggleAddForm(): void
     {
-        $this->showAddForm = !$this->showAddForm;
+        $this->showAddForm = ! $this->showAddForm;
         if ($this->showAddForm) {
             $this->form->fill();
         }
@@ -107,17 +113,19 @@ class MySignaturesPage extends Page implements HasForms
         $decoded = base64_decode($imageData, true);
         if ($decoded === false) {
             Notification::make()->title('Invalid signature data.')->danger()->send();
+
             return;
         }
 
         $imageInfo = @getimagesizefromstring($decoded);
-        if ($imageInfo === false || !in_array($imageInfo['mime'], ['image/png', 'image/jpeg'])) {
+        if ($imageInfo === false || ! in_array($imageInfo['mime'], ['image/png', 'image/jpeg'])) {
             Notification::make()->title('Signature must be a valid PNG or JPEG image.')->danger()->send();
+
             return;
         }
 
-        $path = "stored-signatures/{$user->id}/" . \Illuminate\Support\Str::uuid() . '.png';
-        $disk = config('ccrs.contracts_disk', 'database');
+        $path = "stored-signatures/{$user->id}/".\Illuminate\Support\Str::uuid().'.png';
+        $disk = config('ccrs.contracts_disk');
         Storage::disk($disk)->put($path, $decoded);
 
         // Clear default if setting this as default
@@ -150,6 +158,7 @@ class MySignaturesPage extends Page implements HasForms
 
         if (empty($data['typed_text'])) {
             Notification::make()->title('Please type your name.')->danger()->send();
+
             return;
         }
 
@@ -168,6 +177,7 @@ class MySignaturesPage extends Page implements HasForms
 
         if (empty($data['upload_file'])) {
             Notification::make()->title('Please upload a signature image.')->danger()->send();
+
             return;
         }
 
@@ -176,14 +186,15 @@ class MySignaturesPage extends Page implements HasForms
 
         // Validate uploaded file is a real image
         $imageInfo = @getimagesizefromstring($imageData);
-        if ($imageInfo === false || !in_array($imageInfo['mime'], ['image/png', 'image/jpeg'])) {
+        if ($imageInfo === false || ! in_array($imageInfo['mime'], ['image/png', 'image/jpeg'])) {
             Storage::disk('local')->delete($data['upload_file']);
             Notification::make()->title('Uploaded file is not a valid image.')->danger()->send();
+
             return;
         }
 
-        $path = "stored-signatures/{$user->id}/" . \Illuminate\Support\Str::uuid() . '.png';
-        $disk = config('ccrs.contracts_disk', 'database');
+        $path = "stored-signatures/{$user->id}/".\Illuminate\Support\Str::uuid().'.png';
+        $disk = config('ccrs.contracts_disk');
         Storage::disk($disk)->put($path, $imageData);
 
         // Clean up local temp
@@ -222,7 +233,7 @@ class MySignaturesPage extends Page implements HasForms
             ->where('user_id', $user->id)
             ->first();
 
-        if (!$signature) {
+        if (! $signature) {
             return;
         }
 
@@ -245,12 +256,12 @@ class MySignaturesPage extends Page implements HasForms
             ->where('user_id', $user->id)
             ->first();
 
-        if (!$signature) {
+        if (! $signature) {
             return;
         }
 
         // Delete image from storage
-        $disk = config('ccrs.contracts_disk', 'database');
+        $disk = config('ccrs.contracts_disk');
         Storage::disk($disk)->delete($signature->image_path);
 
         $signature->delete();

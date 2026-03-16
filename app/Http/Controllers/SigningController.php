@@ -65,8 +65,8 @@ class SigningController extends Controller
         if ($request->input('save_signature')) {
             $decoded = base64_decode($request->input('signature_image'), true);
             if ($decoded && @getimagesizefromstring($decoded)) {
-                $path = 'stored-signatures/external/' . \Illuminate\Support\Str::uuid() . '.png';
-                $disk = config('ccrs.contracts_disk', 'database');
+                $path = 'stored-signatures/external/'.\Illuminate\Support\Str::uuid().'.png';
+                $disk = config('ccrs.contracts_disk');
                 Storage::disk($disk)->put($path, $decoded);
 
                 StoredSignature::create([
@@ -98,13 +98,13 @@ class SigningController extends Controller
 
         $contract = $signer->session->contract;
         $storagePath = $contract->storage_path;
-        $disk = config('ccrs.contracts_disk', 'database');
+        $disk = config('ccrs.contracts_disk');
 
-        if (!$storagePath || !Storage::disk($disk)->exists($storagePath)) {
+        if (! $storagePath || ! Storage::disk($disk)->exists($storagePath)) {
             abort(404, 'Document not found');
         }
 
-        return Storage::disk($disk)->response($storagePath, $contract->title . '.pdf', [
+        return Storage::disk($disk)->response($storagePath, $contract->title.'.pdf', [
             'Content-Type' => 'application/pdf',
         ]);
     }
@@ -146,8 +146,8 @@ class SigningController extends Controller
             $initiator = $signer->session->initiator;
             if ($initiator?->email) {
                 Mail::raw(
-                    "Signer {$signer->signer_name} ({$signer->signer_email}) has declined to sign: {$signer->session->contract->title}. Reason: " . ($request->input('reason') ?? 'No reason provided.'),
-                    fn ($msg) => $msg->to($initiator->email)->subject('Signing Declined: ' . $signer->session->contract->title)
+                    "Signer {$signer->signer_name} ({$signer->signer_email}) has declined to sign: {$signer->session->contract->title}. Reason: ".($request->input('reason') ?? 'No reason provided.'),
+                    fn ($msg) => $msg->to($initiator->email)->subject('Signing Declined: '.$signer->session->contract->title)
                 );
             }
         } catch (\Throwable $e) {
