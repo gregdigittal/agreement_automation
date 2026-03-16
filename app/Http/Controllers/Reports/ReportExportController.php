@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Reports;
 
 use App\Exports\ContractExport;
 use App\Exports\ObligationsExport;
+use App\Helpers\Feature;
 use App\Http\Controllers\Controller;
 use App\Models\ComplianceFinding;
 use App\Models\Contract;
@@ -25,12 +26,13 @@ class ReportExportController extends Controller
             'workflow_state' => 'nullable|string|max:50',
         ]);
         $export = new ContractExport(
-            regionId:     $request->query('region_id'),
-            entityId:     $request->query('entity_id'),
+            regionId: $request->query('region_id'),
+            entityId: $request->query('entity_id'),
             contractType: $request->query('contract_type'),
-            workflowState:$request->query('workflow_state'),
+            workflowState: $request->query('workflow_state'),
         );
-        return Excel::download($export, 'contracts_' . now()->format('Ymd_His') . '.xlsx');
+
+        return Excel::download($export, 'contracts_'.now()->format('Ymd_His').'.xlsx');
     }
 
     /** Export contracts summary as PDF */
@@ -44,20 +46,20 @@ class ReportExportController extends Controller
         ]);
         $contracts = Contract::query()
             ->with(['counterparty', 'region', 'entity'])
-            ->when($request->query('region_id'),      fn ($q, $v) => $q->where('region_id', $v))
-            ->when($request->query('contract_type'),  fn ($q, $v) => $q->where('contract_type', $v))
+            ->when($request->query('region_id'), fn ($q, $v) => $q->where('region_id', $v))
+            ->when($request->query('contract_type'), fn ($q, $v) => $q->where('contract_type', $v))
             ->when($request->query('workflow_state'), fn ($q, $v) => $q->where('workflow_state', $v))
             ->orderBy('created_at', 'desc')
             ->limit(500)
             ->get();
 
         $pdf = Pdf::loadView('reports.contracts-pdf', [
-            'contracts'   => $contracts,
+            'contracts' => $contracts,
             'generatedAt' => now()->format('d M Y H:i'),
-            'filters'     => $request->only(['region_id', 'contract_type', 'workflow_state']),
+            'filters' => $request->only(['region_id', 'contract_type', 'workflow_state']),
         ])->setPaper('a4', 'landscape');
 
-        return $pdf->download('contracts_report_' . now()->format('Ymd') . '.pdf');
+        return $pdf->download('contracts_report_'.now()->format('Ymd').'.pdf');
     }
 
     /** Full analytics dashboard as a PDF snapshot. */
@@ -65,7 +67,7 @@ class ReportExportController extends Controller
     {
         $this->authorizeRole($request);
 
-        if (! config('features.advanced_analytics', false)) {
+        if (! Feature::enabled('advanced_analytics')) {
             abort(404);
         }
 
@@ -103,7 +105,7 @@ class ReportExportController extends Controller
     {
         $this->authorizeRole($request);
 
-        if (! config('features.regulatory_compliance', false)) {
+        if (! Feature::enabled('regulatory_compliance')) {
             abort(404);
         }
 

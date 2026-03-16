@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\RegulatoryFrameworkResource\Pages;
+use App\Helpers\Feature;
 use App\Models\RegulatoryFramework;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -13,18 +14,21 @@ use Filament\Tables\Table;
 class RegulatoryFrameworkResource extends Resource
 {
     protected static ?string $model = RegulatoryFramework::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-shield-exclamation';
+
     protected static ?string $navigationGroup = 'Compliance';
+
     protected static ?int $navigationSort = 36;
 
     public static function shouldRegisterNavigation(): bool
     {
-        return config('features.regulatory_compliance', false);
+        return Feature::enabled('regulatory_compliance');
     }
 
     public static function canViewAny(): bool
     {
-        if (! config('features.regulatory_compliance', false)) {
+        if (! Feature::enabled('regulatory_compliance')) {
             return false;
         }
 
@@ -111,7 +115,7 @@ class RegulatoryFrameworkResource extends Resource
                         ->columns(2)
                         ->collapsible()
                         ->cloneable()
-                        ->itemLabel(fn (array $state): ?string => ($state['id'] ?? '') . ' — ' . ($state['text'] ?? ''))
+                        ->itemLabel(fn (array $state): ?string => ($state['id'] ?? '').' — '.($state['text'] ?? ''))
                         ->defaultItems(0)
                         ->addActionLabel('Add Requirement'),
                 ]),

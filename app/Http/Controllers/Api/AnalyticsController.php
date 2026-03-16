@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\Feature;
 use App\Http\Controllers\Controller;
 use App\Models\ComplianceFinding;
 use App\Models\Contract;
@@ -70,7 +71,7 @@ class AnalyticsController extends Controller
 
     public function complianceOverview(): JsonResponse
     {
-        if (! config('features.regulatory_compliance', false)) {
+        if (! Feature::enabled('regulatory_compliance')) {
             return response()->json(['error' => 'Regulatory compliance feature is not enabled'], 404);
         }
 
