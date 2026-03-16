@@ -2,11 +2,12 @@
 
 namespace App\Jobs;
 
+use App\Models\AiAnalysisResult;
 use App\Models\ComplianceFinding;
 use App\Models\Contract;
 use App\Models\RegulatoryFramework;
+use App\Services\AiWorkerClient;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class ProcessComplianceCheck extends TenantAwareJob
@@ -22,45 +23,23 @@ class ProcessComplianceCheck extends TenantAwareJob
         public RegulatoryFramework $framework,
     ) {}
 
-    public function handle(): void
+    public function handle(AiWorkerClient $aiClient): void
     {
-        $contractText = $this->contract->extracted_text;
+        $extractionResult = AiAnalysisResult::where('contract_id', $this->contract->id)
+            ->where('analysis_type', 'extraction')
+            ->where('status', 'completed')
+            ->latest('updated_at')
+            ->first();
+
+        $contractText = $extractionResult?->result['text'] ?? null;
+
         if (empty($contractText)) {
-            Log::warning("Compliance check skipped: no extracted text for contract {$this->contract->id}");
+            Log::warning("Compliance check skipped: no completed extraction analysis for contract {$this->contract->id}");
 
             return;
         }
 
-        $payload = [
-            'contract_text' => $contractText,
-            'contract_id' => $this->contract->id,
-            'framework' => [
-                'id' => $this->framework->id,
-                'name' => $this->framework->framework_name,
-                'jurisdiction_code' => $this->framework->jurisdiction_code,
-                'requirements' => $this->framework->requirements,
-            ],
-        ];
-
-        $aiWorkerUrl = config('ccrs.ai_worker_url', 'http://ai-worker:8001');
-        $aiWorkerSecret = config('ccrs.ai_worker_secret');
-
-        $response = Http::timeout(280)
-            ->withHeaders([
-                'X-AI-Worker-Secret' => $aiWorkerSecret,
-                'Content-Type' => 'application/json',
-            ])
-            ->post("{$aiWorkerUrl}/check-compliance", $payload);
-
-        if (! $response->successful()) {
-            Log::error("AI worker compliance check failed for contract {$this->contract->id}", [
-                'status' => $response->status(),
-                'body' => $response->body(),
-            ]);
-            throw new \RuntimeException("AI worker returned HTTP {$response->status()}");
-        }
-
-        $data = $response->json();
+        $data = $aiClient->checkCompliance($this->contract, $this->framework, $contractText);
 
         // Re-check replaces previous results — wrapped in transaction for atomicity
         DB::transaction(function () use ($data) {
@@ -85,6 +64,15 @@ class ProcessComplianceCheck extends TenantAwareJob
 
         Log::info("Compliance check completed for contract {$this->contract->id} against framework {$this->framework->framework_name}", [
             'findings_count' => count($data['findings'] ?? []),
+        ]);
+    }
+
+    public function failed(\Throwable $exception): void
+    {
+        Log::error("ProcessComplianceCheck permanently failed for contract {$this->contract->id}", [
+            'framework_id' => $this->framework->id,
+            'framework_name' => $this->framework->framework_name,
+            'error' => $exception->getMessage(),
         ]);
     }
 

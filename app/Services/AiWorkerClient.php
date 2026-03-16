@@ -186,6 +186,43 @@ class AiWorkerClient
     }
 
     /**
+     * Run a compliance check against a regulatory framework.
+     * Returns the AI worker response array on success.
+     * Throws \RuntimeException on non-2xx response.
+     */
+    public function checkCompliance(
+        \App\Models\Contract $contract,
+        \App\Models\RegulatoryFramework $framework,
+        string $contractText
+    ): array {
+        $payload = [
+            'contract_text' => $contractText,
+            'contract_id' => $contract->id,
+            'framework' => [
+                'id' => $framework->id,
+                'name' => $framework->framework_name,
+                'jurisdiction_code' => $framework->jurisdiction_code,
+                'requirements' => $framework->requirements,
+            ],
+        ];
+
+        $response = Http::withHeaders([
+            'X-AI-Worker-Secret' => $this->resolveSecret(),
+            'Content-Type' => 'application/json',
+        ])
+            ->timeout(280)
+            ->post("{$this->baseUrl}/check-compliance", $payload);
+
+        if ($response->failed()) {
+            throw new \RuntimeException(
+                "AI worker compliance check failed for contract {$contract->id}: HTTP {$response->status()}"
+            );
+        }
+
+        return $response->json();
+    }
+
+    /**
      * Health check — test connectivity to AI worker.
      */
     public function health(): array
