@@ -42,7 +42,7 @@ spec:
             - name: APP_ENV
               value: "production"
             - name: APP_DEBUG
-              value: "true"
+              value: "false"
             - name: APP_URL
               value: "https://${DOMAIN}"
             - name: DB_CONNECTION
@@ -56,7 +56,10 @@ spec:
             - name: DB_USERNAME
               value: "ccrs"
             - name: DB_PASSWORD
-              value: "ccrs-sandbox-pass"
+              valueFrom:
+                secretKeyRef:
+                  name: ccrs-db-credentials
+                  key: db-password
             - name: ALLOW_MIGRATE_FRESH_ON_FAIL
               value: "true"
             - name: CACHE_STORE
@@ -81,7 +84,10 @@ spec:
             - name: MAIL_USERNAME
               value: "ccrs@digittal.mobi"
             - name: MAIL_PASSWORD
-              value: "oJXQg3otiOeJ.I6s"
+              valueFrom:
+                secretKeyRef:
+                  name: ccrs-db-credentials
+                  key: mail-password
             - name: MAIL_FROM_ADDRESS
               value: "ccrs@digittal.mobi"
             - name: MAIL_FROM_NAME
@@ -152,13 +158,19 @@ spec:
           image: mysql:8.0
           env:
             - name: MYSQL_ROOT_PASSWORD
-              value: "ccrs-root-pass"
+              valueFrom:
+                secretKeyRef:
+                  name: ccrs-db-credentials
+                  key: db-root-password
             - name: MYSQL_DATABASE
               value: "ccrs"
             - name: MYSQL_USER
               value: "ccrs"
             - name: MYSQL_PASSWORD
-              value: "ccrs-sandbox-pass"
+              valueFrom:
+                secretKeyRef:
+                  name: ccrs-db-credentials
+                  key: db-password
           ports:
             - containerPort: 3306
           resources:
@@ -207,7 +219,10 @@ spec:
                   name: ai-worker-secrets
                   key: worker-secret
             - name: DB_URL
-              value: "mysql+pymysql://ccrs:ccrs-sandbox-pass@127.0.0.1:3306/ccrs"
+              valueFrom:
+                secretKeyRef:
+                  name: ccrs-db-credentials
+                  key: ai-worker-db-url
             - name: AI_MODEL
               value: "claude-sonnet-4-6"
             - name: AI_AGENT_MODEL
