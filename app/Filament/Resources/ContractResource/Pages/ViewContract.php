@@ -4,11 +4,12 @@ namespace App\Filament\Resources\ContractResource\Pages;
 
 use App\Filament\Resources\ContractResource;
 use App\Filament\Widgets\AiProcessingBannerWidget;
+use App\Helpers\Feature;
 use App\Models\Contract;
 use App\Services\RegulatoryComplianceService;
-use Filament\Resources\Pages\ViewRecord;
-use Filament\Infolists\Infolist;
 use Filament\Infolists\Components;
+use Filament\Infolists\Infolist;
+use Filament\Resources\Pages\ViewRecord;
 
 class ViewContract extends ViewRecord
 {
@@ -41,30 +42,30 @@ class ViewContract extends ViewRecord
                     ])
                     ->visible(fn (Contract $record): bool => in_array($record->workflow_state, ['executed', 'completed']))
                     ->columnSpanFull(),
-                Components\Section::make("Linked From")
+                Components\Section::make('Linked From')
                     ->visible(fn (Contract $record) => $record->parentContract !== null)
                     ->schema([
-                        Components\TextEntry::make("parentContract.link_type")
-                            ->label("Link Type")
+                        Components\TextEntry::make('parentContract.link_type')
+                            ->label('Link Type')
                             ->badge(),
-                        Components\TextEntry::make("parentContract.parentContract.title")
-                            ->label("Parent Contract")
-                            ->url(fn (Contract $record) => ContractResource::getUrl("edit", ["record" => $record->parentContract->parentContract])),
+                        Components\TextEntry::make('parentContract.parentContract.title')
+                            ->label('Parent Contract')
+                            ->url(fn (Contract $record) => ContractResource::getUrl('edit', ['record' => $record->parentContract->parentContract])),
                     ])
                     ->columns(2),
-                Components\Section::make("SharePoint")
+                Components\Section::make('SharePoint')
                     ->visible(fn (Contract $record) => ! empty($record->sharepoint_url))
                     ->schema([
-                        Components\TextEntry::make("sharepoint_url")
-                            ->label("Document URL")
+                        Components\TextEntry::make('sharepoint_url')
+                            ->label('Document URL')
                             ->url()
                             ->openUrlInNewTab(),
-                        Components\TextEntry::make("sharepoint_version")
-                            ->label("Version"),
+                        Components\TextEntry::make('sharepoint_version')
+                            ->label('Version'),
                     ])
                     ->columns(2),
                 Components\Section::make('Compliance Overview')
-                    ->visible(fn (Contract $record): bool => config('features.regulatory_compliance', false)
+                    ->visible(fn (Contract $record): bool => Feature::enabled('regulatory_compliance')
                         && $record->complianceFindings()->exists())
                     ->schema(function (Contract $record): array {
                         $scores = app(RegulatoryComplianceService::class)->getScoreSummary($record);
@@ -73,7 +74,7 @@ class ViewContract extends ViewRecord
                             $framework = \App\Models\RegulatoryFramework::find($frameworkId);
                             $name = $framework?->framework_name ?? $frameworkId;
                             $label = "{$score['score']}% compliant ({$score['compliant']}/{$score['total']}"
-                                . " — {$score['non_compliant']} non-compliant, {$score['unclear']} unclear)";
+                                ." — {$score['non_compliant']} non-compliant, {$score['unclear']} unclear)";
                             $color = match (true) {
                                 $score['score'] >= 80.0 => 'success',
                                 $score['score'] >= 50.0 => 'warning',
@@ -85,6 +86,7 @@ class ViewContract extends ViewRecord
                                 ->badge()
                                 ->color($color);
                         }
+
                         return $entries ?: [
                             Components\TextEntry::make('no_compliance_scores')
                                 ->label('')

@@ -3,25 +3,31 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Widgets;
+use App\Helpers\Feature;
 use Filament\Pages\Page;
 
 class AnalyticsDashboardPage extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-presentation-chart-bar';
+
     protected static ?string $navigationLabel = 'Analytics Dashboard';
+
     protected static ?string $title = 'Executive Analytics Dashboard';
+
     protected static ?string $navigationGroup = 'Reports';
+
     protected static ?int $navigationSort = 32;
+
     protected static string $view = 'filament.pages.analytics-dashboard';
 
     public static function shouldRegisterNavigation(): bool
     {
-        return config('features.advanced_analytics', false);
+        return Feature::enabled('advanced_analytics');
     }
 
     public static function canAccess(): bool
     {
-        if (! config('features.advanced_analytics', false)) {
+        if (! Feature::enabled('advanced_analytics')) {
             return false;
         }
 

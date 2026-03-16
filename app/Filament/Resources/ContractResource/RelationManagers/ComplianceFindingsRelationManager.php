@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ContractResource\RelationManagers;
 
+use App\Helpers\Feature;
 use App\Services\RegulatoryComplianceService;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -19,7 +20,7 @@ class ComplianceFindingsRelationManager extends RelationManager
 
     public static function canViewForRecord($ownerRecord, string $pageClass): bool
     {
-        return config('features.regulatory_compliance', false);
+        return Feature::enabled('regulatory_compliance');
     }
 
     public function table(Table $table): Table
@@ -66,7 +67,7 @@ class ComplianceFindingsRelationManager extends RelationManager
 
                 Tables\Columns\TextColumn::make('confidence')
                     ->label('Confidence')
-                    ->formatStateUsing(fn (?float $state): string => $state !== null ? round($state * 100) . '%' : '—')
+                    ->formatStateUsing(fn (?float $state): string => $state !== null ? round($state * 100).'%' : '—')
                     ->badge()
                     ->color(fn (?float $state): string => match (true) {
                         $state === null => 'gray',

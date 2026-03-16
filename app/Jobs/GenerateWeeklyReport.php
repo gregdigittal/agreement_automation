@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Helpers\Feature;
 use App\Models\ComplianceFinding;
 use App\Models\Contract;
 use App\Models\User;
@@ -19,7 +20,7 @@ class GenerateWeeklyReport extends TenantAwareJob
 
     public function handle(): void
     {
-        if (! config('features.advanced_analytics', false)) {
+        if (! Feature::enabled('advanced_analytics')) {
             Log::info('Weekly report skipped: advanced_analytics feature is disabled.');
 
             return;
@@ -99,7 +100,7 @@ class GenerateWeeklyReport extends TenantAwareJob
                 ->whereNull('resolved_at')
                 ->count(),
 
-            'compliance_issues' => config('features.regulatory_compliance', false)
+            'compliance_issues' => Feature::enabled('regulatory_compliance')
                 ? ComplianceFinding::where('status', 'non_compliant')->count()
                 : null,
 

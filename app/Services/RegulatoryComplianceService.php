@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Helpers\Feature;
 use App\Jobs\ProcessComplianceCheck;
 use App\Models\ComplianceFinding;
 use App\Models\Contract;
@@ -25,7 +26,7 @@ class RegulatoryComplianceService
      */
     public function runComplianceCheck(Contract $contract, ?RegulatoryFramework $framework = null): void
     {
-        if (! config('features.regulatory_compliance', false)) {
+        if (! Feature::enabled('regulatory_compliance')) {
             throw new \RuntimeException('Regulatory compliance checking is not enabled. Set FEATURE_REGULATORY_COMPLIANCE=true in .env.');
         }
 
