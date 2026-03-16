@@ -101,11 +101,27 @@ class RegulatoryComplianceService
             throw new \InvalidArgumentException("Invalid compliance status: {$status}");
         }
 
+        $previousStatus = $finding->status;
+
         $finding->update([
             'status' => $status,
             'reviewed_by' => $actor->id,
             'reviewed_at' => now(),
         ]);
+
+        \App\Services\AuditService::log(
+            'compliance_finding.review',
+            'compliance_finding',
+            $finding->id,
+            [
+                'contract_id' => $finding->contract_id,
+                'framework_id' => $finding->framework_id,
+                'requirement_id' => $finding->requirement_id,
+                'new_status' => $status,
+                'previous_status' => $previousStatus,
+            ],
+            $actor,
+        );
 
         Log::info("Compliance finding {$finding->id} reviewed", [
             'contract_id' => $finding->contract_id,

@@ -145,4 +145,21 @@ class ComplianceCheckTest extends TestCase
 
         app(RegulatoryComplianceService::class)->reviewFinding($finding, 'invalid_status', $user);
     }
+
+    public function test_creates_audit_log_entry_when_legal_reviews_a_finding(): void
+    {
+        $user = User::factory()->create();
+        $user->assignRole('legal');
+        $this->actingAs($user);
+
+        $finding = ComplianceFinding::factory()->create(['status' => 'unclear']);
+
+        app(RegulatoryComplianceService::class)->reviewFinding($finding, 'compliant', $user);
+
+        $this->assertDatabaseHas('audit_log', [
+            'action' => 'compliance_finding.review',
+            'resource_type' => 'compliance_finding',
+            'resource_id' => $finding->id,
+        ]);
+    }
 }
