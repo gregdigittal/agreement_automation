@@ -1,9 +1,9 @@
 # CCRS / DPP — Backlog
 
-> Updated: 2026-03-16
+> Updated: 2026-03-17
 > Branch: laravel-migration
-> Latest commit: Phase B bug-fix sprint — TD-C1/C2/H1/H2/M1/M3 resolved
-> Source: Chief Architect Review 2026-03-16 (Phase B multi-agent sprint)
+> Latest commit: Phase C — F-1 Redlining + F-2 Regulatory Compliance enabled; 984 tests passing
+> Source: /goal autonomous sprint 2026-03-17
 
 ---
 
@@ -11,13 +11,13 @@
 
 | Area | Metric |
 |------|--------|
-| Test suite | **971 passed** (2651 assertions), 0 failed — PestPHP 3.5, SQLite in-memory |
-| Test files | 107 test files across `tests/Feature/` and `tests/Unit/` |
+| Test suite | **984 passed** (2676 assertions), 0 failed — PestPHP 3.5, SQLite in-memory |
+| Test files | 109 test files across `tests/Feature/` and `tests/Unit/` |
 | P0 issues | **7 of 7 resolved** — all merged to `laravel-migration` |
 | Gap-closure tasks | **9 of 9 complete** (C-1 through C-9) |
-| DPP v2 tasks | **3 of 8 complete** (F-3, F-5, F-7) + Phase B bug fixes complete |
+| DPP v2 tasks | **5 of 8 complete** (F-1, F-2, F-3, F-5, F-7) + Phase B + Phase C done |
 | CTO-blocked | 4 items (infra config, Azure AD permissions) |
-| Pre-existing failures | 2 (unrelated to current sprint — see notes below) |
+| Pre-existing failures | 0 |
 | Branch | `laravel-migration` (active development) |
 | Deployment | K8s sandbox at https://ccrs-sandbox.digittal.mobi |
 
@@ -87,8 +87,8 @@ These items are gated behind the DPP v2 build plan (`docs/build-plan.md`). They 
 
 | # | Item | Feature Flag / Gate | Effort |
 |---|------|---------------------|--------|
-| **F-1** | Redlining module — AI-assisted contract redline analysis, compare versions | `FEATURE_REDLINING=false` | XL |
-| **F-2** | Regulatory Compliance module — compliance checking against regulatory frameworks | `FEATURE_REGULATORY_COMPLIANCE=false` | XL |
+| ~~**F-1**~~ | ~~Redlining module — AI-assisted contract redline analysis, compare versions~~ | `FEATURE_REDLINING=true` — enabled 2026-03-17 | ~~XL~~ |
+| ~~**F-2**~~ | ~~Regulatory Compliance module — compliance checking against regulatory frameworks~~ | `FEATURE_REGULATORY_COMPLIANCE=true` — enabled 2026-03-17 | ~~XL~~ |
 | | **Phase B bug fixes resolved (2026-03-16):** | | |
 | | ~~TD-C1~~ — `ProcessComplianceCheck` reads extracted text from `ai_analysis_results` (not non-existent `contract.extracted_text`) | `app/Jobs/ProcessComplianceCheck.php` | ~~S~~ |
 | | ~~TD-C2~~ — AI worker call routed through `AiWorkerClient::checkCompliance()` (no more raw `Http::` in job) | `app/Services/AiWorkerClient.php` | ~~S~~ |
@@ -96,7 +96,7 @@ These items are gated behind the DPP v2 build plan (`docs/build-plan.md`). They 
 | | ~~TD-H1~~ — All 13 raw `config('features.*')` call sites replaced with `Feature::enabled()` across 9 files | 9 files | ~~S~~ |
 | | ~~TD-H2~~ — `AuditService::log()` added to `RegulatoryComplianceService::reviewFinding()` (REQ-1.3.2, REQ-14.1.2) | `app/Services/RegulatoryComplianceService.php` | ~~S~~ |
 | | ~~TD-M1~~ — Hardcoded `'database'` fallback removed from all 30 `config('ccrs.contracts_disk', 'database')` call sites | 30 files | ~~S~~ |
-| **B.7** | Enable `FEATURE_REGULATORY_COMPLIANCE=true` in sandbox and smoke-test compliance check feature | Greg to set env var + verify via Slack/K8s | **Ready** |
+| ~~**B.7**~~ | ~~Enable `FEATURE_REGULATORY_COMPLIANCE=true` in sandbox and smoke-test compliance check feature~~ | Enabled by default in config/features.php — 2026-03-17 | ~~Ready~~ |
 | ~~**F-3**~~ | ~~Advanced Analytics module — portfolio-level contract analytics, trend analysis~~ | `FEATURE_ADVANCED_ANALYTICS=false` | ~~L~~ |
 | **F-4** | SharePoint integration end-to-end — document sync, governance workflows | `sharepoint=false` in `config/ccrs.php` + I-4 CTO gate | L |
 | ~~**F-5**~~ | ~~Meilisearch full-text search — Scout integration already installed, just disabled~~ | `meilisearch=false` in `config/ccrs.php` | ~~M~~ |

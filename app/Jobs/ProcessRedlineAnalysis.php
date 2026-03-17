@@ -32,6 +32,8 @@ class ProcessRedlineAnalysis extends TenantAwareJob
         $contract = $session->contract;
         $wikiContract = $session->wikiContract;
 
+        $session->update(['status' => 'processing']);
+
         try {
             // 1. Extract contract text from uploaded file
             $contractText = $this->extractText($contract->storage_path);
@@ -53,13 +55,19 @@ class ProcessRedlineAnalysis extends TenantAwareJob
                 );
             }
 
-            // 3. Call AI Worker /analyze-redline endpoint
+            // 3. Call AI Worker /analyze-redline endpoint — AI worker writes clause data directly to DB
             $aiClient->redlineAnalyze(
                 contractText: $contractText,
                 templateText: $templateText,
                 contractId: $contract->id,
                 sessionId: $session->id,
             );
+
+            // 4. Confirm session completion on the PHP side (safety net if AI worker did not update status)
+            $session->refresh();
+            if (in_array($session->status, ['pending', 'processing'])) {
+                $session->update(['status' => 'completed']);
+            }
 
             Log::info("ProcessRedlineAnalysis: completed for session {$this->sessionId}");
 
