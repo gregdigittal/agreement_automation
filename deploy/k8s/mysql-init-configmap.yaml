@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-init-scripts
+  namespace: ${NAMESPACE}
+data:
+  99-grant-create-db.sql: |
+    -- Grant CREATE DATABASE privilege to the app user
+    GRANT CREATE ON *.* TO 'ccrs'@'%';
+    FLUSH PRIVILEGES;
