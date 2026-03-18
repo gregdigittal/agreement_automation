@@ -2,8 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 
 /**
  * Platform-level super-admin user.
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
  */
 class PlatformAdmin extends Authenticatable
 {
-    use HasUuids;
+    use HasFactory, HasUuids;
 
     protected $table = 'platform_admins';
 
