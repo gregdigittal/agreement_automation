@@ -101,8 +101,34 @@ class TenancyServiceProvider extends ServiceProvider
     {
         $this->bootEvents();
         $this->mapRoutes();
-
         $this->makeTenancyMiddlewareHighestPriority();
+        $this->configureMiddlewareFallbacks();
+    }
+
+    /**
+     * Configure fallback behaviour for identification middleware.
+     *
+     * InitializeTenancyByDomain has no built-in central_domains guard — it always
+     * tries to resolve a tenant and throws TenantCouldNotBeIdentifiedException on
+     * failure. We install an $onFail handler that passes through without initialising
+     * tenancy when the request originates from a central domain (localhost, the
+     * superadmin panel, the sandbox URL, etc.). Requests from unknown non-central
+     * domains still surface the exception.
+     */
+    protected function configureMiddlewareFallbacks(): void
+    {
+        Middleware\InitializeTenancyByDomain::$onFail = function (
+            \Throwable $e,
+            \Illuminate\Http\Request $request,
+            \Closure $next,
+        ): mixed {
+            if (in_array($request->getHost(), config('tenancy.central_domains', []), strict: true)) {
+                // Central domain — pass through in central context without a tenant.
+                return $next($request);
+            }
+
+            throw $e;
+        };
     }
 
     protected function bootEvents()

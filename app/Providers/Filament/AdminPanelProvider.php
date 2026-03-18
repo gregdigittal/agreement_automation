@@ -19,6 +19,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
+use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -89,6 +90,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->plugin(FilamentShieldPlugin::make())
             ->middleware([
+                InitializeTenancyByDomain::class,
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
