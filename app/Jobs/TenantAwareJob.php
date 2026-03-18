@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Jobs;
 
+use App\Models\Tenant;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -9,27 +12,43 @@ use Illuminate\Support\Facades\Log;
 /**
  * Base class for all queue jobs.
  *
- * Provides a tenant context stub that is currently a no-op (single-tenant deployment).
- * When stancl/tenancy is installed, override or extend tenantId() to resolve the
- * active tenant from the queue payload, and add tenant initialisation in handle().
+ * Tenant context is propagated automatically by QueueTenancyBootstrapper:
+ *   - When dispatched from a tenant context, the bootstrapper stores the tenant ID
+ *     in the job payload and re-initializes tenancy before handle() runs.
+ *   - Jobs dispatched from central context can target a specific tenant via
+ *     withTenant() — tenantId() will then return that tenant's key.
  *
- * Convention:
- *   - Override $tries, $backoff, and failed() in each subclass as needed.
- *   - Call $this->tenantId() in handle() where tenant-scoped queries are required.
+ * Convention: override $tries, $backoff, and failed() in each subclass.
  */
 abstract class TenantAwareJob implements ShouldQueue
 {
     use Queueable;
 
+    /** Explicit tenant ID for central-context dispatching. */
+    protected ?string $tenantId = null;
+
     /**
      * Returns the active tenant identifier.
      *
-     * Stub — always null in the current single-tenant deployment.
-     * To-do (P0-3 follow-up): resolve from the job payload when stancl/tenancy is installed.
+     * Priority: explicit $tenantId → current tenancy context → null.
      */
     protected function tenantId(): ?string
     {
-        return null;
+        if ($this->tenantId !== null) {
+            return $this->tenantId;
+        }
+
+        return tenancy()->initialized ? tenancy()->tenant->getTenantKey() : null;
+    }
+
+    /**
+     * Pin this job to a specific tenant for central-context dispatching.
+     */
+    public function withTenant(Tenant $tenant): static
+    {
+        $this->tenantId = $tenant->getTenantKey();
+
+        return $this;
     }
 
     /**
