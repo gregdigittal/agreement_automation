@@ -7,8 +7,6 @@ namespace App\Filament\Platform\Resources\TenantResource\Pages;
 use App\Filament\Platform\Resources\TenantResource;
 use App\Models\Tenant;
 use Filament\Resources\Pages\CreateRecord;
-use Illuminate\Support\Facades\Event;
-use Stancl\Tenancy\Events\TenantCreated;
 
 class CreateTenant extends CreateRecord
 {

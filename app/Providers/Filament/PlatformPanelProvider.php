@@ -33,6 +33,9 @@ class PlatformPanelProvider extends PanelProvider
         return $panel
             ->id('platform')
             ->path('platform')
+            // TODO(infra): domain restriction is handled by K8s ingress routing
+            // platform-ccrs.digittal.mobi → /platform; tenant domains → /admin.
+            // No Filament-native domain() API is available.
             ->login()
             ->brandName('DPP Platform')
             ->authGuard('superadmin')
