@@ -80,13 +80,19 @@ Route::prefix('reports/export')->middleware('auth')->group(function () {
 });
 
 // E-Signing (public, token-based auth) — C2: throttled to prevent brute-force
-Route::prefix('sign')->middleware('throttle:signing')->group(function () {
-    Route::get('/{token}', [\App\Http\Controllers\SigningController::class, 'show'])
-        ->name('signing.show');
-    Route::get('/{token}/document', [\App\Http\Controllers\SigningController::class, 'document'])
-        ->name('signing.document');
-    Route::post('/{token}/submit', [\App\Http\Controllers\SigningController::class, 'submit'])
-        ->name('signing.submit');
-    Route::post('/{token}/decline', [\App\Http\Controllers\SigningController::class, 'decline'])
-        ->name('signing.decline');
-});
+// InitializeTenancyByDomain ensures SigningSessionSigner token lookups are routed to the
+// correct tenant database when a signer visits on a tenant subdomain (e.g. acme-ccrs.digittal.mobi).
+// $onFail passes through on central domains / localhost — see TenancyServiceProvider::configureMiddlewareFallbacks().
+Route::middleware([\Stancl\Tenancy\Middleware\InitializeTenancyByDomain::class])
+    ->group(function () {
+        Route::prefix('sign')->middleware('throttle:signing')->group(function () {
+            Route::get('/{token}', [\App\Http\Controllers\SigningController::class, 'show'])
+                ->name('signing.show');
+            Route::get('/{token}/document', [\App\Http\Controllers\SigningController::class, 'document'])
+                ->name('signing.document');
+            Route::post('/{token}/submit', [\App\Http\Controllers\SigningController::class, 'submit'])
+                ->name('signing.submit');
+            Route::post('/{token}/decline', [\App\Http\Controllers\SigningController::class, 'decline'])
+                ->name('signing.decline');
+        });
+    });

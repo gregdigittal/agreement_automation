@@ -27,7 +27,7 @@ class SharePointService
     private function getToken(): string
     {
         return Cache::remember(TenantCache::key('sharepoint_graph_token'), now()->addMinutes(50), function () {
-            $response = Http::asForm()->post(config('ccrs.teams.token_endpoint'), [
+            $response = Http::asForm()->timeout(15)->post(config('ccrs.teams.token_endpoint'), [
                 'grant_type' => 'client_credentials',
                 'client_id' => config('services.azure.client_id'),
                 'client_secret' => config('services.azure.client_secret'),
@@ -56,6 +56,7 @@ class SharePointService
         $encoded = 'u!'.rtrim(base64_encode($shareUrl), '=');
 
         $response = Http::withToken($token)
+            ->timeout(15)
             ->get(self::GRAPH_BASE."/shares/{$encoded}/driveItem", [
                 '$select' => 'id,name,parentReference',
             ]);
@@ -97,9 +98,11 @@ class SharePointService
             $contract->sharepoint_folder_id
         );
 
-        $response = Http::withToken($token)->get($url, [
-            '$select' => 'id,name,webUrl,size,lastModifiedDateTime,folder',
-        ]);
+        $response = Http::withToken($token)
+            ->timeout(15)
+            ->get($url, [
+                '$select' => 'id,name,webUrl,size,lastModifiedDateTime,folder',
+            ]);
 
         if (! $response->successful()) {
             Log::warning('SharePoint: failed to list folder contents', [

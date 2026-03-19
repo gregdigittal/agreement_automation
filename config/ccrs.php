@@ -30,7 +30,7 @@ return [
         'enabled' => env('FEATURE_EXCHANGE_ROOM', true),
     ],
     'sharepoint' => [
-        'enabled' => env('FEATURE_SHAREPOINT', false),
+        'enabled' => env('FEATURE_SHAREPOINT', true),
     ],
     'teams' => [
         'team_id' => env('TEAMS_TEAM_ID', ''),

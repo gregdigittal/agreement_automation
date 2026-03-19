@@ -1,9 +1,9 @@
 # CCRS / DPP — Backlog
 
-> Updated: 2026-03-17
+> Updated: 2026-03-19
 > Branch: laravel-migration
-> Latest commit: Phase C — F-1 Redlining + F-2 Regulatory Compliance enabled; 984 tests passing
-> Source: /goal autonomous sprint 2026-03-17
+> Latest commit: F-6 multi-tenancy merged + F-4 SharePoint enabled + signing routes tenant fix; 1038 tests passing
+> Source: /goal autonomous sprint 2026-03-19
 
 ---
 
@@ -11,12 +11,12 @@
 
 | Area | Metric |
 |------|--------|
-| Test suite | **984 passed** (2676 assertions), 0 failed — PestPHP 3.5, SQLite in-memory |
-| Test files | 109 test files across `tests/Feature/` and `tests/Unit/` |
+| Test suite | **1038 passed** (2819 assertions), 0 failed — PestPHP 3.5, SQLite in-memory |
+| Test files | 116 test files across `tests/Feature/` and `tests/Unit/` |
 | P0 issues | **7 of 7 resolved** — all merged to `laravel-migration` |
 | Gap-closure tasks | **9 of 9 complete** (C-1 through C-9) |
-| DPP v2 tasks | **5 of 8 complete** (F-1, F-2, F-3, F-5, F-7) + Phase B + Phase C done |
-| CTO-blocked | 4 items (infra config, Azure AD permissions) |
+| DPP v2 tasks | **8 of 8 complete** (F-1 through F-7 + F-4 enabled; F-6 merged 2026-03-19) |
+| CTO-blocked | **0 items** — all I-1 through I-4 resolved by CTO 2026-03-19 |
 | Pre-existing failures | 0 |
 | Branch | `laravel-migration` (active development) |
 | Deployment | K8s sandbox at https://ccrs-sandbox.digittal.mobi |
@@ -68,16 +68,16 @@ All gap-closure items complete (2026-03-15).
 
 ---
 
-## Tier 4 — CTO-Blocked (Infrastructure — Do Not Implement Without CTO Action)
+## Tier 4 — CTO Infrastructure (All Complete — 2026-03-19)
 
-These items require changes to Kubernetes manifests, Azure AD App Registration, or deployment config. Code changes are not possible until infrastructure is updated.
+All CTO-gated infrastructure items were resolved by the CTO on 2026-03-19.
 
-| # | Item | Blocker | Resolution |
-|---|------|---------|------------|
-| **I-1** | `APP_DEBUG=true` in production deployment | `deploy/k8s/deployment.yaml` line 45 — CTO-owned file | Set `APP_DEBUG=false` in K8s manifest |
-| **I-2** | Hardcoded MySQL credentials in deployment manifest | `deploy/k8s/deployment.yaml` lines 58–59, 84, 155–161, 210 — CTO-owned | Move to K8s `Secret` resources, reference via `secretKeyRef` |
-| **I-3** | Azure AD App Registration: `groupMembershipClaims` not configured | Azure portal config — P0-5 code is ready, waiting on claim to appear in JWT | Set `groupMembershipClaims: "SecurityGroup"` in App Registration manifest |
-| **I-4** | Microsoft Graph API permissions: `Sites.Read.All` and `Files.Read.All` not granted | Azure portal — required for SharePoint integration (`sharepoint` feature flag) | Admin consent for Graph permissions in App Registration |
+| # | Item | Status |
+|---|------|--------|
+| ~~**I-1**~~ | ~~`APP_DEBUG=true` in production deployment~~ | ~~✅ Set to `false` in K8s manifest~~ |
+| ~~**I-2**~~ | ~~Hardcoded MySQL credentials in deployment manifest~~ | ~~✅ Moved to K8s Secrets, referenced via `secretKeyRef`~~ |
+| ~~**I-3**~~ | ~~Azure AD: `groupMembershipClaims` not configured~~ | ~~✅ Set to `"SecurityGroup"` in App Registration~~ |
+| ~~**I-4**~~ | ~~Microsoft Graph API permissions not granted~~ | ~~✅ `Sites.Read.All` + `Files.Read.All` admin-consented~~ |
 
 ---
 
@@ -98,9 +98,9 @@ These items are gated behind the DPP v2 build plan (`docs/build-plan.md`). They 
 | | ~~TD-M1~~ — Hardcoded `'database'` fallback removed from all 30 `config('ccrs.contracts_disk', 'database')` call sites | 30 files | ~~S~~ |
 | ~~**B.7**~~ | ~~Enable `FEATURE_REGULATORY_COMPLIANCE=true` in sandbox and smoke-test compliance check feature~~ | Enabled by default in config/features.php — 2026-03-17 | ~~Ready~~ |
 | ~~**F-3**~~ | ~~Advanced Analytics module — portfolio-level contract analytics, trend analysis~~ | `FEATURE_ADVANCED_ANALYTICS=false` | ~~L~~ |
-| **F-4** | SharePoint integration end-to-end — document sync, governance workflows | `sharepoint=false` in `config/ccrs.php` + I-4 CTO gate | L |
+| ~~**F-4**~~ | ~~SharePoint integration — feature enabled (`FEATURE_SHAREPOINT=true` default), HTTP timeouts added, 11 comprehensive tests~~ | ~~`sharepoint=true` in `config/ccrs.php` — enabled 2026-03-19~~ | ~~L~~ |
 | ~~**F-5**~~ | ~~Meilisearch full-text search — Scout integration already installed, just disabled~~ | `meilisearch=false` in `config/ccrs.php` | ~~M~~ |
-| **F-6** | Multi-tenancy (stancl/tenancy) — database-per-tenant isolation | DPP v2 Stage 3 prerequisite | XL |
+| ~~**F-6**~~ | ~~Multi-tenancy (stancl/tenancy) — database-per-tenant isolation, 12 smoke tests, full F-6 guarantees~~ | ~~Merged to `laravel-migration` 2026-03-19~~ | ~~XL~~ |
 | ~~**F-7**~~ | ~~SeaweedFS S3 storage — replace MySQL BLOB storage with S3-compatible object store~~ | DPP v2 Stage 1; Flysystem S3 adapter already installed | ~~L~~ |
 | **F-8** | DPP v2 module restructuring — `app/Modules/` layout, Redis Streams event bus, Temporal workflows | DPP v2 Stages 2–6; see `docs/build-plan.md` | XL |
 

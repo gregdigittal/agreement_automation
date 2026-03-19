@@ -60,10 +60,16 @@ This project is transitioning from a single-purpose CCRS application into a modu
 - `sharepoint` — false (in `config/ccrs.php`)
 
 ### Tenancy
-- **stancl/tenancy is NOT installed**. Not in composer.json or composer.lock. Multi-tenancy is a DPP target, not current state.
+- **stancl/tenancy v3.9.1 is installed** (merged 2026-03-19 — F-6 complete). Database-per-tenant isolation via `InitializeTenancyByDomain`. All CCRS migrations live in `database/migrations/tenant/`. Central DB holds only `tenants`, `domains`, and `platform_admins` tables. See `app/Providers/TenancyServiceProvider.php` and `config/tenancy.php`.
+- **Platform superadmin panel** registered at `platform-ccrs.digittal.mobi` via `PlatformPanelProvider` with `PlatformAdmin` model (central DB, `protected $connection = 'central'`).
+- **Test escape hatch**: `tests/TestCase.php` runs tenant migrations on the default SQLite connection and central migrations on the `central` named connection so all existing tests pass without a real tenant DB.
+- **WithTenancy trait** (`tests/WithTenancy.php`): use in tenancy-specific tests to initialize context without DB switching.
+- **Known limitation**: `/sign/*` public routes use `InitializeTenancyByDomain` with `$onFail` passthrough (signers are external, no login).
 
-### Filament Panel
-- **Single panel**: `admin`
+### Filament Panels
+- **Two panels** (as of 2026-03-19):
+  - `admin` — tenant panel (all CCRS resources, registered at tenant subdomains via `InitializeTenancyByDomain`)
+  - `platform` — superadmin panel (tenant management, registered at `platform-ccrs.digittal.mobi`, uses `PlatformAdmin` model)
 - **21 Resources**: Contract, Counterparty, Entity, EntityShareholding, Region, Project, Jurisdiction, GoverningLaw, ContractType, WorkflowTemplate, SigningAuthority, WikiContract, MerchantAgreement, MerchantAgreementRequest, KycTemplate, OverrideRequest, AuditLog, Notification, RegulatoryFramework, VendorUser, User
 - **18 Pages**: Dashboard, AgreementRepository, AiCostReport, AiDiscoveryReview, AnalyticsDashboard, AzureLogin, BulkContractUpload, BulkDataUpload, Escalations, HelpGuide, KeyDates, MySignatures, NotificationPreferences, Notifications, OrganisationStructure, OrgVisualization, Reminders, Reports
 - **12 Widgets**: ContractStatus, ContractPipelineFunnel, ExpiryHorizon, PendingWorkflows, ComplianceOverview, RiskDistribution, ObligationTracker, WorkflowPerformance, ActiveEscalations, AiCost, AiUsageCost, AiProcessingBanner
@@ -200,18 +206,17 @@ All P0 items resolved and merged to `laravel-migration` (2026-03-15).
 | P0-6 | SQLite parity audit — all migrations already guarded, no changes needed | `feat/p0-sqlite-parity` | ✅ merged |
 | P0-7 | SharePoint governance doc at `docs/sharepoint-governance.md` | `docs/sharepoint-governance` | ✅ merged |
 
-**CTO-only items (infrastructure — not yet addressed):**
-- `APP_DEBUG=true` in `deploy/k8s/deployment.yaml` (line 45)
-- Hardcoded DB credentials in `deploy/k8s/deployment.yaml` (lines 58-59, 84, 155-161, 210)
-- Azure AD App Registration: `groupMembershipClaims` config + `Sites.Read.All`/`Files.Read.All` Graph permissions
+**CTO infrastructure items — all resolved (2026-03-19):**
+- ✅ `APP_DEBUG=false` set in K8s manifest
+- ✅ DB credentials moved to K8s Secrets
+- ✅ `groupMembershipClaims: "SecurityGroup"` set in Azure AD App Registration
+- ✅ `Sites.Read.All` + `Files.Read.All` Graph permissions admin-consented
 
 **Pre-existing test failures (unrelated to P0 work):**
 - `ContractAccessControlTest > it restricted contract is not in list for unauthorized user` — Filament HTTP render test; Livewire-level tests pass ✅
 - `UserManagement\UserResourceTest > it creates user with roles and sends invite email` — password validation issue in test setup
 
-**Cache bugs**: `org_structure_tree_data`, `contract_types.options`, `sharepoint_graph_token` — all need tenant-scoped keys.
-
-**Security**: `APP_DEBUG=true` in deployment.yaml (line 45), hardcoded DB credentials in deployment.yaml (lines 58-59, 84, 155-161, 210).
+**Cache keys**: `org_structure_tree_data`, `contract_types.options`, `sharepoint_graph_token` — all use `TenantCache::key()` for tenant scoping (resolved in P0-3 and F-6).
 
 ---
 
