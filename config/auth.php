@@ -45,6 +45,11 @@ return [
             'driver' => 'session',
             'provider' => 'vendors',
         ],
+
+        'superadmin' => [
+            'driver' => 'session',
+            'provider' => 'platform_admins',
+        ],
     ],
 
     /*
@@ -70,10 +75,14 @@ return [
             'model' => env('AUTH_MODEL', App\Models\User::class),
         ],
 
-
         'vendors' => [
             'driver' => 'eloquent',
-            'model'  => App\Models\VendorUser::class,
+            'model' => App\Models\VendorUser::class,
+        ],
+
+        'platform_admins' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\PlatformAdmin::class,
         ],
 
         // 'users' => [

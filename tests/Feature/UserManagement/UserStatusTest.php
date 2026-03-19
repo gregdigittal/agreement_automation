@@ -73,7 +73,9 @@ it('creates pending user for first-time SSO without pre-provisioned record', fun
     $socialiteUser->shouldReceive('getEmail')->andReturn('newuser@example.com');
     $socialiteUser->shouldReceive('getName')->andReturn('New User');
 
-    Socialite::shouldReceive('driver->user')->andReturn($socialiteUser);
+    Socialite::shouldReceive('driver')->with('azure')->andReturnSelf()
+        ->shouldReceive('redirectUrl')->andReturnSelf()
+        ->shouldReceive('user')->andReturn($socialiteUser);
 
     $response = $this->get(route('azure.callback'));
 
@@ -100,7 +102,9 @@ it('logs in pre-provisioned active user via SSO', function () {
     $socialiteUser->shouldReceive('getEmail')->andReturn('existing@example.com');
     $socialiteUser->shouldReceive('getName')->andReturn('Existing User');
 
-    Socialite::shouldReceive('driver->user')->andReturn($socialiteUser);
+    Socialite::shouldReceive('driver')->with('azure')->andReturnSelf()
+        ->shouldReceive('redirectUrl')->andReturnSelf()
+        ->shouldReceive('user')->andReturn($socialiteUser);
 
     $response = $this->get(route('azure.callback'));
 
@@ -122,7 +126,9 @@ it('shows pending screen for pending user on subsequent SSO', function () {
     $socialiteUser->shouldReceive('getEmail')->andReturn('pending@example.com');
     $socialiteUser->shouldReceive('getName')->andReturn('Pending User');
 
-    Socialite::shouldReceive('driver->user')->andReturn($socialiteUser);
+    Socialite::shouldReceive('driver')->with('azure')->andReturnSelf()
+        ->shouldReceive('redirectUrl')->andReturnSelf()
+        ->shouldReceive('user')->andReturn($socialiteUser);
 
     $response = $this->get(route('azure.callback'));
 
@@ -144,7 +150,9 @@ it('denies access to suspended user via SSO', function () {
     $socialiteUser->shouldReceive('getEmail')->andReturn('suspended@example.com');
     $socialiteUser->shouldReceive('getName')->andReturn('Suspended User');
 
-    Socialite::shouldReceive('driver->user')->andReturn($socialiteUser);
+    Socialite::shouldReceive('driver')->with('azure')->andReturnSelf()
+        ->shouldReceive('redirectUrl')->andReturnSelf()
+        ->shouldReceive('user')->andReturn($socialiteUser);
 
     $response = $this->get(route('azure.callback'));
 

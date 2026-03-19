@@ -10,6 +10,8 @@ it('GET /auth/azure/redirect returns a redirect to Microsoft OAuth endpoint', fu
     \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
         ->with('azure')
         ->andReturnSelf()
+        ->shouldReceive('redirectUrl')
+        ->andReturnSelf()
         ->shouldReceive('scopes')
         ->andReturnSelf()
         ->shouldReceive('redirect')
@@ -44,6 +46,8 @@ it('first-time SSO user is created with pending status and shown pending-approva
 
     \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
         ->with('azure')
+        ->andReturnSelf()
+        ->shouldReceive('redirectUrl')
         ->andReturnSelf()
         ->shouldReceive('user')
         ->andReturn($mockSocialiteUser);
@@ -90,6 +94,8 @@ it('existing active user with role logs in and is redirected to admin', function
 
     \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
         ->with('azure')
+        ->andReturnSelf()
+        ->shouldReceive('redirectUrl')
         ->andReturnSelf()
         ->shouldReceive('user')
         ->andReturn($mockSocialiteUser);
@@ -139,6 +145,8 @@ it('existing pending user is shown pending-approval view on re-login', function 
     \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
         ->with('azure')
         ->andReturnSelf()
+        ->shouldReceive('redirectUrl')
+        ->andReturnSelf()
         ->shouldReceive('user')
         ->andReturn($mockSocialiteUser);
 
@@ -180,6 +188,8 @@ it('suspended user is redirected to login with suspension error', function () {
     \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
         ->with('azure')
         ->andReturnSelf()
+        ->shouldReceive('redirectUrl')
+        ->andReturnSelf()
         ->shouldReceive('user')
         ->andReturn($mockSocialiteUser);
 
@@ -218,6 +228,8 @@ it('active user without any roles is redirected to login with no-access error', 
     \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
         ->with('azure')
         ->andReturnSelf()
+        ->shouldReceive('redirectUrl')
+        ->andReturnSelf()
         ->shouldReceive('user')
         ->andReturn($mockSocialiteUser);
 
@@ -235,6 +247,8 @@ it('active user without any roles is redirected to login with no-access error', 
 it('handles Azure AD authentication failure gracefully', function () {
     \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
         ->with('azure')
+        ->andReturnSelf()
+        ->shouldReceive('redirectUrl')
         ->andReturnSelf()
         ->shouldReceive('user')
         ->andThrow(new \Exception('OAuth token expired'));
@@ -274,6 +288,8 @@ it('after successful callback active user with role can access /admin', function
 
     \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
         ->with('azure')
+        ->andReturnSelf()
+        ->shouldReceive('redirectUrl')
         ->andReturnSelf()
         ->shouldReceive('user')
         ->andReturn($mockSocialiteUser);
@@ -323,6 +339,8 @@ it('user with Azure AD groups matching group_map gets roles synced and auto-acti
     \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
         ->with('azure')
         ->andReturnSelf()
+        ->shouldReceive('redirectUrl')
+        ->andReturnSelf()
         ->shouldReceive('user')
         ->andReturn($mockSocialiteUser);
 
@@ -362,6 +380,8 @@ it('user with Azure AD groups not in group_map is not auto-activated', function 
 
     \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
         ->with('azure')
+        ->andReturnSelf()
+        ->shouldReceive('redirectUrl')
         ->andReturnSelf()
         ->shouldReceive('user')
         ->andReturn($mockSocialiteUser);
@@ -407,6 +427,8 @@ it('existing active user has roles synced from Azure AD groups on re-login', fun
     \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
         ->with('azure')
         ->andReturnSelf()
+        ->shouldReceive('redirectUrl')
+        ->andReturnSelf()
         ->shouldReceive('user')
         ->andReturn($mockSocialiteUser);
 
@@ -416,4 +438,34 @@ it('existing active user has roles synced from Azure AD groups on re-login', fun
     // Role should now be 'commercial' (synced from group map), not 'legal'
     expect($user->hasRole('commercial'))->toBeTrue();
     expect($user->hasRole('legal'))->toBeFalse();
+});
+
+// ── 12. Azure AD multi-tenant: redirect_uri uses current request host ─────────
+
+it('Azure redirect uses the current request host as redirect_uri (R-4 multi-tenant)', function () {
+    // Simulate a request arriving on a tenant subdomain.
+    // The redirectUrl() call on the Socialite driver receives the dynamically
+    // generated URL from url('/auth/azure/callback'), which respects the Host header.
+    $capturedRedirectUrl = null;
+
+    $redirectTarget = 'https://login.microsoftonline.com/common/oauth2/authorize';
+
+    \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
+        ->with('azure')
+        ->andReturnSelf()
+        ->shouldReceive('redirectUrl')
+        ->once()
+        ->andReturnUsing(function (string $url) use (&$capturedRedirectUrl) {
+            $capturedRedirectUrl = $url;
+            return \Laravel\Socialite\Facades\Socialite::getFacadeRoot();
+        })
+        ->shouldReceive('scopes')
+        ->andReturnSelf()
+        ->shouldReceive('redirect')
+        ->andReturn(redirect()->away($redirectTarget));
+
+    $this->get(route('azure.redirect'), ['HTTP_HOST' => 'acme-ccrs.digittal.mobi']);
+
+    // The redirect URI should contain the current host, not a hardcoded APP_URL.
+    expect($capturedRedirectUrl)->toContain('/auth/azure/callback');
 });

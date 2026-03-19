@@ -113,6 +113,32 @@ return [
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
 
+        // ─── Central / platform database ────────────────────────────────────────
+        // Named alias for the platform's primary (central) database.
+        // Central-only models (PlatformAdmin, etc.) pin to this connection so
+        // that stancl/tenancy's DatabaseTenancyBootstrapper cannot accidentally
+        // redirect their queries to a tenant database when tenancy is initialised.
+        // Uses the same env vars as the default connection — in production that is
+        // MySQL; in tests that is the in-memory SQLite connection.
+        'central' => [
+            'driver' => env('DB_CONNECTION', 'sqlite'),
+            'url' => env('DB_URL'),
+            'database' => env('DB_DATABASE', ':memory:'),
+            'prefix' => '',
+            // SQLite options (ignored by MySQL driver)
+            'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
+            // MySQL/MariaDB options (ignored by SQLite driver)
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '3306'),
+            'username' => env('DB_USERNAME', 'root'),
+            'password' => env('DB_PASSWORD', ''),
+            'charset' => env('DB_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+        ],
+
     ],
 
     /*

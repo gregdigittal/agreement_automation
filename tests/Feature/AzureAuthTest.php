@@ -7,6 +7,8 @@ it('redirects to Azure for login', function () {
     \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
         ->with('azure')
         ->andReturnSelf()
+        ->shouldReceive('redirectUrl')
+        ->andReturnSelf()
         ->shouldReceive('scopes')
         ->andReturnSelf()
         ->shouldReceive('redirect')
@@ -38,6 +40,8 @@ it('creates user with pending status on first-time SSO callback', function () {
 
     \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
         ->with('azure')
+        ->andReturnSelf()
+        ->shouldReceive('redirectUrl')
         ->andReturnSelf()
         ->shouldReceive('user')
         ->andReturn($mockSocialiteUser);
@@ -72,6 +76,8 @@ it('shows pending-approval view for first-time user regardless of Azure groups',
 
     \Laravel\Socialite\Facades\Socialite::shouldReceive('driver')
         ->with('azure')
+        ->andReturnSelf()
+        ->shouldReceive('redirectUrl')
         ->andReturnSelf()
         ->shouldReceive('user')
         ->andReturn($mockSocialiteUser);

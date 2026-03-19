@@ -38,7 +38,9 @@ return [
     'azure' => [
         'client_id' => env('AZURE_AD_CLIENT_ID'),
         'client_secret' => env('AZURE_AD_CLIENT_SECRET'),
-        'redirect' => env('APP_URL') . '/auth/azure/callback',
+        // Fallback only — overridden at runtime in AzureAdController with url()
+        // so the redirect_uri matches the requesting tenant's subdomain.
+        'redirect' => env('AZURE_REDIRECT_URL', env('APP_URL', 'http://localhost') . '/auth/azure/callback'),
         'tenant' => env('AZURE_AD_TENANT_ID'),
         'proxy' => null,
     ],
