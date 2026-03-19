@@ -17,6 +17,9 @@ class PlatformAdmin extends Authenticatable
 {
     use HasFactory, HasUuids;
 
+    /** Always query the central (platform) database, never a tenant database. */
+    protected $connection = 'central';
+
     protected $table = 'platform_admins';
 
     public $incrementing = false;

@@ -22,6 +22,16 @@ abstract class TestCase extends BaseTestCase
                 '--realpath' => false,
             ]);
 
+            // Mirror central-schema migrations onto the 'central' named connection so that
+            // models pinned to it (e.g. PlatformAdmin) can find their tables in tests.
+            // SQLite :memory: creates an isolated DB per named connection — RefreshDatabase
+            // only migrates the default connection, so we must explicitly seed 'central' too.
+            $this->artisan('migrate', [
+                '--database' => 'central',
+                '--path' => 'database/migrations',
+                '--realpath' => false,
+            ]);
+
             $this->seed(\Database\Seeders\RoleSeeder::class);
         }
     }

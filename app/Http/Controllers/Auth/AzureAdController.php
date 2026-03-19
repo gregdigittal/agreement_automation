@@ -15,7 +15,12 @@ class AzureAdController extends Controller
 {
     public function redirect()
     {
+        // redirectUrl() uses the current request's host so the OAuth redirect_uri
+        // matches the tenant subdomain (e.g. acme-ccrs.digittal.mobi) rather than
+        // the static APP_URL. Azure's wildcard reply URL (*.digittal.mobi) accepts any
+        // tenant subdomain — CTO confirmed this is configured in the App Registration.
         return Socialite::driver('azure')
+            ->redirectUrl(url('/auth/azure/callback'))
             ->scopes(['openid', 'profile', 'email', 'User.Read'])
             ->redirect();
     }
@@ -23,7 +28,11 @@ class AzureAdController extends Controller
     public function callback()
     {
         try {
-            $socialiteUser = Socialite::driver('azure')->user();
+            // Must pass the same dynamic redirectUrl here, or Azure will reject the
+            // token exchange (redirect_uri mismatch).
+            $socialiteUser = Socialite::driver('azure')
+                ->redirectUrl(url('/auth/azure/callback'))
+                ->user();
         } catch (\Exception $e) {
             Log::error('Azure AD callback failed', ['error' => $e->getMessage()]);
 

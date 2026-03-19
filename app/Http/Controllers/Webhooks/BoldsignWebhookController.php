@@ -19,7 +19,7 @@ use Illuminate\Http\Request;
  */
 class BoldsignWebhookController extends Controller
 {
-    public function handle(Request $request): JsonResponse
+    public function handle(Request $request, string $tenant_slug): JsonResponse
     {
         $secret = config('ccrs.boldsign_webhook_secret');
         $signature = $request->header('X-BoldSign-Signature') ?? $request->header('Boldsign-Signature') ?? '';

@@ -36,8 +36,13 @@ Route::get('/', function () {
 });
 
 Route::get('/login', fn () => redirect('/admin/login'))->name('login');
-Route::get('/auth/azure/redirect', [AzureAdController::class, 'redirect'])->name('azure.redirect');
-Route::get('/auth/azure/callback', [AzureAdController::class, 'callback'])->name('azure.callback');
+// Azure SSO — InitializeTenancyByDomain middleware ensures the User is created in
+// the correct tenant database on callback. $onFail passes through on central/localhost
+// so development and sandbox environments work without a tenant domain.
+Route::middleware(\Stancl\Tenancy\Middleware\InitializeTenancyByDomain::class)->group(function () {
+    Route::get('/auth/azure/redirect', [AzureAdController::class, 'redirect'])->name('azure.redirect');
+    Route::get('/auth/azure/callback', [AzureAdController::class, 'callback'])->name('azure.callback');
+});
 Route::post('/logout', function () {
     Auth::logout();
     request()->session()->invalidate();
@@ -59,25 +64,9 @@ Route::get('/contracts/{contract}/download', function (\App\Models\Contract $con
     return $url ? redirect($url) : abort(404);
 })->middleware('auth')->name('contract.download');
 
-// Vendor Portal Auth
-Route::get('/vendor/login', fn () => view('vendor.login'))->name('vendor.login');
-Route::post('/vendor/auth/request', [\App\Http\Controllers\VendorAuthController::class, 'requestLink'])->name('vendor.auth.request')->middleware('throttle:magic-link');
-Route::get('/vendor/auth/verify/{token}', [\App\Http\Controllers\VendorAuthController::class, 'verify'])->name('vendor.auth.verify');
-Route::post('/vendor/logout', [\App\Http\Controllers\VendorAuthController::class, 'logout'])->name('vendor.logout');
-
-Route::get('/vendor/contracts/{contract}/download', function (\App\Models\Contract $contract) {
-    $user = auth('vendor')->user();
-    if (! $user || $contract->counterparty_id !== $user->counterparty_id) {
-        abort(403);
-    }
-    if (! $contract->storage_path) {
-        abort(404, 'No document uploaded for this contract.');
-    }
-    $service = app(\App\Services\ContractFileService::class);
-    $url = $service->getSignedUrl($contract->storage_path);
-
-    return $url ? redirect($url) : abort(404);
-})->middleware('auth:vendor')->name('vendor.contract.download');
+// Vendor Portal Auth routes are registered in routes/tenant.php so that
+// InitializeTenancyByDomain runs and VendorUser queries are routed to the
+// correct tenant database. See routes/tenant.php for all /vendor/* routes.
 
 use App\Http\Controllers\Reports\ReportExportController;
 
